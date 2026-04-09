@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  PARENT
+  CHILD
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  LOAN
+  DEBT
+  TRANSFER
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String         // hashed
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  familyMembers FamilyMember[]
+  cards         CardStakeholder[]
+  transactions  Transaction[]
+}
+
+model Family {
+  id            String         @id @default(cuid())
+  name          String
+  createdBy     String         // userId
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  members       FamilyMember[]
+  cards         Card[]
+  assets        Asset[]
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  familyId  String
+  userId    String
+  role      Role
+  joinedAt  DateTime @default(now())
+
+  family   Family @relation(fields: [familyId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([familyId, userId])
+}
+
+model Card {
+  id            String   @id @default(cuid())
+  familyId      String
+  name          String
+  type          String   // debit, emoney, ewallet
+  initialBalance Float?  // saldo awal manual
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  family        Family            @relation(fields: [familyId], references: [id])
+  stakeholders  CardStakeholder[]
+  transactions  Transaction[]
+}
+
+model CardStakeholder {
+  cardId    String
+  userId    String
+  canEdit   Boolean  @default(true)
+
+  card Card @relation(fields: [cardId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([cardId, userId])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  cardId      String
+  amount      Float
+  type        TransactionType
+  category    String?
+  description String?
+  createdById String
+  createdAt   DateTime        @default(now())
+
+  card        Card   @relation(fields: [cardId], references: [id])
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  // untuk transfer: jika type=TRANSFER, kita bisa simpan relatedTransactionId
+  relatedTransactionId String?
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  familyId  String
+  name      String
+  ownerName String   // sesuai dokumen
+  value     Float?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+}
