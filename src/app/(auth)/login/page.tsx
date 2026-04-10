@@ -7,7 +7,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ const loginSchema = z.object({
   email: z
     .string()
     .min(1, "Email wajib diisi")
-    .email("Format email tidak valid, contoh: nama@email.com"),
+    .email("Format email tidak valid"),
   password: z
     .string()
     .min(1, "Password wajib diisi")
@@ -23,8 +23,6 @@ const loginSchema = z.object({
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
-
-// ─── Error messages ───────────────────────────────────────────────────────────
 
 const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email atau password salah. Silakan coba lagi.",
@@ -35,36 +33,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   Default:           "Terjadi kesalahan. Silakan coba beberapa saat lagi.",
 };
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
-
-function EyeOpenIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12s3.636-7 10-7 10 7 10 7-3.636 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 3l18 18" />
-      <path d="M10.58 10.58A2 2 0 0 0 13.42 13.42" />
-      <path d="M9.363 5.365A9.466 9.466 0 0 1 12 5c4.418 0 8 3.582 8 8a9.465 9.465 0 0 1-.535 2.637" />
-      <path d="M14.636 18.635A9.466 9.466 0 0 1 12 19c-4.418 0-8-3.582-8-8 0-.88.136-1.73.386-2.527" />
-    </svg>
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M7 17L17 7M17 7H7M17 7V17" />
-    </svg>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
@@ -74,10 +42,10 @@ export default function LoginPage() {
   const [serverError,    setServerError]    = useState<string | null>(null);
   const [showPassword,   setShowPassword]   = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [activeTab,      setActiveTab]      = useState<"signin" | "signup">("signin");
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") setJustRegistered(true);
-
     const errorParam = searchParams.get("error");
     if (errorParam) {
       setServerError(ERROR_MESSAGES[errorParam] ?? ERROR_MESSAGES.Default);
@@ -112,140 +80,197 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-svh bg-[#0f0f0f] flex items-center justify-center p-5 overflow-hidden">
-      <div className="relative z-10 w-full max-w-4xl flex flex-col md:flex-row items-center justify-center gap-10 md:gap-20">
+    <div className="min-h-svh bg-[#f0f0f0] flex items-center justify-center p-4">
+      <div className="w-full max-w-[900px] bg-white rounded-[24px] overflow-hidden shadow-2xl flex min-h-[560px]">
 
-        {/* Card */}
-        <div className="w-full max-w-[390px] bg-[#c8f135] rounded-3xl p-7 md:p-8 shadow-[0_32px_80px_rgba(0,0,0,0.5)] flex flex-col gap-6">
+        {/* ── Left panel: form ── */}
+        <div className="flex-1 flex flex-col p-10 md:p-12">
 
-          <div>
-            <p className="text-[#4a6010] text-[11px] font-semibold tracking-widest uppercase mb-1">Login</p>
-            <h2 className="text-[1.75rem] font-extrabold text-[#0f0f0f] tracking-tight leading-tight">
-              Welcome Back
-            </h2>
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 mb-8">
+            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" />
+              </svg>
+            </div>
+            <span className="font-semibold text-[15px] text-gray-900 tracking-tight">FinKeluarga</span>
           </div>
 
+          {/* Heading */}
+          <div className="mb-7">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
+              Welcome Back!
+            </h1>
+            <p className="text-sm text-gray-400">We Are Happy To See You Again</p>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex bg-gray-100 rounded-xl p-1 mb-7 w-full">
+            <button
+              type="button"
+              onClick={() => setActiveTab("signin")}
+              className={[
+                "flex-1 text-sm font-medium py-2 rounded-lg transition-all duration-150",
+                activeTab === "signin"
+                  ? "bg-[#4C8EF7] text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+              ].join(" ")}
+            >
+              Sign In
+            </button>
+            <Link
+              href="/register"
+              onClick={() => setActiveTab("signup")}
+              className={[
+                "flex-1 text-sm font-medium py-2 rounded-lg transition-all duration-150 text-center",
+                activeTab === "signup"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700",
+              ].join(" ")}
+            >
+              Sign Up
+            </Link>
+          </div>
+
+          {/* Alerts */}
           {justRegistered && (
-            <div role="alert" className="flex items-center gap-2 rounded-xl border border-green-700/30 bg-green-600/15 px-3.5 py-3 text-[0.8125rem] text-green-800">
-              <CheckCircle2 size={15} className="shrink-0" />
+            <div role="alert" className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-[13px] text-green-700 mb-5">
+              <CheckCircle2 size={14} className="shrink-0" />
               Akun berhasil dibuat! Silakan masuk.
             </div>
           )}
-
           {serverError && (
-            <div role="alert" className="flex items-center gap-2 rounded-xl border border-red-600/30 bg-red-500/15 px-3.5 py-3 text-[0.8125rem] text-red-800">
-              <AlertCircle size={15} className="shrink-0" />
+            <div role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 mb-5">
+              <AlertCircle size={14} className="shrink-0" />
               {serverError}
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3">
 
             {/* Email */}
-            <div className="flex flex-col gap-1.5">
-              <input
-                id="email"
-                type="email"
-                placeholder="email"
-                autoComplete="email"
-                autoFocus
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                {...register("email")}
-                className={[
-                  "w-full bg-white rounded-2xl px-5 py-4 text-sm text-[#0f0f0f] placeholder:text-[#aaa]",
-                  "outline-none border-2 transition-all duration-150",
-                  errors.email
-                    ? "border-red-400 shadow-[0_0_0_3px_rgba(239,68,68,0.15)]"
-                    : "border-transparent focus:border-[#8ab820] focus:shadow-[0_0_0_3px_rgba(138,184,32,0.2)]",
-                ].join(" ")}
-              />
+            <div className="flex flex-col gap-1">
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  autoComplete="email"
+                  autoFocus
+                  aria-invalid={!!errors.email}
+                  {...register("email")}
+                  className={[
+                    "w-full bg-gray-50 rounded-xl px-4 py-3.5 pr-11 text-sm text-gray-900 placeholder:text-gray-400",
+                    "outline-none border transition-all duration-150",
+                    errors.email
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200 focus:border-[#4C8EF7] focus:bg-white focus:ring-4 focus:ring-[#4C8EF7]/10",
+                  ].join(" ")}
+                />
+                <Mail size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              </div>
               {errors.email && (
-                <p id="email-error" role="alert" className="flex items-center gap-1 text-[0.75rem] text-red-700 pl-1">
-                  <AlertCircle size={11} className="shrink-0" />
-                  {errors.email.message}
+                <p role="alert" className="text-[12px] text-red-500 pl-1 flex items-center gap-1">
+                  <AlertCircle size={11} className="shrink-0" />{errors.email.message}
                 </p>
               )}
             </div>
 
             {/* Password */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <div className="relative">
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="password"
+                  placeholder="Enter your password"
                   autoComplete="current-password"
                   aria-invalid={!!errors.password}
-                  aria-describedby={errors.password ? "password-error" : undefined}
                   {...register("password")}
                   className={[
-                    "w-full bg-white rounded-2xl px-5 py-4 pr-14 text-sm text-[#0f0f0f] placeholder:text-[#aaa]",
-                    "outline-none border-2 transition-all duration-150",
+                    "w-full bg-gray-50 rounded-xl px-4 py-3.5 pr-11 text-sm text-gray-900 placeholder:text-gray-400",
+                    "outline-none border transition-all duration-150",
                     errors.password
-                      ? "border-red-400 shadow-[0_0_0_3px_rgba(239,68,68,0.15)]"
-                      : "border-transparent focus:border-[#8ab820] focus:shadow-[0_0_0_3px_rgba(138,184,32,0.2)]",
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-200 focus:border-[#4C8EF7] focus:bg-white focus:ring-4 focus:ring-[#4C8EF7]/10",
                   ].join(" ")}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#bbb] hover:text-[#666] transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeOpenIcon />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {errors.password && (
-                <p id="password-error" role="alert" className="flex items-center gap-1 text-[0.75rem] text-red-700 pl-1">
-                  <AlertCircle size={11} className="shrink-0" />
-                  {errors.password.message}
+                <p role="alert" className="text-[12px] text-red-500 pl-1 flex items-center gap-1">
+                  <AlertCircle size={11} className="shrink-0" />{errors.password.message}
                 </p>
               )}
+            </div>
+
+            {/* Remember + Forgot */}
+            <div className="flex items-center justify-between mt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div className="relative">
+                  <input type="checkbox" className="peer sr-only" />
+                  <div className="w-4 h-4 rounded-full border-2 border-[#4C8EF7] flex items-center justify-center peer-checked:bg-[#4C8EF7] transition-colors">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                  </div>
+                </div>
+                <span className="text-[13px] text-gray-500">Remember me</span>
+              </label>
+              <Link href="/forgot-password" className="text-[13px] text-[#4C8EF7] hover:underline font-medium">
+                Forgot Password?
+              </Link>
             </div>
 
             {/* Submit */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-1 w-full bg-[#8ab820] hover:bg-[#7aa515] text-white font-bold rounded-2xl py-4 text-sm flex items-center justify-center gap-2.5 transition-all duration-150 hover:-translate-y-px hover:shadow-[0_8px_24px_rgba(100,150,0,0.35)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              className="mt-2 w-full bg-[#4C8EF7] hover:bg-[#3a7ef0] active:bg-[#2d6fe8] text-white font-semibold rounded-xl py-3.5 text-sm flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_16px_rgba(76,142,247,0.35)]"
             >
-              {isSubmitting ? (
-                <><Loader2 size={16} className="animate-spin" /> Memproses...</>
-              ) : (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7 17L17 7M17 7H7M17 7V17" />
-                  </svg>
-                  Login
-                </>
-              )}
+              {isSubmitting
+                ? <><Loader2 size={15} className="animate-spin" /> Memproses...</>
+                : "Login"
+              }
             </button>
           </form>
+        </div>
 
-          {/* Footer links */}
-          <div className="flex flex-col gap-2.5">
-            <Link href="/forgot-password" className="flex items-center gap-2.5 group">
-              <span className="w-6 h-6 rounded-full bg-[#0f0f0f] flex items-center justify-center text-[#c8f135] flex-shrink-0 group-hover:bg-[#2a2a2a] transition-colors">
-                <ArrowIcon />
-              </span>
-              <span className="text-[0.8125rem] font-medium text-[#0f0f0f] group-hover:opacity-60 transition-opacity">
-                Forgot Password?
-              </span>
-            </Link>
-
-            <Link href="/register" className="flex items-center gap-2.5 group">
-              <span className="w-6 h-6 rounded-full bg-[#0f0f0f] flex items-center justify-center text-[#c8f135] flex-shrink-0 group-hover:bg-[#2a2a2a] transition-colors">
-                <ArrowIcon />
-              </span>
-              <span className="text-[0.8125rem] font-medium text-[#0f0f0f] group-hover:opacity-60 transition-opacity">
-                Don&apos;t have an account?{" "}
-                <strong className="underline underline-offset-2">Sign Up</strong>
-              </span>
-            </Link>
+        {/* ── Right panel: decorative ── */}
+        <div className="hidden md:flex flex-1 relative overflow-hidden bg-[#0a1628] items-end">
+          {/* Animated fluid blobs */}
+          <div className="absolute inset-0">
+            <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] rounded-full bg-[#1a3a8f] opacity-60 blur-[60px]" />
+            <div className="absolute top-[20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-[#3060d0] opacity-40 blur-[80px]" />
+            <div className="absolute bottom-[-10%] right-[10%] w-[50%] h-[50%] rounded-full bg-[#0a2070] opacity-70 blur-[50px]" />
+            <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] rounded-full bg-[#5080ff] opacity-30 blur-[70px]" />
           </div>
 
+          {/* Fluid SVG shapes */}
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 560" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="g1" cx="50%" cy="30%" r="60%">
+                <stop offset="0%" stopColor="#4C8EF7" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#0a1628" stopOpacity="0" />
+              </radialGradient>
+              <radialGradient id="g2" cx="30%" cy="70%" r="50%">
+                <stop offset="0%" stopColor="#1a5fff" stopOpacity="0.5" />
+                <stop offset="100%" stopColor="#0a1628" stopOpacity="0" />
+              </radialGradient>
+            </defs>
+            <ellipse cx="300" cy="150" rx="200" ry="180" fill="url(#g1)" />
+            <ellipse cx="100" cy="400" rx="180" ry="160" fill="url(#g2)" />
+            <path d="M 50 200 Q 200 100 350 250 Q 400 350 200 450 Q 50 500 0 350 Z" fill="#1e40af" fillOpacity="0.25" />
+            <path d="M 150 50 Q 350 0 400 150 Q 420 300 280 350 Q 150 380 100 250 Z" fill="#3b82f6" fillOpacity="0.2" />
+            <path d="M 0 300 Q 100 200 250 280 Q 380 350 350 480 Q 200 560 0 480 Z" fill="#1d4ed8" fillOpacity="0.3" />
+          </svg>
         </div>
+
       </div>
     </div>
   );
