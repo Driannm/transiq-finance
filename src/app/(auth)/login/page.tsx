@@ -7,7 +7,15 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  BadgeAlertIcon,
+  CheckmarkBadge02Icon,
+  Mail01Icon,
+  ReloadIcon,
+  ViewIcon,
+  ViewOffSlashIcon,
+} from "@hugeicons/core-free-icons";
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -26,23 +34,24 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const ERROR_MESSAGES: Record<string, string> = {
   CredentialsSignin: "Email atau password salah. Silakan coba lagi.",
-  RateLimited:       "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
-  EmailNotVerified:  "Email kamu belum diverifikasi. Cek inbox untuk link aktivasi.",
-  SessionRequired:   "Sesi kamu telah habis. Silakan login kembali.",
-  UserDeleted:       "Akun kamu tidak ditemukan. Silakan hubungi admin.",
-  Default:           "Terjadi kesalahan. Silakan coba beberapa saat lagi.",
+  RateLimited: "Terlalu banyak percobaan login. Coba lagi dalam 15 menit.",
+  EmailNotVerified:
+    "Email kamu belum diverifikasi. Cek inbox untuk link aktivasi.",
+  SessionRequired: "Sesi kamu telah habis. Silakan login kembali.",
+  UserDeleted: "Akun kamu tidak ditemukan. Silakan hubungi admin.",
+  Default: "Terjadi kesalahan. Silakan coba beberapa saat lagi.",
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LoginPage() {
-  const router       = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [serverError,    setServerError]    = useState<string | null>(null);
-  const [showPassword,   setShowPassword]   = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
-  const [activeTab,      setActiveTab]      = useState<"signin" | "signup">("signin");
+  const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") setJustRegistered(true);
@@ -65,9 +74,9 @@ export default function LoginPage() {
     setJustRegistered(false);
 
     const result = await signIn("credentials", {
-      redirect:  false,
-      email:     data.email.toLowerCase().trim(),
-      password:  data.password,
+      redirect: false,
+      email: data.email.toLowerCase().trim(),
+      password: data.password,
     });
 
     if (result?.ok) {
@@ -82,10 +91,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-svh bg-[#f0f0f0] flex items-center justify-center p-4">
       <div className="w-full max-w-[900px] bg-white rounded-[24px] overflow-hidden shadow-2xl flex min-h-[560px]">
-
         {/* ── Left panel: form ── */}
         <div className="flex-1 flex flex-col p-10 md:p-12">
-
           {/* Logo */}
           <div className="flex items-center gap-2.5 mb-8">
             <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
@@ -93,7 +100,9 @@ export default function LoginPage() {
                 <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" />
               </svg>
             </div>
-            <span className="font-semibold text-[15px] text-gray-900 tracking-tight">FinKeluarga</span>
+            <span className="font-semibold text-[15px] text-gray-900 tracking-tight">
+              FinKeluarga
+            </span>
           </div>
 
           {/* Heading */}
@@ -101,7 +110,9 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
               Welcome Back!
             </h1>
-            <p className="text-sm text-gray-400">We Are Happy To See You Again</p>
+            <p className="text-sm text-gray-400">
+              We Are Happy To See You Again
+            </p>
           </div>
 
           {/* Tabs */}
@@ -134,21 +145,38 @@ export default function LoginPage() {
 
           {/* Alerts */}
           {justRegistered && (
-            <div role="alert" className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-[13px] text-green-700 mb-5">
-              <CheckCircle2 size={14} className="shrink-0" />
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-[13px] text-green-700 mb-5"
+            >
+              <HugeiconsIcon
+                icon={CheckmarkBadge02Icon}
+                size={14}
+                className="shrink-0"
+              />
               Akun berhasil dibuat! Silakan masuk.
             </div>
           )}
           {serverError && (
-            <div role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 mb-5">
-              <AlertCircle size={14} className="shrink-0" />
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 mb-5"
+            >
+              <HugeiconsIcon
+                icon={BadgeAlertIcon}
+                size={14}
+                className="shrink-0"
+              />
               {serverError}
             </div>
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-3">
-
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
+            className="flex flex-col gap-3"
+          >
             {/* Email */}
             <div className="flex flex-col gap-1">
               <div className="relative">
@@ -168,11 +196,23 @@ export default function LoginPage() {
                       : "border-gray-200 focus:border-[#4C8EF7] focus:bg-white focus:ring-4 focus:ring-[#4C8EF7]/10",
                   ].join(" ")}
                 />
-                <Mail size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <HugeiconsIcon
+                  icon={Mail01Icon}
+                  size={16}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                />
               </div>
               {errors.email && (
-                <p role="alert" className="text-[12px] text-red-500 pl-1 flex items-center gap-1">
-                  <AlertCircle size={11} className="shrink-0" />{errors.email.message}
+                <p
+                  role="alert"
+                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
+                >
+                  <HugeiconsIcon
+                    icon={BadgeAlertIcon}
+                    size={14}
+                    className="shrink-0"
+                  />
+                  {errors.email.message}
                 </p>
               )}
             </div>
@@ -198,15 +238,29 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                  aria-label={
+                    showPassword ? "Sembunyikan password" : "Tampilkan password"
+                  }
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? (
+                    <HugeiconsIcon icon={ViewIcon} size={16} />
+                  ) : (
+                    <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
+                  )}
                 </button>
               </div>
               {errors.password && (
-                <p role="alert" className="text-[12px] text-red-500 pl-1 flex items-center gap-1">
-                  <AlertCircle size={11} className="shrink-0" />{errors.password.message}
+                <p
+                  role="alert"
+                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
+                >
+                  <HugeiconsIcon
+                    icon={BadgeAlertIcon}
+                    size={14}
+                    className="shrink-0"
+                  />
+                  {errors.password.message}
                 </p>
               )}
             </div>
@@ -222,7 +276,10 @@ export default function LoginPage() {
                 </div>
                 <span className="text-[13px] text-gray-500">Remember me</span>
               </label>
-              <Link href="/forgot-password" className="text-[13px] text-[#4C8EF7] hover:underline font-medium">
+              <Link
+                href="/forgot-password"
+                className="text-[13px] text-[#4C8EF7] hover:underline font-medium"
+              >
                 Forgot Password?
               </Link>
             </div>
@@ -233,10 +290,18 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="mt-2 w-full bg-[#4C8EF7] hover:bg-[#3a7ef0] active:bg-[#2d6fe8] text-white font-semibold rounded-xl py-3.5 text-sm flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_16px_rgba(76,142,247,0.35)]"
             >
-              {isSubmitting
-                ? <><Loader2 size={15} className="animate-spin" /> Memproses...</>
-                : "Login"
-              }
+              {isSubmitting ? (
+                <>
+                  <HugeiconsIcon
+                    icon={ReloadIcon}
+                    size={15}
+                    className="animate-spin"
+                  />{" "}
+                  Memproses...
+                </>
+              ) : (
+                "Login"
+              )}
             </button>
           </form>
         </div>
@@ -252,7 +317,12 @@ export default function LoginPage() {
           </div>
 
           {/* Fluid SVG shapes */}
-          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 560" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            className="absolute inset-0 w-full h-full"
+            viewBox="0 0 400 560"
+            preserveAspectRatio="xMidYMid slice"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <defs>
               <radialGradient id="g1" cx="50%" cy="30%" r="60%">
                 <stop offset="0%" stopColor="#4C8EF7" stopOpacity="0.6" />
@@ -265,12 +335,23 @@ export default function LoginPage() {
             </defs>
             <ellipse cx="300" cy="150" rx="200" ry="180" fill="url(#g1)" />
             <ellipse cx="100" cy="400" rx="180" ry="160" fill="url(#g2)" />
-            <path d="M 50 200 Q 200 100 350 250 Q 400 350 200 450 Q 50 500 0 350 Z" fill="#1e40af" fillOpacity="0.25" />
-            <path d="M 150 50 Q 350 0 400 150 Q 420 300 280 350 Q 150 380 100 250 Z" fill="#3b82f6" fillOpacity="0.2" />
-            <path d="M 0 300 Q 100 200 250 280 Q 380 350 350 480 Q 200 560 0 480 Z" fill="#1d4ed8" fillOpacity="0.3" />
+            <path
+              d="M 50 200 Q 200 100 350 250 Q 400 350 200 450 Q 50 500 0 350 Z"
+              fill="#1e40af"
+              fillOpacity="0.25"
+            />
+            <path
+              d="M 150 50 Q 350 0 400 150 Q 420 300 280 350 Q 150 380 100 250 Z"
+              fill="#3b82f6"
+              fillOpacity="0.2"
+            />
+            <path
+              d="M 0 300 Q 100 200 250 280 Q 380 350 350 480 Q 200 560 0 480 Z"
+              fill="#1d4ed8"
+              fillOpacity="0.3"
+            />
           </svg>
         </div>
-
       </div>
     </div>
   );
