@@ -1,115 +1,252 @@
+"use client";
+
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Download03Icon, Upload03Icon, Wallet01Icon } from "@hugeicons/core-free-icons";
+import { IslandNavbar, NavbarAction } from "@/components/Layout/MobileHeader";
+import { QuickAddGrid } from "@/components/Dashboard/QuickActions";
 
-import { DashboardHeader } from "@/components/Dashboard/DashboardHeader";
-import { StatCard } from "@/components/Dashboard/StatCard";
-import { AnalyticsChart } from "@/components/Dashboard/AnalyticsChart";
-import { TransactionList } from "@/components/Dashboard/TransactionList";
-import { ActionPanel } from "@/components/Dashboard/ActionPanel";
-import { StockPortfolioChart } from "@/components/Dashboard/StockPortfolioChart";
-import { QuickLinkCard } from "@/components/Dashboard/QuickLinkCard";
+import {
+  SentIcon,
+  Invoice02Icon,
+  TrendingUp,
+  CreditCardIcon,
+  ArrowDataTransferDiagonalIcon,
+  Add01Icon,
+  SparklesIcon,
+  ShoppingBag01Icon,
+  Coffee01Icon,
+  Car01Icon,
+  MoneyAdd01Icon,
+  MoneySend01Icon,
+  MoneyReceive01Icon,
+  MoneySendSquareIcon,
+  MoneyReceiveSquareIcon,
+  Search01Icon,
+  Setting07Icon,
+  Download04Icon,
+  FilterHorizontalIcon,
+} from "@hugeicons/core-free-icons";
 
-const STAT_CARDS = [
-  {
-    label: "Balance",
-    value: "$1,655",
-    change: "+12%",
-    changePositive: true,
-    bgColor: "bg-violet-100",
-    iconBg: "bg-violet-200",
-    icon: <HugeiconsIcon icon={Wallet01Icon} />,
-  },
+// ================= DATA =================
+
+const quickActions = [
   {
     label: "Income",
-    value: "$435",
-    change: "+4%",
-    changePositive: true,
-    bgColor: "bg-purple-100",
-    iconBg: "bg-purple-200",
-    icon: <HugeiconsIcon icon={Download03Icon} />,
+    icon: MoneyReceiveSquareIcon,
+    path: "/income",
+    iconClassName: "text-green-500",
+    containerClassName: "bg-green-50",
   },
   {
     label: "Expenses",
-    value: "$842",
-    change: "-2%",
-    changePositive: false,
-    bgColor: "bg-green-100",
-    iconBg: "bg-green-200",
-    icon: <HugeiconsIcon icon={Upload03Icon} />,
-  },
-];
-
-const TRANSACTIONS = [
-  {
-    label: "Today",
-    items: [
-      { id: "1", name: "Stoneblack", description: "Payment for goods", amount: -23, date: "Today", avatarBg: "bg-gray-800", avatarFallback: "S" },
-      { id: "2", name: "WorldTok", description: "Shares", amount: 45, date: "Today", avatarBg: "bg-orange-500", avatarFallback: "W" },
-      { id: "3", name: "Niko", description: "Transfer", amount: 30, date: "Today", avatarBg: "bg-violet-500", avatarFallback: "N" },
-    ],
+    icon: MoneySendSquareIcon,
+    path: "/expenses",
+    iconClassName: "text-red-500",
+    containerClassName: "bg-red-50",
   },
   {
-    label: "September 14, Sat",
-    items: [
-      { id: "4", name: "Viky", description: "Transfer", amount: 23, date: "Sep 14", avatarBg: "bg-rose-400", avatarFallback: "V" },
-      { id: "5", name: "GreenCo", description: "Payment for goods", amount: -140, date: "Sep 14", avatarBg: "bg-emerald-600", avatarFallback: "G" },
-    ],
+    label: "Debts",
+    icon: MoneySend01Icon,
+    onClick: () => console.log("Open debt modal"),
+    iconClassName: "text-orange-500",
+    containerClassName: "bg-orange-50",
+  },
+  {
+    label: "Loans",
+    icon: MoneyReceive01Icon,
+    path: "/loans",
+    iconClassName: "text-teal-500",
+    containerClassName: "bg-teal-50",
   },
 ];
 
-const FAVORITE_SPENDS = [
-  { name: "VK",   color: "bg-blue-600",   icon: <span className="text-[10px] font-bold">VK</span> },
-  { name: "OK",   color: "bg-orange-500", icon: <span className="text-[10px] font-bold">OK</span> },
-  { name: "Snap", color: "bg-yellow-400", icon: <span className="text-[10px] font-bold">👻</span> },
+const actions: NavbarAction[] = [
+  {
+    icon: <HugeiconsIcon icon={Setting07Icon} size={15} />,
+    label: "Setting",
+    onPress: () => console.log("Setting clicked"),
+  },
 ];
 
-const QUICK_LINKS = [
-  { label: "Investments",    imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400&q=80", imageAlt: "Investments" },
-  { label: "Your finances",  imageUrl: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80", imageAlt: "Your finances" },
-  { label: "Piggy bank",     imageUrl: "https://images.unsplash.com/photo-1635840420799-f75477b0b977?w=400&q=80", imageAlt: "Piggy bank" },
+const transactions = [
+  {
+    id: 1,
+    name: "Apple Store",
+    category: "Household Goods",
+    time: "10:23 AM",
+    type: "expense",
+    amount: 129.0,
+    icon: ShoppingBag01Icon,
+    bg: "bg-red-100",
+  },
+  {
+    id: 2,
+    name: "Starbucks Coffee",
+    category: "Food & Drinks",
+    time: "10:24 AM",
+    type: "expense",
+    amount: 12.5,
+    icon: Coffee01Icon,
+    bg: "bg-red-100",
+  },
+  {
+    id: 3,
+    name: "Uber",
+    category: "Transport",
+    time: "08:45 AM",
+    type: "expense",
+    amount: 24.8,
+    icon: Car01Icon,
+    bg: "bg-red-100",
+  },
+  {
+    id: 4,
+    name: "Payroll",
+    category: "Salary",
+    time: "05:00 AM",
+    type: "income",
+    amount: 4250.0,
+    icon: MoneyAdd01Icon,
+    bg: "bg-green-100",
+  },
+  {
+    id: 5,
+    name: "Apple Store",
+    category: "Electronics",
+    time: "10:23 AM",
+    type: "expense",
+    amount: 129.0,
+    icon: ShoppingBag01Icon,
+    bg: "bg-red-100",
+  },
 ];
+
+// ================= PAGE =================
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-5">
-
-      <DashboardHeader userName="Gabby" notificationCount={3} />
-
-      {/* Row 1 */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_420px] gap-5">
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">Overview</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {STAT_CARDS.map((card) => (
-              <StatCard key={card.label} {...card} />
-            ))}
+    <div className="min-h-screen bg-gray-100 pb-24 font-sans">
+      {/* Header */}
+      <IslandNavbar title="Dashboard" initials="JJ" actions={actions} />
+      {/* Balance Card */}
+      <div className="px-4 pt-4">
+        <div
+          className="relative overflow-hidden rounded-3xl p-6"
+          style={{ background: "#1A3FA8" }}
+        >
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-[11px] uppercase tracking-widest text-white/60">
+                Total Balance
+              </p>
+              <p className="mt-1.5 text-[42px] font-extrabold leading-none tracking-tight text-white">
+                $42,853
+                <span className="text-2xl font-semibold opacity-85">.00</span>
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <AnalyticsChart />
+
+          <div className="relative mt-5 flex gap-2.5">
+            <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-bold text-blue-700">
+              <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={17} />
+              Transfer
+            </button>
+            <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/[0.12] py-3.5 text-sm font-bold text-white">
+              <HugeiconsIcon icon={Add01Icon} size={17} />
+              Add Funds
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] xl:grid-cols-[320px_1fr_180px] gap-5">
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <TransactionList groups={TRANSACTIONS} />
+      {/* AI Insights */}
+      <div className="px-4 mt-5 space-y-2">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-base font-bold text-gray-900">AI Insights</span>
+          <span className="text-sm font-medium text-blue-600">See All</span>
         </div>
-        <div className="flex flex-col gap-5">
-          <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <ActionPanel expensesThisMonth="$1262.22" favoriteSpends={FAVORITE_SPENDS} />
+        <div className="bg-white rounded-2xl p-3 flex gap-3 shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
+            <HugeiconsIcon
+              icon={SparklesIcon}
+              size={18}
+              className="text-green-500"
+            />
           </div>
-          <div className="rounded-2xl bg-white p-5 shadow-sm flex-1">
-            <StockPortfolioChart />
+          <div>
+            <p className="text-sm font-semibold text-gray-700">
+              Spending is down
+            </p>
+            <p className="text-xs text-gray-400">Down 12% from last week</p>
           </div>
         </div>
-        <div className="hidden xl:flex flex-col gap-3">
-          {QUICK_LINKS.map((ql) => (
-            <QuickLinkCard key={ql.label} {...ql} />
-          ))}
+        <div className="bg-white rounded-2xl p-3 flex gap-3 shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+            <HugeiconsIcon
+              icon={TrendingUp}
+              size={18}
+              className="text-blue-500"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-700">
+              Investment Opportunity
+            </p>
+            <p className="text-xs text-gray-400">Tech ETFs trending up</p>
+          </div>
         </div>
       </div>
 
+      {/* Quick Actions */}
+      <div className="px-4 mt-5">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-base font-bold text-gray-900">
+            Quick Actions
+          </span>
+        </div>
+
+        <QuickAddGrid items={quickActions} />
+      </div>
+
+      {/* Transactions */}
+      <div className="px-4 mt-5 space-y-2">
+        <div className="flex items-center justify-between mb-2.5">
+          <span className="text-base font-bold text-gray-900">
+            Recent Transactions
+          </span>
+          <span className="text-sm font-medium text-blue-600">See All</span>
+        </div>
+        {transactions.map((tx) => (
+          <div
+            key={tx.id}
+            className="bg-white rounded-2xl p-3 flex justify-between items-center shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${tx.bg}`}
+              >
+                <HugeiconsIcon
+                  icon={tx.icon}
+                  size={20}
+                  className="text-gray-700"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-700">{tx.name}</p>
+                <p className="text-xs text-gray-400">
+                  {tx.category} · {tx.time}
+                </p>
+              </div>
+            </div>
+            <p
+              className={`text-sm font-bold ${
+                tx.type === "expense" ? "text-red-500" : "text-green-500"
+              }`}
+            >
+              {tx.type === "expense" ? "-" : "+"}${tx.amount.toFixed(2)}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
