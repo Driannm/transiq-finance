@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 
 // ─── Validation schema ────────────────────────────────────────────────────────
 
@@ -49,11 +48,10 @@ export async function POST(request: Request) {
   const trimmedName     = name.trim();
 
   try {
-    // Hash password before the transaction — bcrypt is slow and would risk
-    // hitting Prisma's transaction timeout if run inside it.
+    // Hash password di luar transaksi (hindari timeout)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user + family + membership atomically
+    // Transaksi: user → family → familyMember
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
 
       const newFamily = await tx.family.create({
         data: {
-          name:      `Keluarga ${trimmedName}`,
+          name: `Keluarga ${trimmedName}`,
           createdBy: newUser.id,
         },
       });
@@ -85,16 +83,21 @@ export async function POST(request: Request) {
       { success: true, user: { id: user.id, name: user.name, email: user.email } },
       { status: 201 }
     );
-  } catch (error) {
-    // Email already registered — return success to prevent user enumeration
+  } catch (error: unknown) {
+    // Cek unique constraint P2002 tanpa import khusus Prisma
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      (error as { code: string }).code === "P2002"
     ) {
+      // Jangan bocorkan bahwa email sudah terdaftar
       return NextResponse.json({ success: true }, { status: 200 });
     }
 
-    console.error("[register]", error instanceof Error ? error.message : error);
+    const message =
+      error instanceof Error ? error.message : String(error);
+    console.error("[register]", message);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
