@@ -38,7 +38,7 @@ export const authOptions: NextAuthOptions = {
             email:    true,
             name:     true,
             password: true,
-            familyMembers: {
+            memberships: {
               select: { role: true, familyId: true },
               take: 1,
             },
@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) return null;
 
-        const firstMember = user.familyMembers[0];
+        const firstMember = user.memberships[0];
 
         return {
           id:       user.id,
