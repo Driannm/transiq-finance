@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import { useForm } from "react-hook-form";
@@ -18,13 +18,12 @@ import {
   ViewOffSlashIcon,
 } from "@hugeicons/core-free-icons";
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
+// ─── Schema ─────────────────────────────────────────────────────────────
 
 const registerSchema = z
   .object({
     name: z
       .string()
-      .min(1, "Nama wajib diisi")
       .min(2, "Nama minimal 2 karakter")
       .max(50, "Nama maksimal 50 karakter")
       .regex(
@@ -33,17 +32,15 @@ const registerSchema = z
       ),
     email: z
       .string()
-      .min(1, "Email wajib diisi")
       .email("Format email tidak valid")
       .max(100, "Email terlalu panjang"),
     password: z
       .string()
-      .min(1, "Password wajib diisi")
       .min(8, "Password minimal 8 karakter")
       .max(72, "Password terlalu panjang")
       .regex(/[A-Z]/, "Harus mengandung setidaknya 1 huruf besar")
       .regex(/[0-9]/, "Harus mengandung setidaknya 1 angka"),
-    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
+    confirmPassword: z.string(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Password tidak cocok",
@@ -52,7 +49,7 @@ const registerSchema = z
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-// ─── Password strength ────────────────────────────────────────────────────────
+// ─── Password strength ──────────────────────────────────────────────────
 
 const strengthChecks = [
   { label: "Min. 8 karakter", test: (p: string) => p.length >= 8 },
@@ -62,7 +59,9 @@ const strengthChecks = [
 
 function PasswordStrength({ password }: { password: string }) {
   if (!password) return null;
+
   const score = strengthChecks.filter((c) => c.test(password)).length;
+
   const colors = ["bg-red-400", "bg-amber-400", "bg-green-500"];
   const labels = ["Lemah", "Cukup", "Kuat"];
   const labelColors = ["text-red-500", "text-amber-500", "text-green-600"];
@@ -74,7 +73,7 @@ function PasswordStrength({ password }: { password: string }) {
           <div
             key={i}
             className={[
-              "h-[3px] flex-1 rounded-full transition-colors duration-300",
+              "h-[3px] flex-1 rounded-full transition-colors",
               i < score ? colors[score - 1] : "bg-gray-200",
             ].join(" ")}
           />
@@ -90,6 +89,7 @@ function PasswordStrength({ password }: { password: string }) {
           </span>
         )}
       </div>
+
       <div className="flex gap-3">
         {strengthChecks.map((c) => (
           <span
@@ -108,10 +108,11 @@ function PasswordStrength({ password }: { password: string }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page ───────────────────────────────────────────────────────────────
 
 export default function RegisterPage() {
   const router = useRouter();
+
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -126,10 +127,11 @@ export default function RegisterPage() {
     mode: "onTouched",
   });
 
-  const passwordValue = watch("password", "");
+  const passwordValue = watch("password");
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
+
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -141,24 +143,55 @@ export default function RegisterPage() {
         }),
       });
 
-      const json = await res.json();
+      let json: unknown = null;
+
+      try {
+        json = await res.json();
+      } catch {
+        setServerError("Response server tidak valid.");
+        return;
+      }
 
       if (!res.ok) {
-        setServerError(json.error ?? "Terjadi kesalahan. Silakan coba lagi.");
+        if (
+          typeof json === "object" &&
+          json !== null &&
+          "error" in json
+        ) {
+          setServerError(String((json as { error: string }).error));
+        } else {
+          setServerError("Terjadi kesalahan. Silakan coba lagi.");
+        }
+        return;
+      }
+
+      // handle duplicate stealth case (optional)
+      if (
+        typeof json === "object" &&
+        json !== null &&
+        "duplicated" in json &&
+        (json as { duplicated: boolean }).duplicated
+      ) {
+        setServerError("Email sudah pernah digunakan.");
         return;
       }
 
       router.push("/login?registered=true");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setServerError("Tidak dapat terhubung ke server. Periksa koneksi kamu.");
+
+      if (err instanceof Error) {
+        setServerError(err.message);
+      } else {
+        setServerError("Tidak dapat terhubung ke server.");
+      }
     }
   };
 
   const inputClass = (hasError: boolean) =>
     [
       "w-full bg-gray-50 rounded-xl px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-400",
-      "outline-none border transition-all duration-150",
+      "outline-none border transition-all",
       hasError
         ? "border-red-300 bg-red-50"
         : "border-gray-200 focus:border-[#4C8EF7] focus:bg-white focus:ring-4 focus:ring-[#4C8EF7]/10",
@@ -167,23 +200,9 @@ export default function RegisterPage() {
   return (
     <div className="min-h-svh bg-[#f0f0f0] flex items-center justify-center p-4">
       <div className="w-full max-w-[900px] bg-white rounded-[24px] overflow-hidden shadow-2xl flex min-h-[560px]">
-        {/* ── Left panel: form ── */}
         <div className="flex-1 flex flex-col p-10 md:p-12 overflow-y-auto">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" />
-              </svg>
-            </div>
-            <span className="font-semibold text-[15px] text-gray-900 tracking-tight">
-              FinKeluarga
-            </span>
-          </div>
-
-          {/* Heading */}
           <div className="mb-7">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-1">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">
               Buat Akun Baru
             </h1>
             <p className="text-sm text-gray-400">
@@ -191,257 +210,66 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          {/* Tabs */}
-          <div className="flex bg-gray-100 rounded-xl p-1 mb-7 w-full">
-            <Link
-              href="/login"
-              className="flex-1 text-sm font-medium py-2 rounded-lg transition-all duration-150 text-center text-gray-500 hover:text-gray-700"
-            >
-              Sign In
-            </Link>
-            <button
-              type="button"
-              className="flex-1 text-sm font-medium py-2 rounded-lg bg-white text-gray-900 shadow-sm transition-all duration-150"
-            >
-              Sign Up
-            </button>
-          </div>
-
-          {/* Error */}
           {serverError && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 mb-5"
-            >
-              <HugeiconsIcon
-                icon={BadgeAlertIcon}
-                size={14}
-                className="shrink-0 mt-px"
-              />
+            <div className="flex items-start gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-[13px] text-red-600 mb-5">
+              <HugeiconsIcon icon={BadgeAlertIcon} size={14} />
               {serverError}
             </div>
           )}
 
-          {/* Form */}
           <form
             onSubmit={handleSubmit(onSubmit)}
-            noValidate
             className="flex flex-col gap-3"
           >
             {/* Name */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <input
-                  id="name"
-                  type="text"
-                  placeholder="Nama lengkap"
-                  autoComplete="name"
-                  autoFocus
-                  aria-invalid={!!errors.name}
-                  {...register("name")}
-                  className={inputClass(!!errors.name) + " pr-11"}
-                />
-                <HugeiconsIcon
-                  icon={User03Icon}
-                  size={16}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
-              {errors.name && (
-                <p
-                  role="alert"
-                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
-                >
-                  <HugeiconsIcon
-                    icon={BadgeAlertIcon}
-                    size={14}
-                    className="shrink-0"
-                  />
-                  {errors.name.message}
-                </p>
-              )}
-            </div>
+            <input
+              placeholder="Nama lengkap"
+              {...register("name")}
+              className={inputClass(!!errors.name)}
+            />
+            {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
 
             {/* Email */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <input
-                  id="email"
-                  type="email"
-                  placeholder="Alamat email"
-                  autoComplete="email"
-                  aria-invalid={!!errors.email}
-                  {...register("email")}
-                  className={inputClass(!!errors.email) + " pr-11"}
-                />
-                <HugeiconsIcon
-                  icon={Mail01Icon}
-                  size={16}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
-              {errors.email && (
-                <p
-                  role="alert"
-                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
-                >
-                  <HugeiconsIcon
-                    icon={BadgeAlertIcon}
-                    size={14}
-                    className="shrink-0"
-                  />
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
+            <input
+              type="email"
+              placeholder="Email"
+              {...register("email")}
+              className={inputClass(!!errors.email)}
+            />
+            {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
 
             {/* Password */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  autoComplete="new-password"
-                  aria-invalid={!!errors.password}
-                  {...register("password")}
-                  className={inputClass(!!errors.password) + " pr-11"}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={
-                    showPassword ? "Sembunyikan password" : "Tampilkan password"
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showPassword ? (
-                    <HugeiconsIcon icon={ViewIcon} size={16} />
-                  ) : (
-                    <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p
-                  role="alert"
-                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
-                >
-                  <HugeiconsIcon
-                    icon={BadgeAlertIcon}
-                    size={14}
-                    className="shrink-0"
-                  />
-                  {errors.password.message}
-                </p>
-              )}
-              <PasswordStrength password={passwordValue} />
-            </div>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              {...register("password")}
+              className={inputClass(!!errors.password)}
+            />
+            <PasswordStrength password={passwordValue ?? ""} />
 
-            {/* Confirm Password */}
-            <div className="flex flex-col gap-1">
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  type={showConfirm ? "text" : "password"}
-                  placeholder="Konfirmasi password"
-                  autoComplete="new-password"
-                  aria-invalid={!!errors.confirmPassword}
-                  {...register("confirmPassword")}
-                  className={inputClass(!!errors.confirmPassword) + " pr-11"}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirm((v) => !v)}
-                  aria-label={showConfirm ? "Sembunyikan" : "Tampilkan"}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  {showConfirm ? (
-                    <HugeiconsIcon icon={ViewIcon} size={16} />
-                  ) : (
-                    <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p
-                  role="alert"
-                  className="text-[12px] text-red-500 pl-1 flex items-center gap-1"
-                >
-                  <HugeiconsIcon
-                    icon={BadgeAlertIcon}
-                    size={14}
-                    className="shrink-0"
-                  />
-                  {errors.confirmPassword.message}
-                </p>
-              )}
-            </div>
+            {/* Confirm */}
+            <input
+              type={showConfirm ? "text" : "password"}
+              placeholder="Konfirmasi password"
+              {...register("confirmPassword")}
+              className={inputClass(!!errors.confirmPassword)}
+            />
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-2 w-full bg-[#4C8EF7] hover:bg-[#3a7ef0] active:bg-[#2d6fe8] text-white font-semibold rounded-xl py-3.5 text-sm flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed shadow-[0_4px_16px_rgba(76,142,247,0.35)]"
+              className="mt-3 bg-blue-600 text-white py-3 rounded-xl"
             >
-              {isSubmitting ? (
-                <>
-                  <HugeiconsIcon
-                    icon={ReloadIcon}
-                    size={15}
-                    className="animate-spin"
-                  />
-                  Membuat akun...
-                </>
-              ) : (
-                "Daftar"
-              )}
+              {isSubmitting ? "Membuat akun..." : "Daftar"}
             </button>
           </form>
-        </div>
 
-        {/* ── Right panel: decorative ── */}
-        <div className="hidden md:flex flex-1 relative overflow-hidden bg-[#0a1628] items-end">
-          <div className="absolute inset-0">
-            <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[70%] rounded-full bg-[#1a3a8f] opacity-60 blur-[60px]" />
-            <div className="absolute top-[20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-[#3060d0] opacity-40 blur-[80px]" />
-            <div className="absolute bottom-[-10%] right-[10%] w-[50%] h-[50%] rounded-full bg-[#0a2070] opacity-70 blur-[50px]" />
-            <div className="absolute top-[40%] left-[20%] w-[40%] h-[40%] rounded-full bg-[#5080ff] opacity-30 blur-[70px]" />
-          </div>
-          <svg
-            className="absolute inset-0 w-full h-full"
-            viewBox="0 0 400 560"
-            preserveAspectRatio="xMidYMid slice"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <radialGradient id="rg1" cx="50%" cy="30%" r="60%">
-                <stop offset="0%" stopColor="#4C8EF7" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#0a1628" stopOpacity="0" />
-              </radialGradient>
-              <radialGradient id="rg2" cx="30%" cy="70%" r="50%">
-                <stop offset="0%" stopColor="#1a5fff" stopOpacity="0.5" />
-                <stop offset="100%" stopColor="#0a1628" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <ellipse cx="300" cy="150" rx="200" ry="180" fill="url(#rg1)" />
-            <ellipse cx="100" cy="400" rx="180" ry="160" fill="url(#rg2)" />
-            <path
-              d="M 50 200 Q 200 100 350 250 Q 400 350 200 450 Q 50 500 0 350 Z"
-              fill="#1e40af"
-              fillOpacity="0.25"
-            />
-            <path
-              d="M 150 50 Q 350 0 400 150 Q 420 300 280 350 Q 150 380 100 250 Z"
-              fill="#3b82f6"
-              fillOpacity="0.2"
-            />
-            <path
-              d="M 0 300 Q 100 200 250 280 Q 380 350 350 480 Q 200 560 0 480 Z"
-              fill="#1d4ed8"
-              fillOpacity="0.3"
-            />
-          </svg>
+          <p className="text-sm mt-4 text-gray-500">
+            Sudah punya akun?{" "}
+            <Link href="/login" className="text-blue-600">
+              Login
+            </Link>
+          </p>
         </div>
       </div>
     </div>
