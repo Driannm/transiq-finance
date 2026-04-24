@@ -44,44 +44,45 @@ enum TransactionType {
 //
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  password      String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
 
-  familyMembers FamilyMember[]
-  cards         CardStakeholder[]
-  transactions  Transaction[]
-  groups        TransactionGroup[]
-  families      Family[]            // 👈 opposite relation for Family.createdBy
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships FamilyMember[]
+  cards       CardStakeholder[]
+  transactions Transaction[]
+  groups      TransactionGroup[]
 }
 
 model Family {
-  id            String   @id @default(cuid())
-  name          String
+  id        String   @id @default(cuid())
+  name      String
 
-  createdById   String
-  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  members       FamilyMember[]
-  cards         Card[]
-  assets        Asset[]
+  members   FamilyMember[]
+  cards     Card[]
+  assets    Asset[]
 }
 
 model FamilyMember {
   id        String   @id @default(cuid())
+
   familyId  String
   userId    String
+
   role      Role
+  isOwner   Boolean  @default(false)
+
   joinedAt  DateTime @default(now())
 
-  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, userId])
 }

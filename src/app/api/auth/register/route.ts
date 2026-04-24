@@ -55,27 +55,27 @@ export async function POST(request: Request) {
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          name:     trimmedName,
-          email:    normalizedEmail,
+          name: trimmedName,
+          email: normalizedEmail,
           password: hashedPassword,
         },
       });
-
-      const newFamily = await tx.family.create({
+    
+      const family = await tx.family.create({
         data: {
           name: `Keluarga ${trimmedName}`,
-          createdBy: newUser.id,
         },
       });
-
+    
       await tx.familyMember.create({
         data: {
-          userId:   newUser.id,
-          familyId: newFamily.id,
-          role:     "PARENT",
+          userId: newUser.id,
+          familyId: family.id,
+          role: "PARENT",
+          isOwner: true,
         },
       });
-
+    
       return newUser;
     });
 
