@@ -23,6 +23,19 @@ body {
   @apply bg-[var(--background)] text-[var(--foreground)] font-sans; 
 }
 
+@layer base {  
+  /* Tambahkan ini ke file global CSS */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+
 /* ─── iOS Glass Container ─── */
 .glass-ios {
   background: rgba(255, 255, 255, 0.55);
