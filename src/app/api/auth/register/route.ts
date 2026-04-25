@@ -10,7 +10,10 @@ const registerSchema = z.object({
     .string()
     .min(2, "Nama minimal 2 karakter")
     .max(50, "Nama maksimal 50 karakter")
-    .regex(/^[a-zA-Z\s'-]+$/, "Nama hanya boleh berisi huruf, spasi, atau tanda hubung"),
+    .regex(
+      /^[a-zA-Z\s'-]+$/,
+      "Nama hanya boleh berisi huruf, spasi, atau tanda hubung"
+    ),
   email: z
     .string()
     .email("Format email tidak valid")
@@ -31,7 +34,10 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Request body tidak valid" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Request body tidak valid" },
+      { status: 400 }
+    );
   }
 
   const parsed = registerSchema.safeParse(body);
@@ -45,29 +51,45 @@ export async function POST(request: Request) {
 
   const { name, email, password } = parsed.data;
   const normalizedEmail = email.toLowerCase().trim();
-  const trimmedName     = name.trim();
+  const trimmedName = name.trim();
 
   try {
-    // Hash password di luar transaksi (hindari timeout)
+    // Hash password terlebih dahulu (di luar transaksi)
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Transaksi: user → family → familyMember
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
+    // 1. Buat user baru
+    let newUser;
+    try {
+      newUser = await prisma.user.create({
         data: {
           name: trimmedName,
           email: normalizedEmail,
           password: hashedPassword,
         },
       });
-    
-      const family = await tx.family.create({
+    } catch (error: unknown) {
+      // Cek duplicate email (P2002)
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code: string }).code === "P2002"
+      ) {
+        // Jangan bocorkan informasi ke klien
+        return NextResponse.json({ success: true }, { status: 200 });
+      }
+      throw error; // lempar ke outer catch
+    }
+
+    // 2. Buat family + family membership
+    try {
+      const family = await prisma.family.create({
         data: {
           name: `Keluarga ${trimmedName}`,
         },
       });
-    
-      await tx.familyMember.create({
+
+      await prisma.familyMember.create({
         data: {
           userId: newUser.id,
           familyId: family.id,
@@ -75,29 +97,26 @@ export async function POST(request: Request) {
           isOwner: true,
         },
       });
-    
-      return newUser;
-    });
+    } catch (error) {
+      // Jika gagal, hapus user yang sudah dibuat (rollback manual)
+      await prisma.user.delete({ where: { id: newUser.id } });
+      throw error;
+    }
 
     return NextResponse.json(
-      { success: true, user: { id: user.id, name: user.name, email: user.email } },
+      {
+        success: true,
+        user: { id: newUser.id, name: newUser.name, email: newUser.email },
+      },
       { status: 201 }
     );
   } catch (error: unknown) {
-    // Cek unique constraint P2002 tanpa import khusus Prisma
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code: string }).code === "P2002"
-    ) {
-      // Jangan bocorkan bahwa email sudah terdaftar
-      return NextResponse.json({ success: true }, { status: 200 });
-    }
-
     const message =
       error instanceof Error ? error.message : String(error);
     console.error("[register]", message);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
 }

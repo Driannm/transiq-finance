@@ -1,22 +1,16 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Session cookie lifetime — 30 days is comfortable for a family app. */
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60;
-
-/** Re-issue session cookie if it's older than this on an active request. */
-const SESSION_UPDATE_AGE = 24 * 60 * 60;
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60;      // 30 hari
+const SESSION_UPDATE_AGE = 24 * 60 * 60;        // 1 hari
 
 // ─── authOptions ──────────────────────────────────────────────────────────────
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -30,7 +24,6 @@ export const authOptions: NextAuthOptions = {
 
         const email = credentials.email.toLowerCase().trim();
 
-        // ── Fetch user ────────────────────────────────────────────────────────
         const user = await prisma.user.findUnique({
           where: { email },
           select: {
@@ -46,7 +39,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          // Constant-time compare — prevents timing-based user enumeration
+          // Constant‑time compare agar tidak bocor info user
           await bcrypt.compare(
             credentials.password,
             "$2b$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -71,8 +64,6 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    // Populate JWT token on sign-in — role is fetched once and stored in the token.
-    // For a family app with rarely-changing roles, this is perfectly fine.
     async jwt({ token, user }) {
       if (user) {
         token.id       = user.id;
@@ -82,7 +73,6 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
 
-    // Shape the session object that the client receives
     async session({ session, token }) {
       if (session.user) {
         session.user.id       = token.id;
@@ -99,7 +89,7 @@ export const authOptions: NextAuthOptions = {
   },
 
   session: {
-    strategy:  "jwt" as const,
+    strategy:  "jwt",
     maxAge:    SESSION_MAX_AGE,
     updateAge: SESSION_UPDATE_AGE,
   },
