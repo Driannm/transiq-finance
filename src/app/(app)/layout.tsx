@@ -15,7 +15,7 @@ const navItems: BottomNavItem[] = [
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950">
       <main className="pt-4 pb-24 md:pt-6 md:pb-6">
         {children}
       </main>
