@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
 @custom-variant dark (&:is(.dark *));
 :root {
   --background: #ffffff;
@@ -24,7 +29,20 @@ body {
 }
 
 @layer base {  
-  /* Tambahkan ini ke file global CSS */
+  html {
+    /* Menyamakan warna background root */
+    background-color: #f5f5f5; 
+  }
+
+  html.dark {
+    background-color: #0a0a0a;
+  }
+
+  body {
+    @apply bg-neutral-100 dark:bg-neutral-950;
+    overscroll-behavior-y: none; 
+  }
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
