@@ -257,7 +257,7 @@ export default function AnalyticsPage() {
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cat.bg}`}>
-                        <HugeiconsIcon icon={cat.icon} size={16} className="text-gray-700 dark:text-gray-300" />
+                        <HugeiconsIcon icon={cat.icon} size={16} className="text-gray-700" />
                       </div>
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cat.label}</span>
                     </div>

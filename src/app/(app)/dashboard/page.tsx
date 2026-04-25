@@ -198,7 +198,7 @@ export default function DashboardPage() {
               left: (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={bill.icon} size={16} className="text-gray-700 dark:text-gray-300" />
+                    <HugeiconsIcon icon={bill.icon} size={16} className="text-gray-700" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{bill.name}</p>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
               left: (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={goal.icon} size={16} className="text-gray-700 dark:text-gray-300" />
+                    <HugeiconsIcon icon={goal.icon} size={16} className="text-gray-700" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{goal.name}</p>
@@ -288,7 +288,7 @@ export default function DashboardPage() {
             left: (
               <>
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.bg} dark:bg-opacity-20`}>
-                  <HugeiconsIcon icon={tx.icon} size={16} className="text-gray-700 dark:text-gray-300" />
+                  <HugeiconsIcon icon={tx.icon} size={16} className="text-gray-700" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{tx.name}</p>

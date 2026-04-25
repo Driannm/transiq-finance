@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
     Calendar02Icon,
     Share01Icon,
@@ -5,6 +7,13 @@ import {
     ArrowDown01Icon,
     Download04Icon,
     FilterHorizontalIcon,
+    Home01Icon,
+    RiceBowl01Icon,
+    Taxi02Icon,
+    Car05Icon,
+    ShoppingBag01Icon,
+    TreatmentIcon,
+    Task02Icon,
   } from "@hugeicons/core-free-icons";
   
   // ─── Types ────────────────────────────────────────────────────────────────────
@@ -91,12 +100,12 @@ import {
   // ─── Spending Breakdown ───────────────────────────────────────────────────────
   
   export const breakdown: BreakdownCategory[] = [
-    { label: "Housing", amount: 1200.0, pct: 32, color: "#3B5BDB", bg: "bg-blue-100", icon: Calendar02Icon },
-    { label: "Food & Drink", amount: 840.5, pct: 22, color: "#7C5CBF", bg: "bg-purple-100", icon: Share01Icon },
-    { label: "Transport", amount: 420.0, pct: 11, color: "#20C997", bg: "bg-green-100", icon: ArrowUp01Icon },
-    { label: "Shopping", amount: 380.75, pct: 10, color: "#FF6B35", bg: "bg-orange-100", icon: Download04Icon },
-    { label: "Health", amount: 200.0, pct: 5, color: "#FF3B30", bg: "bg-red-100", icon: FilterHorizontalIcon },
-    { label: "Others", amount: 800.9, pct: 20, color: "#94A3B8", bg: "bg-gray-100", icon: ArrowDown01Icon },
+    { label: "Housing", amount: 1200.0, pct: 32, color: "#3B5BDB", bg: "bg-blue-100", icon: Home01Icon },
+    { label: "Food & Drink", amount: 840.5, pct: 22, color: "#7C5CBF", bg: "bg-purple-100", icon: RiceBowl01Icon },
+    { label: "Transport", amount: 420.0, pct: 11, color: "#20C997", bg: "bg-green-100", icon: Car05Icon },
+    { label: "Shopping", amount: 380.75, pct: 10, color: "#FF6B35", bg: "bg-orange-100", icon: ShoppingBag01Icon },
+    { label: "Health", amount: 200.0, pct: 5, color: "#FF3B30", bg: "bg-red-100", icon: TreatmentIcon },
+    { label: "Others", amount: 800.9, pct: 20, color: "#94A3B8", bg: "bg-gray-100", icon: Task02Icon },
   ];
   
   // ─── Recent Large Transactions ────────────────────────────────────────────────

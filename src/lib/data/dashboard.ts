@@ -13,8 +13,6 @@ import {
     MoneySendSquareIcon,
     MoneyReceiveSquareIcon,
     MoneySend01Icon,
-    Moon02Icon,
-    Setting07Icon,
   } from "@hugeicons/core-free-icons";
   import type { IconSvgElement } from "@hugeicons/react";
   
