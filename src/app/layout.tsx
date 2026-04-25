@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Bricolage_Grotesque } from "next/font/google";
+import { Geist, Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/Providers/ThemeProvider";
 import "./globals.css";
 
@@ -8,7 +8,7 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Bricolage_Grotesque({
+const geistMono = Space_Grotesk({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
