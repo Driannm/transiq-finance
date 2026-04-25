@@ -229,16 +229,3 @@ import {
     { label: "Entertainment", percentage: 25, color: "#EF9F27", amount: 242500 },
     { label: "Others", percentage: 15, color: "#B5D4F4", amount: 145500 },
   ];
-  
-  export const navbarActions = [
-    {
-      iconName: Moon02Icon,
-      label: "Setting",
-      onPress: () => console.log("Setting clicked"),
-    },
-    {
-      iconName: Setting07Icon,
-      label: "Setting",
-      onPress: () => console.log("Setting clicked"),
-    },
-  ];

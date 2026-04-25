@@ -17,14 +17,14 @@ export function CardList<T>({
 
   return (
     <div
-      className={`bg-white rounded-2xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03)] divide-y divide-gray-100 ${className}`}
-    >
+  className={`bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none divide-y divide-gray-100 dark:divide-gray-800 ${className}`}
+>
       {items.map((item, index) => {
         const { left, right } = renderItem(item, index);
         return (
           <div
             key={keyExtractor(item, index)}
-            className="flex items-center justify-between px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-gray-50/50 transition-colors"
+            className="flex items-center justify-between px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">{left}</div>
             <div className="flex-shrink-0 ml-2">{right}</div>
