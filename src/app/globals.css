@@ -52,6 +52,7 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
+
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;

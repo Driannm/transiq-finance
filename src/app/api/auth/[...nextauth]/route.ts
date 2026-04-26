@@ -3,13 +3,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const SESSION_MAX_AGE = 30 * 24 * 60 * 60;      // 30 hari
-const SESSION_UPDATE_AGE = 24 * 60 * 60;        // 1 hari
-
-// ─── authOptions ──────────────────────────────────────────────────────────────
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -18,51 +11,36 @@ export const authOptions: NextAuthOptions = {
         email:    { label: "Email",    type: "email"    },
         password: { label: "Password", type: "password" },
       },
-
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const email = credentials.email.toLowerCase().trim();
-
         const user = await prisma.user.findUnique({
-          where: { email },
+          where: { email: credentials.email.toLowerCase().trim() },
           select: {
             id:       true,
             email:    true,
             name:     true,
             password: true,
-            memberships: {
-              select: { role: true, familyId: true },
-              take: 1,
-            },
+            role:     true,     // Langsung dari User
+            familyId: true,     // Langsung dari User
           },
         });
 
-        if (!user) {
-          // Constant‑time compare agar tidak bocor info user
-          await bcrypt.compare(
-            credentials.password,
-            "$2b$12$invalidhashplaceholderXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-          );
-          return null;
-        }
+        if (!user) return null;
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) return null;
 
-        const firstMember = user.memberships[0];
-
         return {
           id:       user.id,
           email:    user.email,
-          name:     user.name ?? undefined,
-          role:     firstMember?.role,
-          familyId: firstMember?.familyId ?? undefined,
+          name:     user.name,
+          role:     user.role,
+          familyId: user.familyId ?? undefined,
         };
       },
     }),
   ],
-
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -72,50 +50,18 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-
     async session({ session, token }) {
       if (session.user) {
-        session.user.id       = token.id;
-        session.user.role     = token.role;
-        session.user.familyId = token.familyId;
+        session.user.id       = token.id as string;
+        session.user.role     = token.role as string;
+        session.user.familyId = token.familyId as string;
       }
-
-      if (token.error) {
-        (session as any).error = token.error;
-      }
-
       return session;
     },
   },
-
-  session: {
-    strategy:  "jwt",
-    maxAge:    SESSION_MAX_AGE,
-    updateAge: SESSION_UPDATE_AGE,
-  },
-
-  pages: {
-    signIn: "/login",
-    error:  "/login",
-  },
-
+  session: { strategy: "jwt" },
+  pages: { signIn: "/login" },
   secret: process.env.NEXTAUTH_SECRET,
-
-  cookies: {
-    sessionToken: {
-      name: process.env.NODE_ENV === "production"
-        ? "__Secure-next-auth.session-token"
-        : "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax" as const,
-        path:     "/",
-        secure:   process.env.NODE_ENV === "production",
-      },
-    },
-  },
-
-  debug: process.env.NODE_ENV === "development",
 };
 
 const handler = NextAuth(authOptions);

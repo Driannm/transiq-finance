@@ -6,23 +6,11 @@ datasource db {
   provider = "postgresql"
 }
 
-//
 // ─── ENUMS ─────────────────────────────────────
-//
 
 enum Role {
   PARENT
   CHILD
-}
-
-enum DebtStatus {
-  ACTIVE
-  PAID
-}
-
-enum LoanStatus {
-  ACTIVE
-  PAID
 }
 
 enum CardType {
@@ -34,302 +22,170 @@ enum CardType {
 enum TransactionType {
   INCOME
   EXPENSE
-  LOAN
-  DEBT
   TRANSFER
+  DEBT
+  LOAN
 }
 
-//
-// ─── CORE MODELS ───────────────────────────────
-//
+enum DebtLoanStatus {
+  ACTIVE
+  PAID
+  OVERDUE
+}
+
+// ─── USER & FAMILY ─────────────────────────────
 
 model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   password  String
+  role      Role     @default(PARENT)
+
+  // Hubungan ke Keluarga (Opsional)
+  familyId  String?
+  family    Family?  @relation(fields: [familyId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships FamilyMember[]
-  cards       CardStakeholder[]
+  cards        Card[]
   transactions Transaction[]
-  groups      TransactionGroup[]
+  assets       Asset[]
 }
 
 model Family {
   id        String   @id @default(cuid())
   name      String
-
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  members   FamilyMember[]
+  members   User[]
   cards     Card[]
   assets    Asset[]
 }
 
-model FamilyMember {
-  id        String   @id @default(cuid())
-
-  familyId  String
-  userId    String
-
-  role      Role
-  isOwner   Boolean  @default(false)
-
-  joinedAt  DateTime @default(now())
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([familyId, userId])
-}
-
-//
-// ─── CARD SYSTEM ───────────────────────────────
-//
+// ─── FINANCIAL CORE ────────────────────────────
 
 model Card {
   id             String   @id @default(cuid())
-  familyId       String
   name           String
   type           CardType
-  initialBalance Float?
+  balance        Float    @default(0)
+
+  // Ownership
+  userId         String   // Pemilik asli
+  user           User     @relation(fields: [userId], references: [id])
+  familyId       String?  // Jika diisi, kartu ini shared ke keluarga
+  family         Family?  @relation(fields: [familyId], references: [id])
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  family        Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  stakeholders  CardStakeholder[]
-  transactions  Transaction[]
-  
-  // 👇 opposite relations for Transfer
-  fromTransfers Transfer[] @relation("FromCard")
-  toTransfers   Transfer[] @relation("ToCard")
+  transactions   Transaction[]
+  transfersTo    Transfer[]    @relation("ToCard")
+  transfersFrom  Transfer[]    @relation("FromCard")
 }
 
-model CardStakeholder {
-  cardId    String
-  userId    String
-  canEdit   Boolean @default(true)
-
-  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([cardId, userId])
-}
-
-//
-// ─── CATEGORY & MERCHANT ───────────────────────
-//
-
-model Category {
-  id        String   @id @default(cuid())
-  name      String
-  familyId  String
-  createdAt DateTime @default(now())
-
-  expenses Expense[]
-}
-
-model Merchant {
-  id        String   @id @default(cuid())
-  name      String
-  familyId  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  expenses Expense[]
-}
-
-//
-// ─── TRANSACTION CORE ──────────────────────────
-//
+// ─── TRANSACTION MASTER ─────────────────────────
 
 model Transaction {
-  id          String   @id @default(cuid())
-  cardId      String
+  id          String          @id @default(cuid())
   amount      Float
   type        TransactionType
-  createdById String
+  date        DateTime        @default(now())
+  
+  // Relasi Konten
+  userId      String
+  user        User            @relation(fields: [userId], references: [id])
+  cardId      String
+  card        Card            @relation(fields: [cardId], references: [id])
 
-  date        DateTime
-  createdAt   DateTime   @default(now())
+  // Sub-Model Relations (1-to-1)
+  expense     Expense?
+  income      Income?
+  transfer    Transfer?
+  debt        Debt?
+  loan        Loan?
 
-  card        Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  createdBy   User @relation(fields: [createdById], references: [id], onDelete: Cascade)
-
-  expense  Expense?
-  income   Income?
-  transfer Transfer?
-  debt     Debt?
-  loan     Loan?
-
-  groupItems TransactionGroupItem[]   // 👈 opposite for TransactionGroupItem.transaction
-
-  @@index([cardId])
-  @@index([createdById])
-  @@index([date])
+  createdAt   DateTime        @default(now())
 }
 
-//
-// ─── EXPENSE ───────────────────────────────────
-//
+// ─── TRANSACTION SUB-MODELS ─────────────────────
 
 model Expense {
   id            String   @id @default(cuid())
   transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  date          DateTime
   name          String
-
-  subtotal      Float
-  shipping      Float?
-  discount      Float?
-  tax           Float?
-  fee           Float?
-
-  merchantId    String?
-  categoryId    String?
-
+  category      String?
+  merchant      String?
+  
+  // Breakdown (Opsional)
+  tax           Float?   @default(0)
+  fee           Float?   @default(0)
+  discount      Float?   @default(0)
   notes         String?
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  merchant    Merchant?   @relation(fields: [merchantId], references: [id])
-  category    Category?   @relation(fields: [categoryId], references: [id])
 }
-
-//
-// ─── INCOME ────────────────────────────────────
-//
 
 model Income {
   id            String   @id @default(cuid())
   transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  date          DateTime
   name          String
-  source        String
+  source        String?
   notes         String?
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
-
-//
-// ─── TRANSFER ──────────────────────────────────
-//
 
 model Transfer {
   id            String   @id @default(cuid())
   transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  date          DateTime
-  name          String
-
-  fromCardId String
-  toCardId   String
-
-  fromCard Card @relation("FromCard", fields: [fromCardId], references: [id])
-  toCard   Card @relation("ToCard", fields: [toCardId], references: [id])
-
-  amount Float
-  fee    Float?
-
-  notes String?
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  fromCardId    String
+  fromCard      Card     @relation("FromCard", fields: [fromCardId], references: [id])
+  toCardId      String
+  toCard        Card     @relation("ToCard", fields: [toCardId], references: [id])
+  
+  fee           Float?   @default(0)
 }
-
-//
-// ─── DEBT ──────────────────────────────────────
-//
 
 model Debt {
   id            String   @id @default(cuid())
   transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  name          String
-  amount        Float
-  paid          Float    @default(0)
-  remaining     Float
-  purpose       String?
-  status        DebtStatus @default(ACTIVE)
-  issueDate     DateTime
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  personName    String   // Berhutang ke siapa
+  description   String?
+  dueDate       DateTime?
+  status        DebtLoanStatus @default(ACTIVE)
 }
-
-//
-// ─── LOAN ──────────────────────────────────────
-//
 
 model Loan {
   id            String   @id @default(cuid())
   transactionId String   @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  name          String
-  amount        Float
-  paid          Float    @default(0)
-  remaining     Float
-  purpose       String?
-  status        LoanStatus @default(ACTIVE)
-  issueDate     DateTime
-
-  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  personName    String   // Siapa yang pinjam uang kita
+  description   String?
+  dueDate       DateTime?
+  status        DebtLoanStatus @default(ACTIVE)
 }
 
-//
-// ─── GROUP TRANSACTION ─────────────────────────
-//
-
-model TransactionGroup {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-
-  userId      String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  transactions TransactionGroupItem[]
-}
-
-model TransactionGroupItem {
-  groupId       String
-  transactionId String
-
-  group        TransactionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  transaction  Transaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-
-  createdAt    DateTime @default(now())
-
-  @@id([groupId, transactionId])
-}
-
-//
-// ─── ASSET ─────────────────────────────────────
-//
+// ─── OTHERS ────────────────────────────────────
 
 model Asset {
   id        String   @id @default(cuid())
-  familyId  String
   name      String
-  ownerName String
   value     Float?
-  notes     String?
+  ownerName String   // Sesuai dokumen resmi
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  familyId  String?
+  family    Family?  @relation(fields: [familyId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 }

@@ -1,152 +1,87 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-
-// ─── Schema validasi ──────────────────────────────────────────────────────
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
 
 const createExpenseSchema = z.object({
-  cardId: z.string().min(1),
-  categoryId: z.string().optional(),
-  merchantId: z.string().optional(),
-  name: z.string().min(1, "Nama expense wajib diisi"),
-  date: z.string().min(1), // ISO date string
-  subtotal: z.number().positive(),
-  shipping: z.number().min(0).default(0),
-  discount: z.number().min(0).default(0),
-  tax: z.number().min(0).default(0),
-  fee: z.number().min(0).default(0),
+  cardId: z.string(),
+  name: z.string().min(1),
+  date: z.string(),
+  amount: z.number().positive(),
+  category: z.string().optional(),
   notes: z.string().optional(),
 });
 
-// ─── POST /api/expenses ───────────────────────────────────────────────────
-
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const body = await request.json();
     const parsed = createExpenseSchema.safeParse(body);
+    if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.issues[0].message },
-        { status: 400 }
-      );
-    }
-
-    const {
-      cardId,
-      categoryId,
-      merchantId,
-      name,
-      date,
-      subtotal,
-      shipping,
-      discount,
-      tax,
-      fee,
-      notes,
-    } = parsed.data;
-
-    const amount = subtotal + shipping - discount + tax + fee;
-
-    // TODO: dapatkan userId dari session (untuk sementara hardcode / ambil user pertama)
-    const firstUser = await prisma.user.findFirst();
-    if (!firstUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 401 });
-    }
-    const createdById = firstUser.id;
+    const { cardId, name, date, amount, category, notes } = parsed.data;
 
     const result = await prisma.$transaction(async (tx) => {
+      // 1. Buat Transaction Master
       const transaction = await tx.transaction.create({
         data: {
-          cardId,
           amount,
           type: "EXPENSE",
-          createdById,
+          userId: session.user.id, // Sesuai schema baru
+          cardId,
           date: new Date(date),
         },
       });
 
+      // 2. Buat Detail Expense
       const expense = await tx.expense.create({
         data: {
           transactionId: transaction.id,
           name,
-          date: new Date(date),
-          subtotal,
-          shipping,
-          discount,
-          tax,
-          fee,
+          category,
           notes,
-          categoryId: categoryId || null,
-          merchantId: merchantId || null,
         },
-        include: {
-          category: true,
-          merchant: true,
-          transaction: {
-            include: {
-              card: true,
-            },
-          },
-        },
+      });
+
+      // 3. Update Saldo Kartu (Otomatis kurangi saldo)
+      await tx.card.update({
+        where: { id: cardId },
+        data: { balance: { decrement: amount } },
       });
 
       return expense;
     });
 
-    return NextResponse.json({ success: true, expense: result }, { status: 201 });
-  } catch (error) {
-    console.error("[expenses:POST]", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, data: result }, { status: 201 });
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json({ error: "Gagal mencatat pengeluaran" }, { status: 500 });
   }
 }
 
-// ─── GET /api/expenses ────────────────────────────────────────────────────
-
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const month = searchParams.get("month"); // format "YYYY-MM"
-  const categoryId = searchParams.get("categoryId");
-  const cardId = searchParams.get("cardId");
-
-  const where: any = {};
-
-  if (month) {
-    const start = new Date(month + "-01");
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + 1);
-    where.date = {
-      gte: start,
-      lt: end,
-    };
-  }
-  if (categoryId) where.categoryId = categoryId;
-  if (cardId) where.transaction = { cardId };
-
+export async function GET() {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Filter: Parent lihat semua di keluarga, Child lihat miliknya sendiri
     const expenses = await prisma.expense.findMany({
-      where,
+      where: session.user.role === "PARENT" 
+        ? { transaction: { user: { familyId: session.user.familyId } } }
+        : { transaction: { userId: session.user.id } },
       include: {
-        category: true,
-        merchant: true,
         transaction: {
-          include: {
-            card: true,
-          },
-        },
+          include: { card: true }
+        }
       },
-      orderBy: { date: "desc" },
+      orderBy: { transaction: { date: "desc" } }
     });
 
     return NextResponse.json({ expenses });
   } catch (error) {
-    console.error("[expenses:GET]", error);
-    return NextResponse.json(
-      { error: "Gagal memuat data" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal memuat data" }, { status: 500 });
   }
 }
