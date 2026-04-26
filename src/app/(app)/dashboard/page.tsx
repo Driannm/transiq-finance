@@ -77,7 +77,7 @@ function SpendingBreakdownCard() {
   }, []);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none p-4">
+    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none p-4">
       <div className="flex items-center gap-5">
         <div className="relative flex-shrink-0 w-[80px] h-[80px]">
           <svg width="80" height="80" viewBox="0 0 80 80">
@@ -114,12 +114,12 @@ export default function DashboardPage() {
   const urgentBillsCount = upcomingBills.filter((b) => b.urgency === "high").length;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 pb-24 font-sans">
-      <IslandNavbar title="Dashboard" initials="JJ" />
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
+      <IslandNavbar title="Dashboard"/>
 
       {/* ---- Balance Card ---- */}
       <div className="px-4 pt-4">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A3FA8] to-[#0C1A5A] p-5 shadow-xl shadow-blue-900/30">
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A3FA8] to-[#0C1A5A] p-5">
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white opacity-[0.03] blur-3xl" />
           <div className="relative z-10 flex items-center justify-between mb-6">
             <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
@@ -147,7 +147,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ---- AI Insights ---- */}
-      <SectionBlock
+      {/* <SectionBlock
         title="AI Insights"
         action={{ type: "button", label: "See All", onPress: () => {} }}
       >
@@ -169,10 +169,10 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-400 dark:text-gray-500">Tech ETFs trending up</p>
           </div>
         </div>
-      </SectionBlock>
+      </SectionBlock> */}
 
       {/* ---- Quick Actions ---- */}
-      <SectionBlock title="Quick Actions">
+      <SectionBlock title="Quick Access">
         <QuickAddGrid items={quickActions} />
       </SectionBlock>
 
@@ -198,7 +198,7 @@ export default function DashboardPage() {
               left: (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={bill.icon} size={16} className="text-gray-700" />
+                    <HugeiconsIcon icon={bill.icon} size={22} className="text-gray-700" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{bill.name}</p>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
               left: (
                 <>
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={goal.icon} size={16} className="text-gray-700" />
+                    <HugeiconsIcon icon={goal.icon} size={22} className="text-gray-700" />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{goal.name}</p>
@@ -288,7 +288,7 @@ export default function DashboardPage() {
             left: (
               <>
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.bg} dark:bg-opacity-20`}>
-                  <HugeiconsIcon icon={tx.icon} size={16} className="text-gray-700" />
+                  <HugeiconsIcon icon={tx.icon} size={22} className="text-gray-700" />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{tx.name}</p>

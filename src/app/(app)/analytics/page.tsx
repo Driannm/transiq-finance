@@ -90,18 +90,18 @@ export default function AnalyticsPage() {
   const isEmpty = true;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors duration-300">
-      <IslandNavbar title="Analytics" initials="JJ" actions={actions} />
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 flex flex-col transition-colors duration-300">
+      <IslandNavbar title="Analytics"  actions={actions} />
 
       <div className="flex-1 overflow-y-auto px-5 pb-24">
         {/* Period Selector */}
         <Tabs value={period} onValueChange={(v) => setPeriod(v as Period)} className="mb-6">
-          <TabsList className="w-full bg-gray-200 dark:bg-gray-800 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-1 gap-1">
+          <TabsList className="w-full bg-gray-200 dark:bg-neutral-900 backdrop-blur-sm rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-1 gap-1">
             {(["Week", "Month", "Year", "All"] as Period[]).map((p) => (
               <TabsTrigger
                 key={p}
                 value={p}
-                className="flex-1 py-2.5 rounded-2xl text-sm font-semibold data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 transition-all"
+                className="flex-1 py-2.5 rounded-2xl text-sm font-semibold data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-sm data-[state=inactive]:text-gray-500 dark:data-[state=inactive]:text-gray-400 transition-all"
               >
                 {p}
               </TabsTrigger>
@@ -187,7 +187,7 @@ export default function AnalyticsPage() {
 
         {/* Spending Trend */}
         <SectionBlock title="Spending Trend" padded={false}>
-          <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl p-4 shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800">
             {dailyData[period].length > 0 && (
               <div className="flex items-center gap-3 mb-1">
                 <div className="flex items-center gap-1">
@@ -226,7 +226,7 @@ export default function AnalyticsPage() {
               description="Your large transactions will appear here once you start recording."
             />
           ) : (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl divide-y divide-gray-100 dark:divide-gray-800 shadow-sm dark:shadow-none">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl divide-y divide-gray-100 dark:divide-gray-800 shadow-sm dark:shadow-none">
               {recentLargeTransactions.map((tx, idx) => (
                 <div key={idx} className="flex items-center justify-between p-4">
                   <div>
@@ -251,13 +251,13 @@ export default function AnalyticsPage() {
               description="Add your expenses to see a breakdown by category."
             />
           ) : (
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm dark:shadow-none divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm dark:shadow-none divide-y divide-gray-100 dark:divide-gray-800 overflow-hidden">
               {breakdown.map((cat) => (
                 <div key={cat.label} className="px-4 py-3.5">
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cat.bg}`}>
-                        <HugeiconsIcon icon={cat.icon} size={16} className="text-gray-700" />
+                        <HugeiconsIcon icon={cat.icon} size={22} className="text-gray-700" />
                       </div>
                       <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{cat.label}</span>
                     </div>

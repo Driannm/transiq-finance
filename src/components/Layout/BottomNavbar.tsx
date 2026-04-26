@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
+import { Add01Icon } from "@hugeicons/core-free-icons"; // Pastikan import plus icon
 import { useCallback } from "react";
 
 export interface BottomNavItem {
@@ -13,15 +14,10 @@ export interface BottomNavItem {
 
 export interface BottomNavProps {
   items: BottomNavItem[];
-  iconSize?: number;
-  showLabel?: boolean;
+  onPlusPress?: () => void; // Aksi untuk tombol plus
 }
 
-export function BottomNav({
-  items,
-  iconSize = 22,
-  showLabel = false,
-}: BottomNavProps) {
+export function BottomNav({ items, onPlusPress }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -35,20 +31,22 @@ export function BottomNav({
   return (
     <div
       className="
-        fixed bottom-0 left-0 right-0 z-50
-        flex justify-center
+        fixed bottom-8 left-0 right-0 z-50
+        flex items-center justify-center gap-3
         pointer-events-none
-        pb-[max(env(safe-area-inset-bottom),16px)]
+        px-6
+        pb-[env(safe-area-inset-bottom)]
       "
     >
+      {/* Main Island Nav */}
       <nav
         className="
           pointer-events-auto
-          flex items-center gap-1 px-2 py-2
-          rounded-full
-          backdrop-blur-xl bg-white/30
-          border border-white/50
-          shadow-sm
+          flex items-center gap-1 p-2
+          rounded-[32px]
+          backdrop-blur-2xl bg-neutral-900/80
+          border border-white/10
+          shadow-[0_8px_32px_rgba(0,0,0,0.4)]
         "
       >
         {items.map((item) => {
@@ -58,57 +56,66 @@ export function BottomNav({
             <button
               key={item.path}
               onClick={() => handlePress(item.path)}
-              aria-label={item.label}
-              aria-current={active ? "page" : undefined}
-              className="
+              className={`
                 relative flex flex-col items-center justify-center
-                w-11 h-11
-                rounded-full
-                transition-all duration-200
+                min-w-[72px] h-14
+                rounded-[24px]
+                transition-all duration-300
                 active:scale-90
-              "
+                ${active ? "bg-white/10" : "bg-transparent"}
+              `}
             >
-              {/* Active background (subtle, bukan pill gede) */}
-              <span
-                className={`
-                  absolute inset-0 rounded-full transition
-                  ${active ? "bg-white/40" : "bg-transparent"}
-                `}
-              />
-
               <HugeiconsIcon
                 icon={item.icon}
-                width={iconSize}
-                height={iconSize}
-                color={active ? "#111827" : "rgba(20,20,30,0.6)"}
+                size={22}
+                className={`transition-colors duration-300 ${
+                  active ? "text-white" : "text-neutral-500"
+                }`}
               />
-
-              {showLabel && (
-                <span
-                  className={`
-                    text-[10px] mt-0.5 font-medium
-                    ${active ? "text-gray-900" : "text-gray-500"}
-                  `}
-                >
-                  {item.label}
-                </span>
-              )}
+              
+              <span
+                className={`
+                  text-[10px] mt-1 font-medium transition-colors duration-300
+                  ${active ? "text-white" : "text-neutral-500"}
+                `}
+              >
+                {item.label}
+              </span>
 
               {/* Badge */}
               {item.badge != null && item.badge > 0 && (
                 <span className="
-                  absolute top-1 right-1
-                  min-w-[14px] h-[14px] px-1
-                  rounded-full bg-red-500 text-white
-                  text-[8px] font-bold flex items-center justify-center
-                ">
-                  {item.badge > 99 ? "99+" : item.badge}
-                </span>
+                  absolute top-2 right-4
+                  w-2 h-2
+                  rounded-full bg-blue-500
+                " />
               )}
             </button>
           );
         })}
       </nav>
+
+      {/* Floating Action Button (FAB) - Plus Button */}
+      <button
+        onClick={onPlusPress}
+        className="
+          pointer-events-auto
+          w-16 h-16
+          rounded-full
+          flex items-center justify-center
+          backdrop-blur-2xl bg-neutral-900/80
+          border border-white/10
+          shadow-[0_8px_32px_rgba(0,0,0,0.4)]
+          active:scale-90 transition-transform
+          group
+        "
+      >
+        <HugeiconsIcon 
+          icon={Add01Icon} 
+          size={28} 
+          className="text-white group-hover:rotate-90 transition-transform duration-300" 
+        />
+      </button>
     </div>
   );
 }

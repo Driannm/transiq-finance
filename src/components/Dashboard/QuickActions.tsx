@@ -56,7 +56,7 @@ export function QuickAddGrid({
             className={`
               w-13 h-13 rounded-xl
               flex items-center justify-center
-              bg-white dark:bg-gray-900 shadow-sm
+              bg-white dark:bg-neutral-900 shadow-sm
               ${item.containerClassName || ""}
             `}
           >

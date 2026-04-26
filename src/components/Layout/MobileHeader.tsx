@@ -1,6 +1,9 @@
+"use client";
+
 import { ReactNode } from "react";
 import { ThemeToggle } from "@/components/Shared/ThemeToggle";
-import Avatar from "boring-avatars";
+import { useRouter } from "next/navigation";
+import { User } from "lucide-react"; // Import icon user
 
 // Types 
 export interface NavbarAction {
@@ -11,40 +14,50 @@ export interface NavbarAction {
 
 export interface IslandNavbarProps {
   title: string;
-  initials?: string;
+  avatarIcon?: ReactNode; // Opsional: jika ingin mengganti icon user dengan icon lain
   actions?: NavbarAction[];
   onAvatarPress?: () => void;
 }
 
 // Shared class – mendukung dark mode
 const island = 
-  "bg-white dark:bg-gray-900 border border-black/[0.07] dark:border-white/[0.1] shadow-sm dark:shadow-none rounded-full";
+  "bg-white dark:bg-neutral-950 border border-black/[0.07] dark:border-white/[0.1] shadow-sm dark:shadow-none rounded-full"; 
 
 export function IslandNavbar({
   title,
-  initials = "JJ",
+  avatarIcon,
   actions = [],
   onAvatarPress,
 }: IslandNavbarProps) {
+  const router = useRouter();
+
+  // Handler: jika onAvatarPress kosong, default ke /profile
+  const handleAvatarClick = () => {
+    if (onAvatarPress) {
+      onAvatarPress();
+    } else {
+      router.push("/profile");
+    }
+  };
+
   return (
     <div className="flex items-center gap-2 px-4 py-2.5 sticky top-0 z-50">
-      {/* Avatar Notion-style */}
-      <div
-        className={`${island} w-11 h-11 flex items-center justify-center shrink-0 ${
-          onAvatarPress ? "cursor-pointer active:scale-95 transition-transform" : ""
-        }`}
-        onClick={onAvatarPress}
+      
+      {/* Dynamic Profile Button (Ganti dari Avatar ke Icon) */}
+      <button
+        onClick={handleAvatarClick}
+        className={`${island} w-11 h-11 flex items-center justify-center shrink-0 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
+        aria-label="Go to profile"
       >
-        <Avatar
-          size={32}
-          name={initials}
-          variant="marble"
-          colors={["#92A1C6", "#146A7C", "#F0AB3D", "#C271B4", "#C20D90"]}
-        />
-      </div>
+        {avatarIcon ? (
+          avatarIcon
+        ) : (
+          <User size={20} strokeWidth={2.25} />
+        )}
+      </button>
 
       {/* Title */}
-      <div className={`${island} flex-1 h-10 flex items-center justify-center min-w-0`}>
+      <div className={`${island} flex-1 h-11 flex items-center justify-center min-w-0`}>
         <span className="text-[14px] font-semibold text-gray-900 dark:text-gray-100 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis px-4">
           {title}
         </span>

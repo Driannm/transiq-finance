@@ -25,7 +25,7 @@ function MetricCard({
   if (isEmpty) {
     return (
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex flex-col items-center justify-center text-center min-h-[96px]"
+        className="bg-white dark:bg-neutral-900 rounded-2xl p-4 shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800 rounded-2xl p-4 flex flex-col items-center justify-center text-center min-h-[96px]"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%23D1D5DB' stroke-width='2' stroke-dasharray='6%2c 5' stroke-dashoffset='0' stroke-linecap='round'/%3e%3c/svg%3e")`,
         }}
