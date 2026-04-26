@@ -31,7 +31,7 @@ export function BottomNav({ items, onPlusPress }: BottomNavProps) {
   return (
     <div
       className="
-        fixed bottom-8 left-0 right-0 z-50
+        fixed bottom-4 left-0 right-0 z-50
         flex items-center justify-center gap-3
         pointer-events-none
         px-6
