@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/Providers/ThemeProvider";
-import type { Viewport } from 'next'
+import { Providers } from "@/components/Providers/SessionProvider";
+import type { Viewport } from "next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -21,15 +22,15 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f5f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
   ],
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: 'cover', // Penting agar warna masuk ke area notch/dynamic island
-}
+  viewportFit: "cover", // Penting agar warna masuk ke area notch/dynamic island
+};
 
 export default function RootLayout({
   children,
@@ -43,7 +44,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <Providers>{children}</Providers>
+        </ThemeProvider>
       </body>
     </html>
   );
