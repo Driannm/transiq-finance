@@ -30,24 +30,32 @@ body {
 
 @layer base {  
   html {
-    /* Menyamakan warna background root */
     background-color: #f5f5f5; 
+    -ms-overflow-style: none;  
+    scrollbar-width: none;     
   }
 
   html.dark {
     background-color: #0a0a0a;
   }
 
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
   body {
     @apply bg-neutral-100 dark:bg-neutral-950;
     overscroll-behavior-y: none; 
+    -webkit-overflow-scrolling: touch;
   }
 
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
