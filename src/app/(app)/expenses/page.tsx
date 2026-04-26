@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock, EmptyState } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
-import { Add01Icon, ShoppingBag01Icon, Invoice02Icon, Calendar02Icon } from "@hugeicons/core-free-icons";
+import { Add01Icon, ShoppingBag01Icon, Invoice02Icon, Calendar02Icon, ArrowLeft02Icon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format } from "date-fns";
 
@@ -61,12 +61,23 @@ export default function ExpensesPage() {
   };
 
   const total = expenses.reduce((sum, e) => sum + e.transaction.amount, 0);
+  
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "/";
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans pb-24">
       <IslandNavbar
         title="Expenses"
-        initials="JJ"
+        avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+        onAvatarPress={handleBack}
         actions={[
           {
             icon: (

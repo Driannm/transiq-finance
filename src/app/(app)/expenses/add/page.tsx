@@ -103,11 +103,22 @@ export default function AddExpensePage() {
     }
   };
 
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = "/";
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0A0A0A] font-sans">
       <IslandNavbar
         title="Tambah Expense"
-        initials="JJ"
+        avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+        onAvatarPress={handleBack}
         actions={[
           {
             icon: <HugeiconsIcon icon={SaveIcon} size={18} />,
