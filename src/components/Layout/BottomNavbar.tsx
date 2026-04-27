@@ -35,7 +35,6 @@ export function BottomNav({ items, onPlusPress }: BottomNavProps) {
         flex items-center justify-center gap-3
         pointer-events-none
         px-6
-        pb-[env(safe-area-inset-bottom)]
       "
     >
       {/* Main Island Nav */}
@@ -43,8 +42,8 @@ export function BottomNav({ items, onPlusPress }: BottomNavProps) {
         className="
           pointer-events-auto
           flex items-center gap-1 p-2
-          rounded-[32px]
-          backdrop-blur-2xl bg-neutral-900/80
+          rounded-[40px]
+          backdrop-blur-sm bg-neutral-900/80
           border border-white/10
           shadow-[0_8px_32px_rgba(0,0,0,0.4)]
         "
@@ -59,7 +58,7 @@ export function BottomNav({ items, onPlusPress }: BottomNavProps) {
               className={`
                 relative flex flex-col items-center justify-center
                 min-w-[72px] h-14
-                rounded-[24px]
+                rounded-[30px]
                 transition-all duration-300
                 active:scale-90
                 ${active ? "bg-white/10" : "bg-transparent"}

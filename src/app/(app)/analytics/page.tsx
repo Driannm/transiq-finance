@@ -35,16 +35,6 @@ import {
 
 const actions: NavbarAction[] = [
   {
-    icon: <HugeiconsIcon icon={FilterHorizontalIcon} size={18} />,
-    label: "Filter",
-    onPress: () => console.log("Filter clicked"),
-  },
-  {
-    icon: <HugeiconsIcon icon={Share01Icon} size={18} />,
-    label: "Share",
-    onPress: () => console.log("Share clicked"),
-  },
-  {
     icon: <HugeiconsIcon icon={Download04Icon} size={18} />,
     label: "Export",
     onPress: () => console.log("Download clicked"),
@@ -65,7 +55,7 @@ function ModernBarChart({ data }: { data: { label: string; value: number; prevVa
               style={{ height: `${(item.prevValue / maxValue) * 100}%`, minHeight: 4 }}
             />
             <div
-              className="w-5 rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 dark:from-blue-500 dark:to-blue-300 absolute bottom-0 z-10"
+              className="w-5 rounded-t-md bg-gradient-to-t from-blue-600 to-blue-600 dark:from-blue-600 dark:to-blue-500 absolute bottom-0 z-10"
               style={{ height: `${(item.value / maxValue) * 100}%`, minHeight: 4 }}
             />
           </div>
