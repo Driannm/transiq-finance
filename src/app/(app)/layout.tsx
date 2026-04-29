@@ -22,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </PullToRefresh>
-      <BottomNav items={navItems} onPlusPress={() => console.log("Open Modal Add")} />
+      <BottomNav items={navItems} />
     </div>
   );
 }
