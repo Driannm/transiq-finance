@@ -83,7 +83,7 @@ function SectionHeader({
         ) : action.type === "button" ? (
           <button
             onClick={action.onPress}
-            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            className="text-xs font-medium text-foreground bg-muted hover:bg-muted/80 border border-neutral-800 rounded-lg px-2.5 py-1 transition-colors"
           >
             {action.label}
           </button>
