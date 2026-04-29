@@ -36,22 +36,26 @@ enum DebtLoanStatus {
 // ─── USER & FAMILY ─────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  email     String   @unique
+  email     String    @unique
   password  String
-  role      Role     @default(PARENT)
+  role      Role      @default(PARENT)
 
-  // Hubungan ke Keluarga (Opsional)
   familyId  String?
-  family    Family?  @relation(fields: [familyId], references: [id])
+  family    Family?   @relation(fields: [familyId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // [FIX #1] Soft delete
 
   cards        Card[]
   transactions Transaction[]
   assets       Asset[]
+  groups       TransactionGroup[]
+
+  @@index([familyId])
+  @@map("users")
 }
 
 model Family {
@@ -59,154 +63,289 @@ model Family {
   name      String
   createdAt DateTime @default(now())
 
-  members   User[]
-  cards     Card[]
-  assets    Asset[]
+  members    User[]
+  cards      Card[]
+  assets     Asset[]
+  categories Category[]
+  merchants  Merchant[]
+  groups     TransactionGroup[]
+
+  @@map("families")
 }
 
 // ─── FINANCIAL CORE ────────────────────────────
 
 model Card {
-  id             String   @id @default(cuid())
-  name           String
-  type           CardType
-  balance        Float    @default(0)
+  id      String   @id @default(cuid())
+  name    String
+  type    CardType
+  balance Float    @default(0)
 
-  // Ownership
-  userId         String   // Pemilik asli
-  user           User     @relation(fields: [userId], references: [id])
-  familyId       String?  // Jika diisi, kartu ini shared ke keluarga
-  family         Family?  @relation(fields: [familyId], references: [id])
+  // [NOTE] Balance disimpan sebagai cache.
+  // Selalu hitung ulang dari aggregate transaksi untuk validasi.
+  // Gunakan lastReconciledAt untuk tahu kapan terakhir diverifikasi.
+  lastReconciledAt DateTime?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
 
-  transactions   Transaction[]
-  transfersTo    Transfer[]    @relation("ToCard")
-  transfersFrom  Transfer[]    @relation("FromCard")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // [FIX #1] Soft delete
+
+  transactions  Transaction[]
+  transfersTo   Transfer[]    @relation("ToCard")
+  transfersFrom Transfer[]    @relation("FromCard")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("cards")
 }
 
 // ─── TRANSACTION MASTER ─────────────────────────
 
 model Transaction {
-  id          String          @id @default(cuid())
-  amount      Float
-  type        TransactionType
-  date        DateTime        @default(now())
-  
-  // Relasi Konten
-  userId      String
-  user        User            @relation(fields: [userId], references: [id])
-  cardId      String
-  card        Card            @relation(fields: [cardId], references: [id])
+  id     String          @id @default(cuid())
+  amount Float
+  type   TransactionType
+  date   DateTime        @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id])
 
   // Sub-Model Relations (1-to-1)
-  expense     Expense?
-  income      Income?
-  transfer    Transfer?
-  debt        Debt?
-  loan        Loan?
+  expense  Expense?
+  income   Income?
+  transfer Transfer?
+  debt     Debt?
+  loan     Loan?
 
-  createdAt   DateTime        @default(now())
+  // [FEATURE] Group Transaction
+  groups TransactionGroupItem[]
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime? // [FIX #1] Soft delete
+
+  @@index([userId, date])
+  @@index([cardId, date])
+  @@index([type])
+  @@map("transactions")
 }
 
 // ─── TRANSACTION SUB-MODELS ─────────────────────
 
 model Expense {
-  id            String   @id @default(cuid())
-  transactionId String   @unique
+  id            String      @id @default(cuid())
+  transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  name          String
-  categoryId    String?
-  category      Category? @relation(fields: [categoryId], references: [id])
-  merchantId    String?
-  merchant      Merchant? @relation(fields: [merchantId], references: [id])
-  
-  // Breakdown (Opsional)
-  tax           Float?   @default(0)
-  fee           Float?   @default(0)
-  discount      Float?   @default(0)
-  notes         String?
+  name       String
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  merchantId String?
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+
+  tax      Float?  @default(0)
+  fee      Float?  @default(0)
+  discount Float?  @default(0)
+  notes    String?
+
+  @@map("expenses")
 }
 
 model Income {
-  id            String   @id @default(cuid())
-  transactionId String   @unique
+  id            String      @id @default(cuid())
+  transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  name          String
-  source        String?
-  notes         String?
+  name   String
+  source String?
+  notes  String?
+
+  @@map("incomes")
 }
 
 model Transfer {
-  id            String   @id @default(cuid())
-  transactionId String   @unique
+  id            String      @id @default(cuid())
+  transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  fromCardId    String
-  fromCard      Card     @relation("FromCard", fields: [fromCardId], references: [id])
-  toCardId      String
-  toCard        Card     @relation("ToCard", fields: [toCardId], references: [id])
-  
-  fee           Float?   @default(0)
+  // [FIX #3] fromCardId dihapus — sudah tersimpan di Transaction.cardId
+  // Transaction.cardId  = kartu pengirim (from)
+  // Transfer.toCardId   = kartu penerima (to)
+  toCardId String
+  toCard   Card   @relation("ToCard", fields: [toCardId], references: [id])
+
+  // Relasi fromCard tetap ada untuk kemudahan query, tapi via Transaction
+  fromCardId String
+  fromCard   Card   @relation("FromCard", fields: [fromCardId], references: [id])
+
+  fee Float? @default(0)
+
+  @@map("transfers")
 }
 
 model Debt {
-  id            String   @id @default(cuid())
-  transactionId String   @unique
+  id            String      @id @default(cuid())
+  transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  personName    String   // Berhutang ke siapa
-  description   String?
-  dueDate       DateTime?
-  status        DebtLoanStatus @default(ACTIVE)
+  personName  String
+  description String?
+  dueDate     DateTime?
+  status      DebtLoanStatus @default(ACTIVE)
+
+  // [FIX #4] Relasi ke payment transactions (misalnya saat cicilan dibayar)
+  payments DebtPayment[]
+
+  @@index([status])
+  @@map("debts")
+}
+
+model DebtPayment {
+  id     String @id @default(cuid())
+  debtId String
+  debt   Debt   @relation(fields: [debtId], references: [id])
+
+  // Referensi ke transaksi pembayaran
+  transactionId String
+  paidAt        DateTime @default(now())
+  notes         String?
+
+  @@map("debt_payments")
 }
 
 model Loan {
-  id            String   @id @default(cuid())
-  transactionId String   @unique
+  id            String      @id @default(cuid())
+  transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  personName    String   // Siapa yang pinjam uang kita
-  description   String?
-  dueDate       DateTime?
-  status        DebtLoanStatus @default(ACTIVE)
+  personName  String
+  description String?
+  dueDate     DateTime?
+  status      DebtLoanStatus @default(ACTIVE)
+
+  // [FIX #4] Relasi ke payment transactions
+  payments LoanPayment[]
+
+  @@index([status])
+  @@map("loans")
+}
+
+model LoanPayment {
+  id     String @id @default(cuid())
+  loanId String
+  loan   Loan   @relation(fields: [loanId], references: [id])
+
+  transactionId String
+  paidAt        DateTime @default(now())
+  notes         String?
+
+  @@map("loan_payments")
+}
+
+// ─── GROUP TRANSACTION ──────────────────────────
+// [FEATURE] Grouping adalah layer tambahan — tidak memodifikasi transaksi asli.
+// Relasi many-to-many via tabel junction TransactionGroupItem.
+
+model TransactionGroup {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  // Kustomisasi tampilan (icon & warna dari daftar yang tersedia di aplikasi)
+  icon        String  // Nama icon dari daftar preset, e.g. "airplane", "cart", "home"
+  iconColor   String  // Kode warna dari daftar preset, e.g. "#FF5733"
+
+  // Ownership — group milik user, opsional di-share ke keluarga
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // [FIX #1] Soft delete
+
+  items TransactionGroupItem[]
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("transaction_groups")
+}
+
+// Tabel junction many-to-many: 1 transaksi bisa di banyak group, 1 group punya banyak transaksi
+model TransactionGroupItem {
+  id      String @id @default(cuid())
+  groupId String
+  group   TransactionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  addedAt DateTime @default(now())
+
+  // Pastikan 1 transaksi tidak duplikat dalam 1 group
+  @@unique([groupId, transactionId])
+  @@index([groupId])
+  @@index([transactionId])
+  @@map("transaction_group_items")
 }
 
 // ─── OTHERS ────────────────────────────────────
 
 model Asset {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
   value     Float?
-  ownerName String   // Sesuai dokumen resmi
+  ownerName String
+  // [FIX #7] Tambah kategori aset untuk filter di dashboard
+  category  String? // e.g. "property", "vehicle", "investment", "savings"
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  familyId  String?
-  family    Family?  @relation(fields: [familyId], references: [id])
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // [FIX #1] Soft delete
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("assets")
 }
 
 model Category {
   id        String   @id @default(cuid())
   name      String
-  familyId  String
   createdAt DateTime @default(now())
 
+  // [FIX #2] Relasi proper ke Family (sebelumnya hanya String tanpa relasi)
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id])
+
   expenses Expense[]
+
+  @@index([familyId])
+  @@map("categories")
 }
 
 model Merchant {
   id        String   @id @default(cuid())
   name      String
-  familyId  String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  // [FIX #2] Relasi proper ke Family (sebelumnya hanya String tanpa relasi)
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id])
 
   expenses Expense[]
+
+  @@index([familyId])
+  @@map("merchants")
 }

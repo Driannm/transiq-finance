@@ -8,24 +8,24 @@ export async function GET() {
     const session = await getServerSession(authOptions);
 
     // [IMPROVE] Guard lebih ketat — kembalikan 401 bukan array kosong
-    // Array kosong menyembunyikan error autentikasi dari client
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     if (!session.user.familyId) {
-      return NextResponse.json({ categories: [] });
+      return NextResponse.json({ merchants: [] });
     }
 
-    const categories = await prisma.category.findMany({
+    const merchants = await prisma.merchant.findMany({
       where: { familyId: session.user.familyId },
-      select: { id: true, name: true, icon: true },
+      // [IMPROVE] Select eksplisit — tidak perlu tarik createdAt untuk dropdown
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json({ categories });
+    return NextResponse.json({ merchants });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Gagal memuat kategori" }, { status: 500 });
+    return NextResponse.json({ error: "Gagal memuat merchant" }, { status: 500 });
   }
 }
