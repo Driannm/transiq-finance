@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// DataControlsBar — Main orchestrator toolbar component
-// Drop this into any page and pass config to enable/disable features
-// ─────────────────────────────────────────────────────────────────────────────
-
 "use client";
 
 import { useCallback } from "react";
@@ -48,16 +43,18 @@ export function DataControlsBar({
   onGroupChange,
   className,
 }: DataControlsBarProps) {
+
+  // ✅ safer feature flags (no boolean | object confusion)
   const hasSearch = !!config.search;
   const hasSort   = !!config.sort;
   const hasFilter = !!config.filter;
   const hasView   = !!config.view;
   const hasGroup  = !!config.group;
 
+  // ✅ FIXED: safe optional chaining
   const showChips =
     hasFilter &&
-    config.filter !== false &&
-    (config.filter.showChips !== false) &&
+    config.filter?.showChips !== false &&
     activeFilterCount > 0;
 
   const handleFilterApply = useCallback(
@@ -70,17 +67,19 @@ export function DataControlsBar({
     [onFilterChange]
   );
 
+  // ✅ FIXED: safe access with optional chaining
   const isSortActive =
     hasSort &&
-    config.sort !== false &&
-    state.sort.field !== (config.sort.defaultValue ?? config.sort.fields[0]?.value ?? "");
+    state.sort.field !==
+      (config.sort?.defaultValue ??
+        config.sort?.fields?.[0]?.value ??
+        "");
 
   return (
     <div className={cn("w-full", className)}>
-      {/* ── Toolbar row ── */}
+      {/* Toolbar */}
       <div className="flex items-center gap-2">
-        {/* Search — takes remaining space if present */}
-        {hasSearch && config.search !== false && (
+        {hasSearch && (
           <SearchBar
             config={config.search}
             value={state.search}
@@ -89,9 +88,8 @@ export function DataControlsBar({
           />
         )}
 
-        {/* Right-side controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {hasSort && config.sort !== false && (
+          {hasSort && config.sort && (
             <SortSheet
               config={config.sort}
               value={state.sort}
@@ -100,7 +98,7 @@ export function DataControlsBar({
             />
           )}
 
-          {hasFilter && config.filter !== false && (
+          {hasFilter && config.filter && (
             <FilterSheet
               config={config.filter}
               value={state.filters}
@@ -111,7 +109,7 @@ export function DataControlsBar({
             />
           )}
 
-          {hasGroup && config.group !== false && (
+          {hasGroup && config.group && (
             <GroupSheet
               config={config.group}
               value={state.group}
@@ -119,7 +117,7 @@ export function DataControlsBar({
             />
           )}
 
-          {hasView && config.view !== false && (
+          {hasView && config.view && (
             <ViewToggle
               config={config.view}
               value={state.view}
@@ -129,9 +127,9 @@ export function DataControlsBar({
         </div>
       </div>
 
-      {/* ── Active filter chips ── */}
+      {/* Filter Chips */}
       <AnimatePresence>
-        {showChips && config.filter !== false && (
+        {showChips && config.filter && (
           <ActiveFilterChips
             config={config.filter}
             filters={state.filters}
