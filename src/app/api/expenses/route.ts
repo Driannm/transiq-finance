@@ -1,24 +1,28 @@
+// src/app/api/expenses/route.ts
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+// ─── Validation Schema ─────────────────────────────────────────────────────
+
 const createExpenseSchema = z.object({
-  cardId: z.string().min(1),
-  name: z.string().min(1),
-  date: z.string(),
-  subtotal: z.number().positive(),
+  cardId: z.string().min(1, "Kartu wajib dipilih"),
+  name: z.string().min(1, "Nama expense wajib diisi").max(255),
+  date: z.string().min(1, "Tanggal wajib diisi"),
+  subtotal: z.number().positive("Subtotal minimal Rp 1"),
   discount: z.number().min(0).default(0),
   tax: z.number().min(0).default(0),
   fee: z.number().min(0).default(0),
-  categoryId: z.string().optional(),
-  merchantId: z.string().optional(),
-  notes: z.string().optional(),
+  categoryId: z.string().optional().nullable(),
+  merchantId: z.string().optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
 });
 
-// [FIX] date ada di transaction, bukan di root expense —
-// frontend harus akses expense.transaction.date, bukan expense.date
+// ─── SELECT Fields (Optimized) ─────────────────────────────────────────────
+// [FIX] Pastikan createdAt ada di root expense untuk metadata
+
 const EXPENSE_SELECT = {
   id: true,
   name: true,
@@ -30,110 +34,32 @@ const EXPENSE_SELECT = {
     select: {
       id: true,
       amount: true,
-      date: true,       // ← sumber tanggal yang benar
-      createdAt: true,
-      card: { select: { id: true, name: true, type: true } },
+      date: true,       // ← Sumber tanggal transaksi
+      createdAt: true,  // ← Waktu pembuatan transaksi
+      card: { 
+        select: { 
+          id: true, 
+          name: true, 
+          type: true 
+        } 
+      },
     },
   },
-  category: { select: { id: true, name: true } },
-  merchant: { select: { id: true, name: true } },
+  category: { 
+    select: { 
+      id: true, 
+      name: true 
+    } 
+  },
+  merchant: { 
+    select: { 
+      id: true, 
+      name: true 
+    } 
+  },
 } as const;
 
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const familyId = session.user.familyId;
-    if (!familyId) {
-      return NextResponse.json({ error: "Anda belum tergabung dalam keluarga" }, { status: 400 });
-    }
-
-    const body = await request.json();
-    const parsed = createExpenseSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Data tidak valid" }, { status: 400 });
-    }
-
-    const { cardId, name, date, subtotal, discount, tax, fee, categoryId, merchantId, notes } = parsed.data;
-    const totalAmount = subtotal + tax + fee - discount;
-
-    const card = await prisma.card.findFirst({
-      where: {
-        id: cardId,
-        deletedAt: null,
-        OR: [{ userId: session.user.id }, { familyId }],
-      },
-      select: { id: true },
-    });
-    if (!card) {
-      return NextResponse.json({ error: "Kartu tidak ditemukan" }, { status: 404 });
-    }
-
-    const [validCategory, validMerchant] = await Promise.all([
-      categoryId
-        ? prisma.category.findFirst({ where: { id: categoryId, familyId }, select: { id: true } })
-        : Promise.resolve(true),
-      merchantId
-        ? prisma.merchant.findFirst({ where: { id: merchantId, familyId }, select: { id: true } })
-        : Promise.resolve(true),
-    ]);
-
-    if (categoryId && !validCategory) {
-      return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
-    }
-    if (merchantId && !validMerchant) {
-      return NextResponse.json({ error: "Merchant tidak valid" }, { status: 400 });
-    }
-
-    const result = await prisma.$transaction(
-      async (tx) => {
-        const expense = await tx.expense.create({
-          data: {
-            name,
-            ...(categoryId && { category: { connect: { id: categoryId } } }),
-            ...(merchantId && { merchant: { connect: { id: merchantId } } }),
-            tax,
-            fee,
-            discount,
-            notes,
-            transaction: {
-              create: {
-                amount: totalAmount,
-                type: "EXPENSE",
-                userId: session.user.id,
-                cardId,
-                date: new Date(date),
-              },
-            },
-          },
-          select: EXPENSE_SELECT,
-        });
-
-        await tx.card.update({
-          where: { id: cardId },
-          data: { balance: { decrement: totalAmount } },
-        });
-
-        return expense;
-      },
-      { timeout: 10000, maxWait: 5000 }
-    );
-
-    return NextResponse.json({ success: true, data: result }, { status: 201 });
-  } catch (error: any) {
-    console.error(error);
-    if (error.code === "P2028") {
-      return NextResponse.json(
-        { error: "Server sedang sibuk, coba beberapa saat lagi" },
-        { status: 503 }
-      );
-    }
-    return NextResponse.json({ error: error.message || "Gagal mencatat pengeluaran" }, { status: 500 });
-  }
-}
+// ─── GET: List Expenses ────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
   try {
@@ -143,47 +69,70 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const page  = Math.max(1, parseInt(searchParams.get("page")  ?? "1"));
-    const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"));
-    const skip  = (page - 1) * limit;
+    
+    // Pagination
+    const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20")));
+    const skip = (page - 1) * limit;
 
+    // Filters
     const categoryId = searchParams.get("categoryId") ?? undefined;
     const merchantId = searchParams.get("merchantId") ?? undefined;
-    const cardId     = searchParams.get("cardId")     ?? undefined;
+    const cardId = searchParams.get("cardId") ?? undefined;
+    const search = searchParams.get("search") ?? undefined;
 
-    // [FIX] Tambah support ?month=yyyy-MM yang dikirim frontend
-    // Konversi ke range from/to di sisi server
-    let from = searchParams.get("from");
-    let to   = searchParams.get("to");
+    // ─── [FIX] Date Range Logic (ikuti pattern working code) ───────────────
+    let from: string | undefined;
+    let to: string | undefined;
+    
     const month = searchParams.get("month");
-    if (month && !from && !to) {
+    if (month && !searchParams.get("from") && !searchParams.get("to")) {
       const [y, m] = month.split("-").map(Number);
       if (!isNaN(y) && !isNaN(m)) {
-        from = new Date(y, m - 1, 1).toISOString();                     // awal bulan 00:00:00
-        to   = new Date(y, m, 0, 23, 59, 59, 999).toISOString();        // akhir bulan 23:59:59
+        // Awal bulan: 00:00:00
+        from = new Date(y, m - 1, 1).toISOString();
+        // Akhir bulan: 23:59:59.999
+        to = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
       }
     }
 
-    const isParent = session.user.role === "PARENT";
+    // Jika from/to dikirim langsung (override month)
+    if (searchParams.get("from")) from = searchParams.get("from") ?? undefined;
+    if (searchParams.get("to")) to = searchParams.get("to") ?? undefined;
 
+    // ─── Build Where Clause ────────────────────────────────────────────────
+    const isParent = session.user.role === "PARENT";
+    
     const baseWhere = {
       transaction: {
         deletedAt: null,
+        // Scope by user/family
         ...(isParent
           ? { user: { familyId: session.user.familyId, deletedAt: null } }
           : { userId: session.user.id }),
+        // Card filter
         ...(cardId && { cardId }),
+        // Date range filter [FIX: wrap in object properly]
         ...((from || to) && {
           date: {
             ...(from && { gte: new Date(from) }),
-            ...(to   && { lte: new Date(to)   }),
+            ...(to && { lte: new Date(to) }),
           },
         }),
       },
+      // Category & Merchant filters
       ...(categoryId && { categoryId }),
       ...(merchantId && { merchantId }),
+      // Search by name
+      ...(search && {
+        name: {
+          contains: search,
+          mode: "insensitive" as const,
+        },
+      }),
     };
 
+    // ─── Execute Queries in Parallel ───────────────────────────────────────
     const [expenses, total] = await Promise.all([
       prisma.expense.findMany({
         where: baseWhere,
@@ -197,10 +146,152 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       expenses,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + expenses.length < total,
+      },
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Gagal memuat data" }, { status: 500 });
+    console.error("[GET /api/expenses]", error);
+    return NextResponse.json(
+      { error: "Gagal memuat data expense" }, 
+      { status: 500 }
+    );
+  }
+}
+
+// ─── POST: Create Expense (dengan improvements) ────────────────────────────
+
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!session.user.familyId) {
+      return NextResponse.json(
+        { error: "Anda belum tergabung dalam keluarga" }, 
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const parsed = createExpenseSchema.safeParse(body);
+    
+    if (!parsed.success) {
+      const errors = parsed.error.issues.map((issue) => ({
+        field: issue.path.join("."),
+        message: issue.message,
+      }));
+      
+      return NextResponse.json(
+        { error: "Data tidak valid", details: errors }, 
+        { status: 400 }
+      );
+    }
+
+    const { 
+      cardId, name, date, subtotal, discount, tax, fee, 
+      categoryId, merchantId, notes 
+    } = parsed.data;
+
+    const totalAmount = subtotal + tax + fee - discount;
+
+    // Validate card ownership
+    const card = await prisma.card.findFirst({
+      where: {
+        id: cardId,
+        deletedAt: null,
+        OR: [
+          { userId: session.user.id },
+          { familyId: session.user.familyId },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (!card) {
+      return NextResponse.json({ error: "Kartu tidak ditemukan" }, { status: 404 });
+    }
+
+    // Validate category & merchant in parallel
+    const [validCategory, validMerchant] = await Promise.all([
+      categoryId
+        ? prisma.category.findFirst({ 
+            where: { id: categoryId, familyId: session.user.familyId },
+            select: { id: true }
+          })
+        : Promise.resolve(true),
+      merchantId
+        ? prisma.merchant.findFirst({ 
+            where: { id: merchantId, familyId: session.user.familyId },
+            select: { id: true }
+          })
+        : Promise.resolve(true),
+    ]);
+
+    if (categoryId && !validCategory) {
+      return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
+    }
+    if (merchantId && !validMerchant) {
+      return NextResponse.json({ error: "Merchant tidak valid" }, { status: 400 });
+    }
+
+    // Create in transaction
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const expense = await tx.expense.create({
+          data: {
+            name,
+            tax,
+            fee,
+            discount,
+            notes,
+            ...(categoryId && { category: { connect: { id: categoryId } } }),
+            ...(merchantId && { merchant: { connect: { id: merchantId } } }),
+            transaction: {
+              create: {
+                amount: totalAmount,
+                type: "EXPENSE",
+                userId: session.user.id,
+                cardId,
+                date: new Date(date),
+              },
+            },
+          },
+          select: EXPENSE_SELECT,
+        });
+
+        // Update card balance
+        await tx.card.update({
+          where: { id: cardId },
+          data: { balance: { decrement: totalAmount } },
+        });
+
+        return expense;
+      },
+      { timeout: 10000, maxWait: 5000 }
+    );
+
+    return NextResponse.json({ success: true, data: result }, { status: 201 });
+  } catch (error: any) {
+    console.error("[POST /api/expenses]", error);
+    
+    // Handle Prisma timeout
+    if (error.code === "P2028") {
+      return NextResponse.json(
+        { error: "Server sedang sibuk, coba beberapa saat lagi" },
+        { status: 503 }
+      );
+    }
+    
+    return NextResponse.json(
+      { error: error.message || "Gagal mencatat pengeluaran" }, 
+      { status: 500 }
+    );
   }
 }
