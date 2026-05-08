@@ -5,7 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { updateExpenseSchema } from "../utils/validation";
 
-// ─── SELECT Fields ─────────────────────────────────────────────────────────
+// ─── SELECT Fields [FIX: HAPUS createdAt/updatedAt dari Expense] ───────────
 
 const EXPENSE_SELECT = {
   id: true,
@@ -14,38 +14,23 @@ const EXPENSE_SELECT = {
   fee: true,
   discount: true,
   notes: true,
-  createdAt: true,
-  updatedAt: true,
+  // ❌ HAPUS: createdAt/updatedAt tidak ada di model Expense!
   transaction: {
     select: {
       id: true,
       amount: true,
       date: true,
-      createdAt: true,
+      createdAt: true,  // ✅ createdAt ada di Transaction
       card: { 
-        select: { 
-          id: true, 
-          name: true, 
-          type: true 
-        } 
+        select: { id: true, name: true, type: true } 
       },
     },
   },
-  category: { 
-    select: { 
-      id: true, 
-      name: true 
-    } 
-  },
-  merchant: { 
-    select: { 
-      id: true, 
-      name: true 
-    } 
-  },
+  category: { select: { id: true, name: true } },
+  merchant: { select: { id: true, name: true } },
 } as const;
 
-// ─── Helper: Check Access ──────────────────────────────────────────────────
+// ─── Helper: Check Access [FIX: deletedAt hanya di Transaction] ────────────
 
 async function checkExpenseAccess(
   expenseId: string,
@@ -56,9 +41,9 @@ async function checkExpenseAccess(
   const expense = await prisma.expense.findFirst({
     where: {
       id: expenseId,
-      deletedAt: null,
+      // ❌ HAPUS: deletedAt: null,  ← Expense model tidak punya field ini!
       transaction: {
-        deletedAt: null,
+        deletedAt: null,  // ✅ Filter soft delete di Transaction
         ...(userRole === "PARENT"
           ? { user: { familyId, deletedAt: null } }
           : { userId }),
@@ -70,33 +55,30 @@ async function checkExpenseAccess(
   return expense;
 }
 
-// ─── GET: Single Expense Detail ────────────────────────────────────────────
+// ─── GET: Single Expense Detail [FIX: await params] ────────────────────────
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ✅ params is Promise in Next.js 15+
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // ✅ FIX: Unwrap params Promise
+    const { id: expenseId } = await params;
+
     const expense = await checkExpenseAccess(
-      params.id,
+      expenseId,  // ✅ Use unwrapped id
       session.user.id,
       session.user.familyId,
       session.user.role
     );
 
     if (!expense) {
-      return NextResponse.json(
-        { error: "Expense tidak ditemukan" }, 
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expense tidak ditemukan" }, { status: 404 });
     }
 
     return NextResponse.json({ expense });
@@ -109,37 +91,34 @@ export async function GET(
   }
 }
 
-// ─── PATCH: Update Expense ─────────────────────────────────────────────────
+// ─── PATCH: Update Expense [FIX: await params] ─────────────────────────────
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ✅ params is Promise
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if expense exists and user has access
+    // ✅ FIX: Unwrap params
+    const { id: expenseId } = await params;
+
+    // Check access
     const existingExpense = await checkExpenseAccess(
-      params.id,
+      expenseId,
       session.user.id,
       session.user.familyId,
       session.user.role
     );
 
     if (!existingExpense) {
-      return NextResponse.json(
-        { error: "Expense tidak ditemukan" }, 
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expense tidak ditemukan" }, { status: 404 });
     }
 
-    // Parse & validate body
+    // Parse & validate
     const body = await request.json();
     const parsed = updateExpenseSchema.safeParse(body);
     
@@ -148,53 +127,26 @@ export async function PATCH(
         field: issue.path.join("."),
         message: issue.message,
       }));
-      
-      return NextResponse.json(
-        { 
-          error: "Validasi gagal",
-          details: errors,
-        }, 
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Validasi gagal", details: errors }, { status: 400 });
     }
 
-    const { 
-      cardId, 
-      name, 
-      date, 
-      subtotal, 
-      discount, 
-      tax, 
-      fee, 
-      categoryId, 
-      merchantId, 
-      notes 
-    } = parsed.data;
-
-    // Calculate new total
+    const { cardId, name, date, subtotal, discount, tax, fee, categoryId, merchantId, notes } = parsed.data;
     const newTotal = (subtotal ?? 0) + (tax ?? 0) + (fee ?? 0) - (discount ?? 0);
     const oldTotal = existingExpense.transaction.amount;
     const balanceDiff = oldTotal - newTotal;
 
     // Validate card if changed
-    if (cardId && cardId !== existingExpense.transaction.cardId) {
+    if (cardId && cardId !== existingExpense.transaction.card.id) {
       const card = await prisma.card.findFirst({
         where: {
           id: cardId,
           deletedAt: null,
-          OR: [
-            { userId: session.user.id },
-            { familyId: session.user.familyId },
-          ],
+          OR: [{ userId: session.user.id }, { familyId: session.user.familyId }],
         },
         select: { id: true },
       });
-
       if (!card) {
-        return NextResponse.json(
-          { error: "Kartu tidak valid" }, 
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Kartu tidak valid" }, { status: 400 });
       }
     }
 
@@ -202,7 +154,7 @@ export async function PATCH(
     const updated = await prisma.$transaction(
       async (tx) => {
         const updatedExpense = await tx.expense.update({
-          where: { id: params.id },
+          where: { id: expenseId },
           data: {
             ...(name && { name }),
             ...(tax !== undefined && { tax }),
@@ -210,14 +162,10 @@ export async function PATCH(
             ...(discount !== undefined && { discount }),
             ...(notes !== undefined && { notes }),
             ...(categoryId !== undefined && {
-              category: categoryId 
-                ? { connect: { id: categoryId } } 
-                : { disconnect: true },
+              category: categoryId ? { connect: { id: categoryId } } : { disconnect: true },
             }),
             ...(merchantId !== undefined && {
-              merchant: merchantId 
-                ? { connect: { id: merchantId } } 
-                : { disconnect: true },
+              merchant: merchantId ? { connect: { id: merchantId } } : { disconnect: true },
             }),
             ...(date || cardId || subtotal !== undefined) && {
               transaction: {
@@ -232,74 +180,58 @@ export async function PATCH(
           select: EXPENSE_SELECT,
         });
 
-        // Update card balance if amount changed
-        if (balanceDiff !== 0 && cardId) {
+        // Update card balance
+        if (balanceDiff !== 0) {
           await tx.card.update({
-            where: { id: cardId || existingExpense.transaction.cardId },
+            where: { id: cardId || existingExpense.transaction.card.id },
             data: { balance: { increment: balanceDiff } },
           });
         }
 
         return updatedExpense;
       },
-      {
-        timeout: 10000,
-        maxWait: 5000,
-      }
+      { timeout: 10000, maxWait: 5000 }
     );
 
-    return NextResponse.json({ 
-      success: true, 
-      data: updated 
-    });
+    return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error("[PATCH /api/expenses/[id]]", error);
-    return NextResponse.json(
-      { error: "Gagal mengupdate expense" }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal mengupdate expense" }, { status: 500 });
   }
 }
 
-// ─── DELETE: Soft Delete Expense ───────────────────────────────────────────
+// ─── DELETE: Soft Delete [FIX: await params + correct soft delete] ─────────
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // ✅ params is Promise
 ) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if expense exists and user has access
+    // ✅ FIX: Unwrap params
+    const { id: expenseId } = await params;
+
+    // Check access
     const existingExpense = await checkExpenseAccess(
-      params.id,
+      expenseId,
       session.user.id,
       session.user.familyId,
       session.user.role
     );
 
     if (!existingExpense) {
-      return NextResponse.json(
-        { error: "Expense tidak ditemukan" }, 
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Expense tidak ditemukan" }, { status: 404 });
     }
 
     // Soft delete in transaction
     await prisma.$transaction(async (tx) => {
-      // Soft delete expense
-      await tx.expense.update({
-        where: { id: params.id },
-        data: { deletedAt: new Date() },
-      });
-
-      // Soft delete associated transaction
+      // ❌ HAPUS: tx.expense.update({ data: { deletedAt: ... } }) ← Expense tidak punya deletedAt!
+      
+      // ✅ Soft delete hanya di Transaction
       await tx.transaction.update({
         where: { id: existingExpense.transaction.id },
         data: { deletedAt: new Date() },
@@ -307,24 +239,14 @@ export async function DELETE(
 
       // Refund card balance
       await tx.card.update({
-        where: { id: existingExpense.transaction.cardId },
-        data: { 
-          balance: { 
-            increment: existingExpense.transaction.amount 
-          } 
-        },
+        where: { id: existingExpense.transaction.card.id },
+        data: { balance: { increment: existingExpense.transaction.amount } },
       });
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Expense berhasil dihapus" 
-    });
+    return NextResponse.json({ success: true, message: "Expense berhasil dihapus" });
   } catch (error) {
     console.error("[DELETE /api/expenses/[id]]", error);
-    return NextResponse.json(
-      { error: "Gagal menghapus expense" }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal menghapus expense" }, { status: 500 });
   }
 }
