@@ -41,4 +41,5 @@ export interface EmptyStateProps {
    * Akan dirender horizontal dengan gap.
    */
   actions?: EmptyStateAction[];
+  action?: EmptyStateAction;
 }

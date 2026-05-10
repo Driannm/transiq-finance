@@ -13,7 +13,12 @@ export function EmptyState({
   description,
   variant = 'card',
   actions = [],
+  action,
 }: EmptyStateProps) {
+  const allActions = [
+    ...(action ?[action] :[]),
+    ...actions
+  ];
   const base = "px-4 py-10 text-center";
   const cardStyle =
     "bg-white dark:bg-neutral-900 rounded-2xl shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800";
