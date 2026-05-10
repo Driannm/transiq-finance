@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/Shared/CardList/types.ts
 import { ReactNode } from "react";
 
@@ -63,7 +64,7 @@ export interface CardListProps<T = any> {
   skeleton?: SkeletonConfig;
   
   // Empty
-  emptyState?: EmptyStateProps;
+  emptyState?: EmptyStateProps | ReactNode; 
   
   // Load More
   hasMore?: boolean;
