@@ -18,11 +18,16 @@ import {
   Invoice02Icon,
   SquareArrowDown01Icon,
   SquareArrowUp01Icon,
+  HomeIcon,
+  Analytics01Icon,
+  Wallet02Icon,
 } from "@hugeicons/core-free-icons";
 import { IslandNavbar, NavbarAction } from "@/components/Layout/MobileHeader";
+import { BottomNav, BottomNavItem } from "@/components/Layout/BottomNavbar";
 import { MetricCard } from "@/components/Analytics/MetricCard";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SectionBlock, EmptyState } from "@/components/Shared/SectionBlock";
+import { SectionBlock } from "@/components/Shared/SectionBlock";
+import { EmptyState } from "@/components/Shared/EmptyState";
 import {
   type Period,
   dailyData,
@@ -69,6 +74,12 @@ function ModernBarChart({ data }: { data: { label: string; value: number; prevVa
 // ─── Page Component ───────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
+  const navItems: BottomNavItem[] = [
+    { path: "/dashboard", label: "Home", icon: HomeIcon },
+    { path: "/analytics", label: "Analytics", icon: Analytics01Icon },
+    { path: "/wallet", label: "Wallet", icon: Wallet02Icon },
+  ];
+
   const [period, setPeriod] = useState<Period>("Month");
 
   const currentStats = periodStats[period];
@@ -271,6 +282,7 @@ export default function AnalyticsPage() {
             </div>
           )}
         </SectionBlock>
+        <BottomNav items={navItems} />
       </div>
     </div>
   );
