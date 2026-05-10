@@ -1,58 +1,114 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import type { ReactNode } from "react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { QuickAddGrid } from "@/components/Dashboard/QuickActions";
 import { CardList } from "@/components/Shared/CardList";
 import { SectionBlock, EmptyState } from "@/components/Shared/SectionBlock";
-import Link from "next/link";
-import {
-  ArrowDataTransferDiagonalIcon,
-  Add01Icon,
-  SparklesIcon,
-  TrendingUp,
-  Invoice02Icon,
-  Beach02Icon,
-  MoneyReceive01Icon,
-  PieChartIcon,
-} from "@hugeicons/core-free-icons";
+import { useConfirm } from "@/hooks/UseConfirm";
+import { signOut } from "next-auth/react";
+
+// ✅ Import dummy data dari file terpisah (KECUALI transactions)
 import {
   quickActions,
-  transactions,
   upcomingBills,
   savingGoals,
   spendingCategories,
 } from "@/lib/data/dashboard";
-import { useMemo } from "react";
 
-// ================= HELPERS =================
+// ✅ Import icon mapper dari file terpisah
+import { getCategoryIcon } from "@/lib/iconMapping";
+
+// ✅ Import custom SWR hook
+import { useRecentTransactions } from "@/hooks/UseRecentTransactions";
+
+// ✅ Import icons yang dibutuhkan
+import {
+  ArrowDataTransferDiagonalIcon,
+  Add01Icon,
+  Invoice02Icon,
+  Beach02Icon,
+  MoneyReceive01Icon,
+  PieChartIcon,
+  Logout03Icon,
+  AlertCircleIcon,
+  BellDotIcon,
+  Notification01Icon,
+  LaptopIcon,
+  KnightShieldIcon,
+  MoneyReceiveSquareIcon,
+  MoneySendSquareIcon,
+  MoneySend01Icon,
+  HomeIcon,
+  Analytics01Icon,
+  Wallet02Icon,
+} from "@hugeicons/core-free-icons";
+import { BottomNav, BottomNavItem } from "@/components/Layout/BottomNavbar";
+
 
 function formatIDR(amount: number): string {
-  return new Intl.NumberFormat("id-ID").format(amount);
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(Math.round(amount));
 }
 
 function urgencyColor(urgency: string) {
   if (urgency === "high")
-    return { text: "text-red-500", badge: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400" };
+    return {
+      text: "text-red-500",
+      badge: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+    };
   if (urgency === "medium")
-    return { text: "text-amber-500", badge: "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" };
-  return { text: "text-blue-500", badge: "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" };
+    return {
+      text: "text-amber-500",
+      badge:
+        "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+    };
+  return {
+    text: "text-blue-500",
+    badge: "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
+  };
 }
 
-function SavingGoalRing({ percentage, color }: { percentage: number; color: string }) {
+function SavingGoalRing({
+  percentage,
+  color,
+}: {
+  percentage: number;
+  color: string;
+}) {
   const r = 14;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (percentage / 100) * circumference;
   return (
     <div className="relative w-10 h-10 flex-shrink-0">
       <svg width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="currentColor" strokeWidth="4"
-          className="text-gray-200 dark:text-gray-700" />
-        <circle cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="4"
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          strokeLinecap="round" transform="rotate(-90 20 20)" />
+        <circle
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          className="text-gray-200 dark:text-gray-700"
+        />
+        <circle
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 20 20)"
+        />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-gray-700 dark:text-gray-300 font-mono">
         {percentage}%
@@ -65,16 +121,26 @@ function SpendingBreakdownCard() {
   const total = spendingCategories.reduce((s, c) => s + c.percentage, 0);
   const r = 30;
   const circumference = 2 * Math.PI * r;
+  
   const segments = useMemo(() => {
     return spendingCategories.reduce((acc, cat) => {
-      const prevFraction = acc.reduce((sum: number, s: any) => sum + s.fraction, 0);
+      const prevFraction = acc.reduce(
+        (sum: number, s: any) => sum + s.fraction,
+        0
+      );
       const fraction = cat.percentage / total;
-      acc.push({ ...cat, fraction, dasharray: circumference,
+      acc.push({
+        ...cat,
+        fraction,
+        dasharray: circumference,
         dashoffset: circumference - fraction * circumference,
-        rotation: prevFraction * 360 - 90 });
+        rotation: prevFraction * 360 - 90,
+      });
       return acc;
     }, [] as any[]);
   }, []);
+
+  const totalAmount = spendingCategories.reduce((s, c) => s + c.amount, 0);
 
   return (
     <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none p-4">
@@ -82,24 +148,45 @@ function SpendingBreakdownCard() {
         <div className="relative flex-shrink-0 w-[80px] h-[80px]">
           <svg width="80" height="80" viewBox="0 0 80 80">
             {segments.map((seg: any, i: number) => (
-              <circle key={i} cx="40" cy="40" r={r} fill="none" stroke={seg.color}
-                strokeWidth="12" strokeDasharray={seg.dasharray} strokeDashoffset={seg.dashoffset}
-                strokeLinecap="butt" transform={`rotate(${seg.rotation} 40 40)`} />
+              <circle
+                key={i}
+                cx="40"
+                cy="40"
+                r={r}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth="12"
+                strokeDasharray={seg.dasharray}
+                strokeDashoffset={seg.dashoffset}
+                strokeLinecap="butt"
+                transform={`rotate(${seg.rotation} 40 40)`}
+              />
             ))}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-[9px] text-gray-400 dark:text-gray-500 leading-none">Total</span>
-            <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight mt-0.5 font-mono">970rb</span>
+            <span className="text-[9px] text-gray-400 dark:text-gray-500 leading-none">
+              Total
+            </span>
+            <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 leading-tight mt-0.5 font-mono">
+              {formatIDR(totalAmount)}
+            </span>
           </div>
         </div>
         <div className="flex flex-col gap-2 flex-1">
           {spendingCategories.map((cat) => (
             <div key={cat.label} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                <span className="text-xs text-gray-600 dark:text-gray-400">{cat.label}</span>
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: cat.color }}
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  {cat.label}
+                </span>
               </div>
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono">{cat.percentage}%</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono">
+                {cat.percentage}%
+              </span>
             </div>
           ))}
         </div>
@@ -111,11 +198,55 @@ function SpendingBreakdownCard() {
 // ================= PAGE =================
 
 export default function DashboardPage() {
-  const urgentBillsCount = upcomingBills.filter((b) => b.urgency === "high").length;
+  const router = useRouter();
+  const confirm = useConfirm();
+
+  // ✅ GANTI: useEffect + fetch → SWR hook
+  const { 
+    data, 
+    error, 
+    isLoading, 
+    mutate // ← Fungsi untuk manual refresh/retry
+  } = useRecentTransactions();
+  
+  const transactions = data?.transactions || [];
+
+  const navItems: BottomNavItem[] = [
+    { path: "/dashboard", label: "Home",      icon: HomeIcon        },
+    { path: "/analytics", label: "Analytics", icon: Analytics01Icon },
+    { path: "/wallet",    label: "Wallet",    icon: Wallet02Icon    },
+  ];
+
+  // ✅ Balance bisa dummy dulu, atau fetch dari API cards/aggregate nanti
+  const [balance] = useState<number>(7820000);
+
+  const handleLogout = () => {
+    confirm({
+      title: "Keluar dari akun?",
+      description: "Sesi Anda akan berakhir dan Anda perlu login kembali.",
+      confirmLabel: "Ya, Keluar",
+      variant: "danger",
+      icon: <HugeiconsIcon icon={Logout03Icon} size={20} />,
+      onConfirm: () => signOut({ callbackUrl: "/" }),
+    });
+  };
+
+  const urgentBillsCount = upcomingBills.filter(
+    (b) => b.urgency === "high"
+  ).length;
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
-      <IslandNavbar title="Dashboard"/>
+      <IslandNavbar
+        title="Dashboard"
+        actions={[
+          {
+            icon: <HugeiconsIcon icon={Logout03Icon} size={20} />,
+            onPress: handleLogout,
+            label: "Quick Log Out",
+          },
+        ]}
+      />
 
       {/* ---- Balance Card ---- */}
       <div className="px-4 pt-4">
@@ -128,9 +259,12 @@ export default function DashboardPage() {
             </svg>
           </div>
           <div className="relative z-10 mb-6">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-medium">Available Balance</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-medium">
+              Available Balance
+            </p>
             <p className="mt-1 text-[36px] font-mono font-bold leading-none tracking-tight text-white">
-              IDR 7.820.000<span className="text-xl font-semibold opacity-80">.00</span>
+              IDR {formatIDR(balance)}
+              <span className="text-xl font-semibold opacity-80">.00</span>
             </p>
           </div>
           <div className="relative z-10 flex gap-2.5">
@@ -146,40 +280,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ---- AI Insights ---- */}
-      {/* <SectionBlock
-        title="AI Insights"
-        action={{ type: "button", label: "See All", onPress: () => {} }}
-      >
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 flex gap-3 shadow-sm dark:shadow-none">
-          <div className="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center">
-            <HugeiconsIcon icon={SparklesIcon} size={18} className="text-green-500 dark:text-green-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Spending is down</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Down 12% from last week</p>
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 flex gap-3 shadow-sm dark:shadow-none">
-          <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-            <HugeiconsIcon icon={TrendingUp} size={18} className="text-blue-500 dark:text-blue-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Investment Opportunity</p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Tech ETFs trending up</p>
-          </div>
-        </div>
-      </SectionBlock> */}
-
-      {/* ---- Quick Actions ---- */}
+      {/* ---- Quick Actions (DUMMY DATA) ---- */}
       <SectionBlock title="Quick Access">
         <QuickAddGrid items={quickActions} />
       </SectionBlock>
 
-      {/* ---- Upcoming Bills ---- */}
+      {/* ---- Upcoming Bills (DUMMY DATA) ---- */}
       <SectionBlock
         title="Upcoming Bills"
-        badge={urgentBillsCount > 0 ? { label: `${urgentBillsCount} urgent`, variant: "red" } : undefined}
+        badge={
+          urgentBillsCount > 0
+            ? { label: `${urgentBillsCount} urgent`, variant: "red" }
+            : undefined
+        }
         action={{ type: "link", label: "See All", href: "/bills" }}
       >
         <CardList
@@ -187,7 +300,13 @@ export default function DashboardPage() {
           keyExtractor={(bill) => bill.id}
           emptyState={
             <EmptyState
-              icon={<HugeiconsIcon icon={Invoice02Icon} size={32} className="text-gray-300 dark:text-gray-600" />}
+              icon={
+                <HugeiconsIcon
+                  icon={Invoice02Icon}
+                  size={32}
+                  className="text-gray-300 dark:text-gray-600"
+                />
+              }
               title="No upcoming bills"
               description="You're all caught up! No bills due soon."
             />
@@ -197,17 +316,29 @@ export default function DashboardPage() {
             return {
               left: (
                 <>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={bill.icon} size={22} className="text-gray-700" />
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}
+                  >
+                    <HugeiconsIcon
+                      icon={bill.icon}
+                      size={22}
+                      className="text-gray-700"
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{bill.name}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Due in {bill.dueIn} days</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {bill.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      Due in {bill.dueIn} days
+                    </p>
                   </div>
                 </>
               ),
               right: (
-                <span className={`text-sm font-semibold font-mono ${colors.text}`}>
+                <span
+                  className={`text-sm font-semibold font-mono ${colors.text}`}
+                >
                   IDR {formatIDR(bill.amount)}
                 </span>
               ),
@@ -216,51 +347,81 @@ export default function DashboardPage() {
         />
       </SectionBlock>
 
-      {/* ---- Saving Goals ---- */}
+      {/* ---- Saving Goals (DUMMY DATA) ---- */}
       <SectionBlock
         title="Saving Goals"
-        action={{ type: "link", label: "See All", href: "/goals" }}
+        action={{
+          type: "button",
+          label: "Add Savings",
+          onPress: () => router.push("/savings"),
+        }}
       >
         <CardList
           items={savingGoals}
           keyExtractor={(goal) => goal.id}
           emptyState={
             <EmptyState
-              icon={<HugeiconsIcon icon={Beach02Icon} size={32} className="text-gray-300 dark:text-gray-600" />}
+              icon={
+                <HugeiconsIcon
+                  icon={Beach02Icon}
+                  size={32}
+                  className="text-gray-300 dark:text-gray-600"
+                />
+              }
               title="No saving goals yet"
               description="Start saving for your dreams. Create your first goal."
             />
           }
           renderItem={(goal) => {
-            const percentage = Math.round((goal.saved / goal.target) * 100);
+            const percentage = Math.min(100, Math.round((goal.saved / goal.target) * 100));
             return {
               left: (
                 <>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={goal.icon} size={22} className="text-gray-700" />
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}
+                  >
+                    <HugeiconsIcon
+                      icon={goal.icon}
+                      size={22}
+                      className="text-gray-700"
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{goal.name}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {goal.name}
+                    </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
-                      IDR {formatIDR(goal.saved)} <span className="text-gray-300 dark:text-gray-600">/</span> {formatIDR(goal.target)}
+                      IDR {formatIDR(goal.saved)}{" "}
+                      <span className="text-gray-300 dark:text-gray-600">
+                        /
+                      </span>{" "}
+                      {formatIDR(goal.target)}
                     </p>
                   </div>
                 </>
               ),
-              right: <SavingGoalRing percentage={percentage} color={goal.color} />,
+              right: (
+                <SavingGoalRing percentage={percentage} color={goal.color} />
+              ),
             };
           }}
         />
       </SectionBlock>
 
-      {/* ---- Spending Breakdown ---- */}
+      {/* ---- Spending Breakdown (DUMMY DATA) ---- */}
       <SectionBlock
         title="Spending Breakdown"
         action={{ type: "text", label: "This month" }}
       >
         {spendingCategories.length === 0 ? (
           <EmptyState
-            icon={<HugeiconsIcon icon={PieChartIcon} size={32} className="text-gray-300 dark:text-gray-600" />}
+            icon={
+              <HugeiconsIcon
+                icon={PieChartIcon}
+                size={32}
+                className="text-gray-300 dark:text-gray-600"
+              />
+            }
             title="No spending data"
             description="Add your expenses to see a breakdown by category."
           />
@@ -269,43 +430,103 @@ export default function DashboardPage() {
         )}
       </SectionBlock>
 
-      {/* ---- Recent Transactions ---- */}
+      {/* ---- Recent Transactions (REAL DATA VIA SWR) ---- */}
       <SectionBlock
         title="Recent Transactions"
         action={{ type: "link", label: "See All", href: "/transactions" }}
       >
-        <CardList
-          items={transactions}
-          keyExtractor={(tx) => tx.id}
-          emptyState={
-            <EmptyState
-              icon={<HugeiconsIcon icon={MoneyReceive01Icon} size={32} className="text-gray-300 dark:text-gray-600" />}
-              title="No recent transactions"
-              description="Your transactions will appear here once you start recording."
-            />
-          }
-          renderItem={(tx) => ({
-            left: (
-              <>
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${tx.bg} dark:bg-opacity-20`}>
-                  <HugeiconsIcon icon={tx.icon} size={22} className="text-gray-700" />
+        {/* ✅ SWR State Handling: Error → Loading → Data */}
+        {error ? (
+          <EmptyState
+            icon={
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                size={32}
+                className="text-red-400 dark:text-red-500"
+              />
+            }
+            title="Gagal memuat transaksi"
+            description="Periksa koneksi internet Anda atau coba lagi."
+            action={{ 
+              label: "Coba Lagi", 
+              onPress: () => mutate() // ← Manual retry via SWR
+            }}
+          />
+        ) : isLoading ? (
+          // Loading skeleton (tetap sama)
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div 
+                key={i} 
+                className="flex items-center justify-between px-4 py-3 animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gray-200 dark:bg-neutral-800" />
+                  <div className="space-y-2">
+                    <div className="w-24 h-3 bg-gray-200 dark:bg-neutral-800 rounded" />
+                    <div className="w-16 h-2 bg-gray-200 dark:bg-neutral-800 rounded" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{tx.name}</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{tx.category} · {tx.time}</p>
-                </div>
-              </>
-            ),
-            right: (
-              <span className={`text-sm font-semibold font-mono ${
-                tx.type === "expense" ? "text-red-500" : "text-green-500"
-              }`}>
-                {tx.type === "expense" ? "-" : "+"}IDR {tx.amount.toFixed(3)}
-              </span>
-            ),
-          })}
-        />
+                <div className="w-16 h-4 bg-gray-200 dark:bg-neutral-800 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <CardList
+            items={transactions}
+            keyExtractor={(tx) => tx.id}
+            emptyState={
+              <EmptyState
+                icon={
+                  <HugeiconsIcon
+                    icon={MoneyReceive01Icon}
+                    size={32}
+                    className="text-gray-300 dark:text-gray-600"
+                  />
+                }
+                title="No recent transactions"
+                description="Your transactions will appear here once you start recording."
+              />
+            }
+            renderItem={(tx) => {
+              const IconComponent = getCategoryIcon(tx.category);
+              
+              const bgMap: Record<string, string> = {
+                expense: "bg-red-200",
+                income: "bg-green-200", 
+                debts: "bg-orange-200",
+              };
+              
+              return {
+                left: (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${bgMap[tx.type] || "bg-gray-200"} dark:bg-opacity-20`}>
+                      <HugeiconsIcon icon={IconComponent} size={22} className="text-gray-700" />
+                    </div>
+                
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                        {tx.name}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                        {tx.category} · {tx.time}
+                      </p>
+                    </div>
+                  </div>
+                ),
+                right: (
+                  <span className={`text-sm font-semibold font-mono ${
+                    tx.type === "expense" ? "text-red-500" : "text-green-500"
+                  }`}>
+                    {tx.type === "expense" ? "-" : "+"}IDR {formatIDR(tx.amount)}
+                  </span>
+                ),
+              };
+            }}
+          />
+        )}
       </SectionBlock>
+      <BottomNav items={navItems} />
     </div>
   );
 }
