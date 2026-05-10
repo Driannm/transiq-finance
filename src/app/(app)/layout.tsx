@@ -2,6 +2,8 @@
 
 import { BottomNav, BottomNavItem } from "@/components/Layout/BottomNavbar";
 import { PullToRefresh } from "@/components/Providers/PullToRefresh";
+import { ConfirmDialog } from "@/components/Shared/ConfirmDialog";
+import { ToastContainer } from "@/components/Shared/ToastContainer";
 import {
   HomeIcon,
   Analytics01Icon,
@@ -20,9 +22,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <PullToRefresh>
         <main className="pt-4 pb-24 md:pt-6 md:pb-6">
           {children}
+          <ConfirmDialog />
+          <ToastContainer />
         </main>
       </PullToRefresh>
-      <BottomNav items={navItems} />
     </div>
   );
 }

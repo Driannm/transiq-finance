@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/Providers/ThemeProvider";
 import { Providers } from "@/components/Providers/SessionProvider";
+import { SWRProvider } from "@/components/Providers/SWRProvider";
 import type { Viewport } from "next";
 import "./globals.css";
 
@@ -45,7 +46,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-neutral-100 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100">
         <ThemeProvider>
-          <Providers>{children}</Providers>
+          <SWRProvider>
+            <Providers>{children}</Providers>
+          </SWRProvider>
         </ThemeProvider>
       </body>
     </html>
