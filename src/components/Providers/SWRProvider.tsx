@@ -18,7 +18,7 @@ const swrConfig: SWRConfiguration = {
   revalidateOnFocus: true,
   revalidateOnReconnect: true,
   // Stale time: data dianggap fresh selama ini (tidak auto-fetch)
-  staleTime: 30000, // 30 detik
+  // staleTime: 30000, // 30 detik
 };
 
 export function SWRProvider({ children }: { children: ReactNode }) {
