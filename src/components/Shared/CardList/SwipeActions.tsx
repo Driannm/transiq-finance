@@ -48,7 +48,7 @@ export function SwipeableCard({
   const [offset, setOffset]    = useState(0);
   const [revealed, setRevealed] = useState<"left" | "right" | null>(null);
 
-  const rafRef             = useRef<number>();
+  const rafRef             = useRef<number | null>(null);
   const startXRef          = useRef(0);
   const startOffsetRef     = useRef(0);
   const isSwipingRef       = useRef(false);
