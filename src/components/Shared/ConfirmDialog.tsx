@@ -56,21 +56,17 @@ const VARIANT_STYLES: Record<ConfirmVariant, { icon: string; confirm: string }> 
 const backdropVariants = {
   hidden: { opacity: 0 },
   visible: { 
-    opacity: 1,
-    transition: { duration: 0.15, ease: "easeOut" }
+    opacity: 1, 
+    transition: { duration: 0.15, ease: "easeOut" } as const 
   },
   exit: { 
-    opacity: 0,
-    transition: { duration: 0.12, ease: "easeIn" }
+    opacity: 0, 
+    transition: { duration: 0.12, ease: "easeIn" } as const 
   },
 };
 
 const modalVariants = {
-  hidden: { 
-    opacity: 0, 
-    scale: 0.96, 
-    y: 8,
-  },
+  hidden: { opacity: 0, scale: 0.96, y: 8 },
   visible: { 
     opacity: 1, 
     scale: 1, 
@@ -81,22 +77,23 @@ const modalVariants = {
       damping: 30, 
       mass: 0.6,
       delay: 0.05,
-    }
+    } as const
   },
   exit: { 
     opacity: 0, 
     scale: 0.98, 
     y: 4,
-    transition: { duration: 0.12, ease: "easeIn" }
+    transition: { duration: 0.12, ease: "easeIn" } as const 
   },
 };
 
 const contentVariants = {
   hidden: { opacity: 0, y: 6 },
+  // For function variants, explicitly return the object
   visible: (i: number) => ({
     opacity: 1,
     y: 0,
-    transition: { delay: 0.12 + i * 0.04, duration: 0.15, ease: "easeOut" }
+    transition: { delay: 0.12 + i * 0.04, duration: 0.15, ease: "easeOut" } as const
   }),
 };
 

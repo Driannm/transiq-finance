@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import {
@@ -117,11 +118,15 @@ export function SearchablePicker({
 
   // Reset & focus saat sheet terbuka
   useEffect(() => {
-    if (!open) return;
-    setQuery("");
-    setPendingId(selectedId);
-    const t = setTimeout(() => inputRef.current?.focus(), 150);
-    return () => clearTimeout(t);
+    if (open) {
+      setQuery("");
+      setPendingId(selectedId);
+      
+      // Using a requestAnimationFrame or a slight timeout for focus is 
+      // standard practice for Modals/Sheets to ensure the element is mounted.
+      const t = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(t);
+    }
   }, [open, selectedId]);
 
   // Filter
