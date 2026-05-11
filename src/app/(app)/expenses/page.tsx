@@ -143,11 +143,11 @@ export default function ExpensesPage() {
   };
 
   // Swipe actions handlers
-  const handleEdit = useCallback((id: string) => {
+  const handleEdit = useCallback((id: string | number) => {
     window.location.href = `/expenses/${id}/edit`;
   }, []);
 
-  const handleDelete = useCallback(async (id: string) => {
+  const handleDelete = useCallback(async (id: string | number) => {
     try {
       await fetch(`/api/expenses/${id}`, { method: "DELETE" });
       setExpenses((prev) => prev.filter((e) => e.id !== id));
@@ -156,9 +156,9 @@ export default function ExpensesPage() {
     }
   }, []);
 
-  const handleView = useCallback((id: string) => {
+  const handleView = useCallback((id: string | number) => {
     window.location.href = `/expenses/${id}`;
-  }, []);
+  }, [])
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
