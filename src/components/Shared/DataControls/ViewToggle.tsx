@@ -7,7 +7,7 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import {
   GridViewIcon,
   ListViewIcon,
@@ -20,7 +20,7 @@ import type { ViewConfig, ViewMode, GroupConfig } from "./types";
 
 // ── View Toggle ───────────────────────────────────────────────────────────────
 
-const VIEW_ICONS: Record<ViewMode, React.ElementType> = {
+const VIEW_ICONS: Record<ViewMode, IconSvgElement> = {
   grid:    GridViewIcon,
   list:    ListViewIcon,
   compact: LayoutLeftIcon,
