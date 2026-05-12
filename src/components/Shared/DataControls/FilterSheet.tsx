@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // ─────────────────────────────────────────────────────────────────────────────
 // FilterSheet — Bottom sheet for all filter types
 // Supports: select, multiselect, range, daterange, toggle, radio

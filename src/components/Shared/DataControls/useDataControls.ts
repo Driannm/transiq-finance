@@ -15,29 +15,26 @@ import type {
 } from "./types";
 
 function getDefaultState(config: DataControlsConfig): DataControlsState {
-  const sortConfig = config.sort || null;
-  const filterConfig = config.filter || null;
-  const viewConfig = config.view || null;
-  const groupConfig = config.group || null;
+  const { sort, filter, view, group } = config;
 
   return {
     search: "",
     sort: {
-      field: sortConfig && sortConfig !== false
-        ? (sortConfig.defaultValue ?? sortConfig.fields[0]?.value ?? "")
+      field: sort
+        ? (sort.defaultValue ?? sort.fields[0]?.value ?? "")
         : "",
-      direction: sortConfig && sortConfig !== false
-        ? (sortConfig.defaultDirection ?? "asc")
+      direction: sort
+        ? (sort.defaultDirection ?? "asc")
         : "asc",
     },
-    filters: filterConfig && filterConfig !== false
-      ? (filterConfig.defaultValues ?? {})
+    filters: filter
+      ? (filter.defaultValues ?? {})
       : {},
-    view: viewConfig && viewConfig !== false
-      ? (viewConfig.defaultMode ?? viewConfig.modes[0] ?? "grid")
+    view: view
+      ? (view.defaultMode ?? view.modes[0] ?? "grid")
       : "grid",
-    group: groupConfig && groupConfig !== false
-      ? (groupConfig.defaultValue ?? "none")
+    group: group
+      ? (group.defaultValue ?? "none")
       : "none",
   };
 }
@@ -158,16 +155,13 @@ export function useDataControls<T extends Record<string, unknown>>(
   rawData: T[],
   config: DataControlsConfig
 ): UseDataControlsReturn<T> {
-  const defaultState = useMemo(() => getDefaultState(config), []); // eslint-disable-line
+  const defaultState = useMemo(() => getDefaultState(config), [config]);
   const [state, setState] = useState<DataControlsState>(defaultState);
 
   // Debounced search
   const searchRef = useRef(state.search);
-  const [debouncedSearch, setDebouncedSearch] = useState(state.search);
-  const debounceMs =
-    config.search && config.search !== false
-      ? (config.search.debounce ?? 300)
-      : 300;
+  const[debouncedSearch, setDebouncedSearch] = useState(state.search);
+  const debounceMs = config.search ? (config.search.debounce ?? 300) : 300;
 
   useEffect(() => {
     searchRef.current = state.search;
@@ -182,17 +176,15 @@ export function useDataControls<T extends Record<string, unknown>>(
     let result = [...rawData];
 
     // 1. Search
-    const searchCfg = config.search;
-    if (searchCfg && debouncedSearch) {
-      const keys = searchCfg !== false ? searchCfg.searchKeys : undefined;
+    if (config.search && debouncedSearch) {
+      const keys = typeof config.search === 'object' ? config.search.searchKeys : undefined;
       result = result.filter((item) =>
         matchesSearch(item as Record<string, unknown>, debouncedSearch, keys)
       );
     }
 
     // 2. Filter
-    const filterCfg = config.filter;
-    if (filterCfg && filterCfg !== false && Object.keys(state.filters).length > 0) {
+    if (config.filter && Object.keys(state.filters).length > 0) {
       result = result.filter((item) =>
         Object.entries(state.filters).every(([key, val]) =>
           applyFilter(item as Record<string, unknown>, key, val)
@@ -201,8 +193,7 @@ export function useDataControls<T extends Record<string, unknown>>(
     }
 
     // 3. Sort
-    const sortCfg = config.sort;
-    if (sortCfg && sortCfg !== false && state.sort.field) {
+    if (config.sort && state.sort.field) {
       result = result.sort((a, b) =>
         compareItems(
           a as Record<string, unknown>,
@@ -214,7 +205,7 @@ export function useDataControls<T extends Record<string, unknown>>(
     }
 
     return result;
-  }, [rawData, debouncedSearch, state.filters, state.sort, config]);
+  },[rawData, debouncedSearch, state.filters, state.sort, config]);
 
   // ── Grouped data ──
   const groupedData = useMemo<Record<string, T[]>>(() => {
@@ -231,7 +222,7 @@ export function useDataControls<T extends Record<string, unknown>>(
     () =>
       countActiveFilters(
         state.filters,
-        config.filter && config.filter !== false ? config.filter.defaultValues : {}
+        config.filter ? config.filter.defaultValues : {}
       ),
     [state.filters, config.filter]
   );
@@ -239,37 +230,34 @@ export function useDataControls<T extends Record<string, unknown>>(
   // ── Handlers ──
   const setSearch = useCallback((v: string) => {
     setState((s) => ({ ...s, search: v }));
-  }, []);
+  },[]);
 
   const setSort = useCallback((v: SortState) => {
     setState((s) => ({ ...s, sort: v }));
-  }, []);
+  },[]);
 
   const setFilter = useCallback((key: string, value: FilterValue) => {
     setState((s) => ({ ...s, filters: { ...s.filters, [key]: value } }));
-  }, []);
+  },[]);
 
   const setFilters = useCallback((v: FilterState) => {
     setState((s) => ({ ...s, filters: v }));
-  }, []);
+  },[]);
 
   const resetFilters = useCallback(() => {
     setState((s) => ({
       ...s,
-      filters:
-        config.filter && config.filter !== false
-          ? (config.filter.defaultValues ?? {})
-          : {},
+      filters: config.filter && typeof config.filter !== "boolean" ? config.filter.defaultValues ?? {} : {},
     }));
   }, [config.filter]);
 
   const setView = useCallback((v: ViewMode) => {
     setState((s) => ({ ...s, view: v }));
-  }, []);
+  },[]);
 
   const setGroup = useCallback((v: string) => {
     setState((s) => ({ ...s, group: v }));
-  }, []);
+  },[]);
 
   const resetAll = useCallback(() => {
     setState(defaultState);

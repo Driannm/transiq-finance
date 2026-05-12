@@ -43,19 +43,16 @@ export function DataControlsBar({
   onGroupChange,
   className,
 }: DataControlsBarProps) {
-
-  // ✅ safer feature flags (no boolean | object confusion)
-  const hasSearch = !!config.search;
-  const hasSort   = !!config.sort;
+  // FIXED: safe optional chaining
+  // const hasSearch = !!config.search;
+  const hasSort = !!config.sort;
   const hasFilter = !!config.filter;
-  const hasView   = !!config.view;
-  const hasGroup  = !!config.group;
+  const hasView = !!config.view;
+  const hasGroup = !!config.group;
 
-  // ✅ FIXED: safe optional chaining
+  // FIXED: safe optional chaining
   const showChips =
-    hasFilter &&
-    config.filter?.showChips !== false &&
-    activeFilterCount > 0;
+    config.filter && config.filter.showChips !== false && activeFilterCount > 0;
 
   const handleFilterApply = useCallback(
     (newState: FilterState) => onFiltersChange(newState),
@@ -67,19 +64,18 @@ export function DataControlsBar({
     [onFilterChange]
   );
 
-  // ✅ FIXED: safe access with optional chaining
+  // FIXED: safe access with optional chaining
+  const sortConfig = config.sort;
   const isSortActive =
-    hasSort &&
+    !!sortConfig &&
     state.sort.field !==
-      (config.sort?.defaultValue ??
-        config.sort?.fields?.[0]?.value ??
-        "");
+      (sortConfig.defaultValue ?? sortConfig.fields?.[0]?.value ?? "");
 
   return (
     <div className={cn("w-full", className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-2">
-        {hasSearch && (
+        {config.search && (
           <SearchBar
             config={config.search}
             value={state.search}

@@ -1,7 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// DataControls — Core Types
-// ─────────────────────────────────────────────────────────────────────────────
-
+import { IconSvgElement } from "@hugeicons/react";
 // ── Sort ─────────────────────────────────────────────────────────────────────
 
 export interface SortField<T = string> {
@@ -12,7 +9,7 @@ export interface SortField<T = string> {
     /** Optional description shown below label */
     description?: string;
     /** Icon component (HugeIcons) */
-    icon?: React.ElementType;
+    icon?: IconSvgElement;
   }
   
   export interface SortConfig<T = string> {
@@ -54,7 +51,7 @@ export interface SortField<T = string> {
     key: string;
     label: string;
     type: FilterFieldType;
-    icon?: React.ElementType;
+    icon?: IconSvgElement;
     options?: FilterOption[];
     min?: number;
     max?: number;
@@ -105,7 +102,7 @@ export interface SortField<T = string> {
   export interface GroupField {
     value: string;
     label: string;
-    icon?: React.ElementType;
+    icon?: IconSvgElement;
   }
   
   export interface GroupConfig {
