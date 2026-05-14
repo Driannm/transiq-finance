@@ -53,6 +53,8 @@ model User {
   transactions Transaction[]
   assets       Asset[]
   groups       TransactionGroup[]
+  savings      Saving[]
+  bills        Bill[]
 
   @@index([familyId])
   @@map("users")
@@ -68,6 +70,8 @@ model Family {
   assets     Asset[]
   categories Category[]
   merchants  Merchant[]
+  savings      Saving[]
+  bills        Bill[]
   groups     TransactionGroup[]
 
   @@map("families")
@@ -348,4 +352,48 @@ model Merchant {
 
   @@index([familyId])
   @@map("merchants")
+}
+
+model Saving {
+  id          String   @id @default(cuid())
+  name        String
+  targetAmount Float
+  savedAmount  Float    @default(0)
+  dueDate      DateTime?
+  
+  // Relasi ke User/Family pemilik
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  familyId    String?
+  family      Family?  @relation(fields:[familyId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("savings")
+}
+
+model Bill {
+  id          String   @id @default(cuid())
+  name        String
+  amount      Float
+  dueDate     DateTime
+  isPaid      Boolean  @default(false)
+  
+  // Relasi ke User/Family pemilik
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  familyId    String?
+  family      Family?  @relation(fields: [familyId], references: [id])
+
+  // Opsional: Hubungkan Bill ke Expense saat sudah dibayar
+  // expenseId   String?  @unique
+  // expense     Expense? @relation(fields: [expenseId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@map("bills")
 }
