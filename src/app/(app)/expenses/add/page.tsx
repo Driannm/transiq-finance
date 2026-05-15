@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -5,6 +6,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
+import { z } from "zod";
+import { useToast } from "@/hooks/UseToast";
+import { motion, AnimatePresence } from "framer-motion";
+import { formatRupiah } from "@/lib/format";
 import {
   ArrowLeft02Icon,
   CheckmarkCircle02Icon,
@@ -18,9 +23,6 @@ import {
   MinusSignCircleIcon,
   PercentCircleIcon,
 } from "@hugeicons/core-free-icons";
-import { z } from "zod";
-import { useToast } from "@/hooks/UseToast";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   SearchablePicker,
   type PickerItem,
@@ -111,7 +113,7 @@ function Section({
 }) {
   return (
     <div
-      className={`mx-4 bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}
+      className={`bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}
     >
       {children}
     </div>
@@ -157,6 +159,10 @@ function BreakdownRow({
       ? "focus-within:border-red-400 dark:focus-within:border-red-600"
       : "focus-within:border-gray-400 dark:focus-within:border-neutral-600";
 
+  const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
+  const formatInput = (n: number) =>
+    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
+
   return (
     <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
@@ -181,17 +187,9 @@ function BreakdownRow({
           type="number"
           inputMode="numeric"
           pattern="[0-9]*"
-          value={value || ""}
+          value={formatInput(value)}
           placeholder="0"
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === "") {
-              onChange(0);
-              return;
-            }
-            const n = parseInt(raw.replace(/[^0-9]/g, ""), 10);
-            onChange(isNaN(n) ? 0 : Math.max(0, n));
-          }}
+          onChange={(e) => onChange(parseRaw(e.target.value))}
           className={[
             "w-[90px] text-right bg-transparent text-[14px] font-semibold outline-none tabular-nums",
             "placeholder-gray-400 dark:placeholder-gray-600",
@@ -321,7 +319,7 @@ function CollapsibleSection({
   children: React.ReactNode;
 }) {
   return (
-    <Section className="mb-3">
+    <Section className="mx-4 mb-3">
       <button
         type="button"
         onClick={onToggle}
@@ -396,7 +394,12 @@ export default function AddExpensePage() {
   const [date, setDate] = useState(
     () => new Date().toISOString().split("T")[0]
   );
-  const [amount, setAmount] = useState("");
+
+  const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
+  const formatInput = (n: number) =>
+    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
+
+  const [amount, setAmount] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
   const [fee, setFee] = useState(0);
@@ -413,7 +416,7 @@ export default function AddExpensePage() {
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
 
   // Computed
-  const subtotal = parseFloat(amount) || 0;
+  const subtotal = amount;
   const total = Math.max(0, subtotal + tax + fee - discount);
   const hasBreakdown = discount > 0 || tax > 0 || fee > 0;
   const selectedCat = categories.find((c) => c.id === categoryId);
@@ -555,20 +558,19 @@ export default function AddExpensePage() {
   ]);
 
   const handleBack = () => {
-    if (window.history.length > 1) window.history.back();
-    else router.push("/expenses");
+    router.push("/expenses");
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#F5F5F7] dark:bg-neutral-950 font-sans flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden bg-neutral-100 dark:bg-neutral-950">
       <IslandNavbar
         title="Tambah Expense"
         avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
         onAvatarPress={handleBack}
       />
 
-      <div className="flex-1 overflow-y-auto pb-36 pt-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {/* ── Hero: Amount input ── */}
         <div className="mx-4 bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-6 pt-5 pb-6 mb-4">
           <SectionLabel>Total Pengeluaran</SectionLabel>
@@ -579,8 +581,8 @@ export default function AddExpensePage() {
             <input
               type="number"
               inputMode="numeric"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={formatInput(amount)}
+              onChange={(e) => setAmount(parseRaw(e.target.value))}
               placeholder="0"
               className="
                 flex-1 bg-transparent outline-none
@@ -591,32 +593,10 @@ export default function AddExpensePage() {
               "
             />
           </div>
-
-          {/* Breakdown summary pills */}
           {hasBreakdown && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {discount > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                  <span className="w-1 h-1 rounded-full bg-emerald-400" />
-                  Diskon {fmt(discount)}
-                </span>
-              )}
-              {tax > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400">
-                  <span className="w-1 h-1 rounded-full bg-red-400" />
-                  Pajak {fmt(tax)}
-                </span>
-              )}
-              {fee > 0 && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-lg bg-orange-50 dark:bg-orange-950/40 text-orange-500 dark:text-orange-400">
-                  <span className="w-1 h-1 rounded-full bg-orange-400" />
-                  Fee {fmt(fee)}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 ml-auto">
-                = {fmtFull(total)}
-              </span>
-            </div>
+            <p className="text-[13px] text-gray-400 dark:text-gray-500 mt-1 tabular-nums">
+              = {formatRupiah(total)}
+            </p>
           )}
           {errors.subtotal && (
             <p className="text-xs text-red-500 mt-2">{errors.subtotal}</p>
@@ -664,7 +644,7 @@ export default function AddExpensePage() {
                       type="button"
                       onClick={() => setCardId(card.id)}
                       className={[
-                        "flex-shrink-0 flex items-center gap-3 px-4 py-3.5 rounded-xl text-left",
+                        "flex-shrink-0 flex items-center gap-3 px-4 py-3.5 rounded-full text-left",
                         "border-2 transition-all duration-200 min-w-[140px]",
                         selected
                           ? `${colors.bg} ${colors.ring} shadow-sm`
@@ -709,7 +689,7 @@ export default function AddExpensePage() {
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className={`w-4 h-4 rounded-full ${colors.bg} border-2 ${colors.ring} flex items-center justify-center flex-shrink-0 ml-auto`}
+                          className={`w-4 h-4 rounded-full ${colors.text} border-2 ${colors.bg} flex items-center justify-center flex-shrink-0 ml-auto`}
                         >
                           <div
                             className={`w-1.5 h-1.5 rounded-full ${colors.text.replace(
@@ -867,7 +847,7 @@ export default function AddExpensePage() {
       </div>
 
       {/* ── Sticky submit ── */}
-      <div className="fixed bottom-0 left-0 right-0 px-4 pb-6 pt-4 bg-gradient-to-t from-[#F5F5F7] dark:from-neutral-950 via-[#F5F5F7]/95 dark:via-neutral-950/95 to-transparent z-10">
+      <div className="flex-shrink-0 px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#F5F5F7] dark:from-neutral-950 via-[#F5F5F7]/95 dark:via-neutral-950/95 to-transparent z-10">
         <motion.button
           type="button"
           onClick={handleSubmit}
@@ -924,8 +904,6 @@ export default function AddExpensePage() {
         selectedId={categoryId}
         title="Pilih Kategori"
         placeholder="Cari kategori..."
-        newLabel="Kategori Baru"
-        onClickNew={() => router.push("/categories/add")}
       />
 
       <SearchablePicker
@@ -936,8 +914,6 @@ export default function AddExpensePage() {
         selectedId={merchantId}
         title="Pilih Merchant"
         placeholder="Cari merchant..."
-        newLabel="Merchant Baru"
-        onClickNew={() => router.push("/merchants/add")}
       />
     </div>
   );
