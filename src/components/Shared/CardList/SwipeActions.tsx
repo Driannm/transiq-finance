@@ -6,15 +6,10 @@ import { useConfirmStore } from "@/store/ConfirmStore";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ACTION_WIDTH = 72;   // px — lebar tiap action button
-const THRESHOLD    = 36;   // px — min swipe untuk snap open
+const ACTION_WIDTH = 72;
+const THRESHOLD    = 36;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Spring-like ease — overshoots sedikit lalu settle */
-function easeSpring(t: number): number {
-  return 1 - Math.pow(1 - t, 4) * Math.cos(t * Math.PI * 1.5);
-}
 
 const BG_COLORS: Record<string, string> = {
   primary: "bg-blue-500 active:bg-blue-600",
@@ -45,17 +40,16 @@ export function SwipeableCard({
 }: SwipeableCardProps) {
   const openConfirm = useConfirmStore((s) => s.open);
 
-  const [offset, setOffset]    = useState(0);
-  const [revealed, setRevealed] = useState<"left" | "right" | null>(null);
+  const [offset,      setOffset]      = useState(0);
+  const [revealed,    setRevealed]    = useState<"left" | "right" | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
 
-  const rafRef             = useRef<number | null>(null);
-  const startXRef          = useRef(0);
-  const startOffsetRef     = useRef(0);
-  const isSwipingRef       = useRef(false);
-  const currentOffsetRef   = useRef(0);
-  const isControlled       = controlledIsOpen !== undefined;
+  const isDraggingRef    = useRef(false);
+  const startXRef        = useRef(0);
+  const startOffsetRef   = useRef(0);
+  const currentOffsetRef = useRef(0);
+  const isControlled     = controlledIsOpen !== undefined;
 
-  // Derived max offset based on action count per side
   const rightCount = actions.filter((a) => (a.position ?? "right") === "right").length;
   const leftCount  = actions.filter((a) => a.position === "left").length;
   const MAX_RIGHT  = rightCount * ACTION_WIDTH;
@@ -64,57 +58,41 @@ export function SwipeableCard({
   // Sync offset ref
   useEffect(() => { currentOffsetRef.current = offset; }, [offset]);
 
+  // ── Animation ─────────────────────────────────────────────────────────────
+
+  const snapTo = useCallback((target: number) => {
+    setIsAnimating(true);
+    setOffset(target);
+    currentOffsetRef.current = target;
+    setTimeout(() => {
+      if (target === 0) setRevealed(null);
+      setIsAnimating(false);
+    }, 320);
+  }, []);
+
+  // ── Close ─────────────────────────────────────────────────────────────────
+
+  const close = useCallback(() => {
+    snapTo(0);
+    onOpenChange?.(false);
+  }, [snapTo, onOpenChange]);
+
   // Controlled mode sync
   useEffect(() => {
     if (!isControlled) return;
     if (controlledIsOpen) {
-      // default ke kanan jika ada
-      const dir = rightCount > 0 ? "right" : "left";
-      const max = dir === "right" ? -MAX_RIGHT : MAX_LEFT;
-      animateTo(max);
+      const dir    = rightCount > 0 ? "right" : "left";
+      const target = dir === "right" ? -MAX_RIGHT : MAX_LEFT;
+      snapTo(target);
       setRevealed(dir);
     } else {
-      animateTo(0);
-      setRevealed(null);
+      snapTo(0);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [controlledIsOpen, isControlled]);
 
-  // Cleanup RAF
-  useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+  // ── Execute action ────────────────────────────────────────────────────────
 
-  // ── Animation ─────────────────────────────────────────────────────────────
-  const animateTo = useCallback((target: number, onDone?: () => void) => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-
-    const from      = currentOffsetRef.current;
-    const dist      = Math.abs(target - from);
-    // Durasi proporsional — pendek kalau dekat
-    const duration  = Math.min(Math.max(dist * 1.2, 160), 300);
-    const startTime = performance.now();
-
-    const tick = (now: number) => {
-      const progress = Math.min((now - startTime) / duration, 1);
-      const value    = from + (target - from) * easeSpring(progress);
-      setOffset(value);
-      currentOffsetRef.current = value;
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        onDone?.();
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
-
-  // ── Close ─────────────────────────────────────────────────────────────────
-  const close = useCallback(() => {
-    animateTo(0, () => setRevealed(null));
-    onOpenChange?.(false);
-  }, [animateTo, onOpenChange]);
-
-  // ── Execute action (dipanggil HANYA saat user tap tombol) ─────────────────
   const executeAction = useCallback(
     (action: SwipeAction) => {
       if (action.requiresConfirm) {
@@ -141,15 +119,16 @@ export function SwipeableCard({
   );
 
   // ── Touch handlers ────────────────────────────────────────────────────────
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (isAnimating) return;
     startXRef.current      = e.touches[0].clientX;
     startOffsetRef.current = currentOffsetRef.current;
-    isSwipingRef.current   = true;
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-  }, []);
+    isDraggingRef.current  = true;
+  }, [isAnimating]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isSwipingRef.current) return;
+    if (!isDraggingRef.current || isAnimating) return;
 
     const diff     = e.touches[0].clientX - startXRef.current;
     const hasLeft  = leftCount  > 0;
@@ -160,43 +139,47 @@ export function SwipeableCard({
 
     let next = startOffsetRef.current + diff;
 
-    // Rubber-band di luar batas
-    if (next < -MAX_RIGHT) next = -MAX_RIGHT + (next + MAX_RIGHT) * 0.2;
-    if (next >  MAX_LEFT)  next =  MAX_LEFT  + (next - MAX_LEFT)  * 0.2;
+    // Rubber-band natural — makin jauh makin berat
+    if (next < -MAX_RIGHT) {
+      const over = next + MAX_RIGHT;
+      next = -MAX_RIGHT + over * Math.pow(0.5, 1 + Math.abs(over) / MAX_RIGHT);
+    }
+    if (next > MAX_LEFT) {
+      const over = next - MAX_LEFT;
+      next = MAX_LEFT + over * Math.pow(0.5, 1 + Math.abs(over) / MAX_LEFT);
+    }
 
     setOffset(next);
     currentOffsetRef.current = next;
 
-    // Tampilkan action area segera saat mulai swipe
-    if (next < -4)       setRevealed("right");
-    else if (next > 4)   setRevealed("left");
-    else                 setRevealed(null);
+    if (next < -4)     setRevealed("right");
+    else if (next > 4) setRevealed("left");
+    else               setRevealed(null);
 
     e.preventDefault();
-  }, [leftCount, rightCount, MAX_LEFT, MAX_RIGHT]);
+  }, [isAnimating, leftCount, rightCount, MAX_LEFT, MAX_RIGHT]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!isSwipingRef.current) return;
-    isSwipingRef.current = false;
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
 
     const curr     = currentOffsetRef.current;
-    const abscurr  = Math.abs(curr);
-    const snapOpen = abscurr > THRESHOLD;
+    const snapOpen = Math.abs(curr) > THRESHOLD;
 
     if (snapOpen) {
       const dir    = curr < 0 ? "right" : "left";
       const target = dir === "right" ? -MAX_RIGHT : MAX_LEFT;
-      animateTo(target);
+      snapTo(target);
       setRevealed(dir);
-      if (!isControlled) onOpenChange?.(true);
-      // ⚠️ TIDAK auto-execute di sini — user harus tap tombol
+      onOpenChange?.(true);
     } else {
-      animateTo(0, () => setRevealed(null));
-      if (!isControlled) onOpenChange?.(false);
+      snapTo(0);
+      onOpenChange?.(false);
     }
-  }, [animateTo, isControlled, MAX_LEFT, MAX_RIGHT, onOpenChange]);
+  }, [snapTo, MAX_LEFT, MAX_RIGHT, onOpenChange]);
 
   // ── Render actions ────────────────────────────────────────────────────────
+
   const renderActions = (position: "left" | "right") => {
     const filtered = actions.filter((a) =>
       position === "left"
@@ -206,26 +189,20 @@ export function SwipeableCard({
     if (filtered.length === 0) return null;
 
     const totalWidth = filtered.length * ACTION_WIDTH;
-    const isVisible  = revealed === position;
 
     return (
       <div
         className={`absolute inset-y-0 ${position}-0 flex`}
         style={{
-          width: totalWidth,
-          // Clip agar tidak bocor ke card sebelumnya/sesudahnya
-          clipPath: "inset(0)",
-          // Fade-in saat pertama kali reveal
-          opacity:    isVisible ? 1 : 0,
-          transition: "opacity 0.15s ease",
-          pointerEvents: isVisible ? "auto" : "none",
+          width:         totalWidth,
+          clipPath:      "inset(0)",
+          pointerEvents: revealed === position ? "auto" : "none",
         }}
       >
         {filtered.map((action, idx) => {
-          // Setiap tombol slide-in dari sisi yang sesuai
-          const slideX = position === "right"
-            ? `${(1 - Math.min(Math.abs(offset) / ACTION_WIDTH, 1)) * ACTION_WIDTH}px`
-            : `${-(1 - Math.min(offset / ACTION_WIDTH, 1)) * ACTION_WIDTH}px`;
+          const progress = position === "right"
+            ? Math.min(Math.abs(offset) / ACTION_WIDTH, 1)
+            : Math.min(offset / ACTION_WIDTH, 1);
 
           return (
             <button
@@ -233,22 +210,21 @@ export function SwipeableCard({
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); executeAction(action); }}
               style={{
-                width: ACTION_WIDTH,
-                transform: `translateX(${slideX})`,
-                transitionDelay: `${idx * 20}ms`,
+                width:      ACTION_WIDTH,
+                opacity:    progress,
+                transform:  `scale(${0.8 + progress * 0.2})`,
+                transition: isDraggingRef.current
+                  ? "none"
+                  : `opacity 300ms ease, transform 300ms cubic-bezier(0.32, 0.72, 0, 1)`,
+                transitionDelay: isDraggingRef.current ? "0ms" : `${idx * 20}ms`,
               }}
               className={[
                 "flex flex-col items-center justify-center gap-1 text-white",
-                "transition-transform duration-200 ease-out",
                 BG_COLORS[action.variant] ?? BG_COLORS.neutral,
               ].join(" ")}
               aria-label={action.label}
             >
-              {/* Icon — 18px konsisten */}
-              <span
-                className="flex items-center justify-center"
-                style={{ width: 18, height: 18 }}
-              >
+              <span className="flex items-center justify-center" style={{ width: 18, height: 18 }}>
                 {action.icon}
               </span>
               <span className="text-[10px] font-medium leading-none tracking-wide opacity-90">
@@ -261,15 +237,15 @@ export function SwipeableCard({
     );
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div
       className="relative select-none touch-pan-y overflow-hidden"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onClick={() => {
-        if (Math.abs(currentOffsetRef.current) > 4) close();
-      }}
+      onClick={() => { if (Math.abs(currentOffsetRef.current) > 4) close(); }}
       role="listitem"
     >
       {renderActions("right")}
@@ -277,8 +253,13 @@ export function SwipeableCard({
 
       {/* Foreground card */}
       <div
-        className="relative bg-white dark:bg-neutral-900 will-change-transform"
-        style={{ transform: `translateX(${offset}px)` }}
+        className="relative bg-white dark:bg-neutral-900"
+        style={{
+          transform:  `translateX(${offset}px)`,
+          transition: isDraggingRef.current
+            ? "none"
+            : "transform 300ms cubic-bezier(0.32, 0.72, 0, 1)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

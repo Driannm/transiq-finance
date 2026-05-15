@@ -28,6 +28,8 @@ export interface GroupConfig<T = any> {
   renderHeader?: (groupKey: string, items: T[], subtotal: number) => ReactNode;
   showSubtotal?: boolean;
   subtotalFormatter?: (amount: number) => string;
+  amountExtractor?: (item: T) => number;                                          // ← tambah
+  typeExtractor?: (item: T) => "expense" | "income" | "transfer" | undefined; 
 }
 
 export interface CardItemRenderResult {

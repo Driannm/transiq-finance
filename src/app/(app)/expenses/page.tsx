@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // src/app/expenses/page.tsx
 "use client";
 
@@ -7,13 +8,23 @@ import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
 import { EmptyState } from "@/components/Shared/EmptyState";
+import { useRouter } from "next/navigation";
+import {
+  DataControlsBar,
+  useDataControls,
+  type DataControlsConfig,
+} from "@/components/Shared/DataControls";
 import {
   Add01Icon,
   ArrowLeft02Icon,
   Invoice02Icon,
-  Edit01Icon,
-  Delete01Icon,
-  EyeIcon,
+  AddCircleIcon,
+  Calendar01Icon,
+  Money02Icon,
+  ArrowDownAZIcon,
+  ViewIcon,
+  Edit03Icon,
+  Delete02Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
@@ -66,6 +77,24 @@ export default function ExpensesPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const router = useRouter();
+
+  const CONTROLS_CONFIG: DataControlsConfig = {
+    search: {
+      placeholder: "Cari pengeluaran...",
+      searchKeys: ["name"], // Sesuaikan dengan key di ExpenseItem
+    },
+    sort: {
+      defaultValue: "date",
+      fields: [
+        { value: "date", label: "Tanggal", icon: Calendar01Icon },
+        { value: "amount", label: "Jumlah", icon: Money02Icon },
+        { value: "name", label: "Nama", icon: ArrowDownAZIcon },
+      ],
+    },
+    view: { modes: ["list"], defaultMode: "list" },
+  };
 
   const fetchExpenses = useCallback(
     async (isLoadMore = false) => {
@@ -125,21 +154,9 @@ export default function ExpensesPage() {
   };
 
   const total = expenses.reduce((sum, e) => sum + e.transaction.amount, 0);
-  const totalDiscount = expenses.reduce((sum, e) => sum + (e.discount ?? 0), 0);
-
-  const biggestExpense =
-    expenses.length > 0
-      ? expenses.reduce((max, e) =>
-          e.transaction.amount > max.transaction.amount ? e : max
-        )
-      : null;
 
   const handleBack = () => {
-    if (typeof window !== "undefined") {
-      window.history.length > 1
-        ? window.history.back()
-        : (window.location.href = "/");
-    }
+    router.push("/dashboard");
   };
 
   // Swipe actions handlers
@@ -158,7 +175,12 @@ export default function ExpensesPage() {
 
   const handleView = useCallback((id: string | number) => {
     window.location.href = `/expenses/${id}`;
-  }, [])
+  }, []);
+
+  const controls = useDataControls(
+    expenses as unknown as Record<string, unknown>[],
+    CONTROLS_CONFIG
+  );
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
@@ -180,73 +202,106 @@ export default function ExpensesPage() {
       />
 
       <div className="px-4 pt-4 space-y-5">
-        {/* ── Expense Summary Card ── */}
-        <div className="bg-white dark:bg-neutral-900 rounded-[18px] border border-gray-100 dark:border-gray-800 p-4">
-          {/* Month selector */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] text-gray-400">Periode</p>
-              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                {safeFormatDate(month + "-01", "MMMM yyyy")}
-              </p>
-            </div>
-            <div className="flex gap-1.5">
-              <button
-                onClick={prevMonth}
-                className="w-7 h-7 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-neutral-800 flex items-center justify-center text-gray-500 text-sm"
-                aria-label="Previous month"
-              >
-                ‹
-              </button>
-              <button
-                onClick={nextMonth}
-                className="w-7 h-7 rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-neutral-800 flex items-center justify-center text-gray-500 text-sm"
-                aria-label="Next month"
-              >
-                ›
-              </button>
-            </div>
+        {/* Expense Summary Card*/}
+        <div className="flex items-center justify-between bg-white dark:bg-neutral-900 rounded-full border border-gray-100 dark:border-gray-800 p-2">
+          {/* Tombol Kiri */}
+          <button
+            onClick={prevMonth}
+            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            ‹
+          </button>
+
+          {/* Teks di Tengah */}
+          <div className="flex-1 text-center">
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+              {safeFormatDate(month + "-01", "MMMM yyyy")}
+            </p>
           </div>
 
-          {/* Divider */}
-          <div className="h-px bg-gray-100 dark:bg-gray-800 my-3" />
+          {/* Tombol Kanan */}
+          <button
+            onClick={nextMonth}
+            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+          >
+            ›
+          </button>
+        </div>
 
-          {/* Total */}
-          <p className="text-[11px] text-gray-400 mb-1">Total pengeluaran</p>
-          <p className="text-[26px] font-semibold text-red-500 leading-none font-mono">
-            IDR {formatIDR(total)}
-          </p>
-
-          {/* Stat grid */}
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {/* Hemat dari diskon */}
-            <div className="bg-green-50 dark:bg-green-950/40 rounded-[10px] p-3">
-              <p className="text-[10px] text-green-700 dark:text-green-400 mb-1">
-                Hemat bulan ini
-              </p>
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                IDR {formatIDR(totalDiscount)}
+        {/* ── Expense Summary Card (Redesigned) ── */}
+        <div
+          className="relative overflow-hidden rounded-[20px] p-6 text-white"
+          style={{
+            background: `
+      radial-gradient(circle at top right, rgba(220, 38, 38, 0.95) 0%, rgba(220, 38, 38, 0.35) 18%, transparent 42%),
+      radial-gradient(circle at bottom right, rgba(185, 28, 28, 0.85) 0%, rgba(185, 28, 28, 0.22) 20%, transparent 45%),
+      linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)
+    `,
+            boxShadow: `
+      inset 0 1px 0 rgba(255,255,255,0.20),
+      inset -1px 0 0 rgba(220, 38, 38, 0.12),
+      0 10px 30px rgba(0,0,0,0.45)
+    `,
+          }}
+        >
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-2">
+              <p
+                className="text-sm font-medium"
+                style={{ color: "rgba(255,255,255,0.55)" }}
+              >
+                Total pengeluaran
               </p>
             </div>
 
-            {/* Pengeluaran terbanyak */}
-            <div className="bg-red-50 dark:bg-red-950/40 rounded-[10px] p-3">
-              <p className="text-[10px] text-red-400 dark:text-red-400 mb-1">
-                Terbesar bulan ini
-              </p>
-              <p className="text-sm font-semibold text-red-700 dark:text-red-300 truncate">
-                {biggestExpense
-                  ? `IDR ${formatIDR(biggestExpense.transaction.amount)}`
-                  : "—"}
-              </p>
-              {biggestExpense && (
-                <p className="text-[10px] text-red-400 dark:text-red-500 truncate mt-0.5">
-                  {biggestExpense.name}
-                </p>
-              )}
+            <h2 className="text-[36px] font-mono font-bold tracking-tight mb-1">
+              IDR {formatIDR(total)}
+            </h2>
+
+            <div className="flex items-center gap-2">
+              {/* Badge Hemat */}
+              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-red-200">
+                  <HugeiconsIcon icon={AddCircleIcon} size={16} />
+                </span>
+                <span className="text-xs font-mono font-medium text-white">
+                  230.000
+                </span>
+              </div>
+
+              {/* Badge Persentase */}
+              <div className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md border border-green-500/30 px-3 py-1.5 rounded-full text-green-300">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                  <polyline points="17 6 23 6 23 12" />
+                </svg>
+                <span className="text-xs font-semibold">12.5%</span>
+              </div>
             </div>
           </div>
         </div>
+
+        <DataControlsBar
+          config={CONTROLS_CONFIG}
+          state={controls.state}
+          activeFilterCount={controls.activeFilterCount}
+          onSearchChange={controls.setSearch}
+          onSortChange={controls.setSort}
+          onFilterChange={controls.setFilter}
+          onFiltersChange={controls.setFilters}
+          onFiltersReset={controls.resetFilters}
+          onViewChange={controls.setView}
+          onGroupChange={controls.setGroup}
+        />
 
         {/* ── Expenses List with Enhanced CardList ── */}
         <SectionBlock title="Semua Expenses" padded={false}>
@@ -260,6 +315,8 @@ export default function ExpensesPage() {
               showSubtotal: true,
               subtotalFormatter: (amount) =>
                 `IDR ${formatIDR(Math.abs(amount))}`,
+              amountExtractor: (item) => item.transaction.amount,
+              typeExtractor: () => "expense",
             }}
             keyExtractor={(e) => e.id}
             renderItem={(expense) => ({
@@ -296,7 +353,7 @@ export default function ExpensesPage() {
                 id: "view",
                 label: "Detail",
                 variant: "primary",
-                icon: <HugeiconsIcon icon={EyeIcon} size={18} />,
+                icon: <HugeiconsIcon icon={ViewIcon} size={18} />,
                 onExecute: handleView,
                 position: "left",
               },
@@ -304,14 +361,14 @@ export default function ExpensesPage() {
                 id: "edit",
                 label: "Edit",
                 variant: "primary",
-                icon: <HugeiconsIcon icon={Edit01Icon} size={18} />,
+                icon: <HugeiconsIcon icon={Edit03Icon} size={18} />,
                 onExecute: handleEdit,
               },
               {
                 id: "delete",
                 label: "Hapus",
                 variant: "danger",
-                icon: <HugeiconsIcon icon={Delete01Icon} size={18} />,
+                icon: <HugeiconsIcon icon={Delete02Icon} size={18} />,
                 onExecute: handleDelete,
                 requiresConfirm: true,
                 confirmMessage:

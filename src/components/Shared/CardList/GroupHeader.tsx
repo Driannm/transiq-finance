@@ -3,11 +3,11 @@
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface GroupHeaderProps {
-  label:             string;
-  subtotal?:         number;
+  label:              string;
+  subtotal?:          number;
   formattedSubtotal?: string;
-  showSubtotal?:     boolean;
-  className?:        string;
+  showSubtotal?:      boolean;
+  className?:         string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -19,14 +19,12 @@ function subtotalColor(subtotal?: number): string {
     : "text-emerald-500 dark:text-emerald-400";
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// VERSI 1 — Perbaikan dari versi kamu
+// Lebih bersih: hilangkan border bawah yang bentrok dengan divider item,
+// perkecil py, label lebih subtle, subtotal lebih tegas
+// ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * GroupHeader — sticky date/group separator untuk CardList grouped layout.
- *
- * PENTING: Parent container TIDAK boleh pakai `overflow-hidden` agar `sticky` bekerja.
- * Gunakan `overflow-clip` jika perlu clip horizontal saja.
- */
 export function GroupHeader({
   label,
   subtotal,
@@ -37,30 +35,75 @@ export function GroupHeader({
   return (
     <div
       className={[
-        // Sticky — hanya bekerja jika parent tidak overflow-hidden
         "sticky top-0 z-10",
-        // Background dengan blur untuk efek frosted glass
-        "bg-neutral-50/95 dark:bg-neutral-950/95",
-        "backdrop-blur-sm",
-        // Layout
+        "bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm",
         "flex items-center justify-between",
-        "px-4 py-2",
-        // Border hanya bawah, tipis
-        "border-b border-gray-100 dark:border-neutral-800/60",
+        "px-4 py-1.5",
+        // Tidak ada border — divider dari CardList sudah cukup
         className,
       ].join(" ")}
     >
-      {/* Label — uppercase, tracking lebar, ukuran sangat kecil */}
-      <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-gray-400 dark:text-gray-500">
+      <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-gray-400 dark:text-gray-500">
         {label}
       </span>
 
-      {/* Subtotal — hanya tampil jika ada nilai */}
       {showSubtotal && formattedSubtotal && (
         <span
           className={[
-            "text-[11px] font-mono font-medium tabular-nums",
+            "text-[11px] font-semibold font-mono tabular-nums",
             subtotalColor(subtotal),
+          ].join(" ")}
+        >
+          {formattedSubtotal}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VERSI 2 — Design dari gua
+// Pill label di kiri, subtotal sebagai badge pill di kanan.
+// Tidak sticky — float di antara item, terasa lebih "card-native".
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function GroupHeaderV2({
+  label,
+  subtotal,
+  formattedSubtotal,
+  showSubtotal = true,
+  className = "",
+}: GroupHeaderProps) {
+  const isExpense = subtotal !== undefined && subtotal < 0;
+  const isIncome  = subtotal !== undefined && subtotal > 0;
+
+  return (
+    <div
+      className={[
+        "flex items-center justify-between",
+        "px-4 py-2.5",
+        className,
+      ].join(" ")}
+    >
+      {/* Label pill */}
+      <span className="
+        text-[11px] font-semibold
+        text-gray-500 dark:text-gray-400
+      ">
+        {label}
+      </span>
+
+      {/* Subtotal badge */}
+      {showSubtotal && formattedSubtotal && (
+        <span
+          className={[
+            "text-[11px] font-semibold font-mono tabular-nums",
+            "px-2 py-0.5 rounded-md",
+            isExpense
+              ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400"
+              : isIncome
+              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+              : "bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400",
           ].join(" ")}
         >
           {formattedSubtotal}

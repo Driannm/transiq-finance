@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/Shared/utils/groupBy.ts
 export function getRelativeDateLabel(dateStr: string): string {
   const date = new Date(dateStr);
@@ -43,7 +44,9 @@ export function groupTransactionsWithSubtotal<T extends {
   options?: {
     groupBy?: (item: T) => string;
     subtotalFormatter?: (amount: number) => string;
-    includeSign?: boolean; // Show +/- in subtotal
+    includeSign?: boolean;
+    amountExtractor?:   (item: T) => number;
+    typeExtractor?:     (item: T) => "expense" | "income" | "transfer" | undefined;
   }
 ): GroupedResult<T>[] {
   const groupBy = options?.groupBy || ((item: T) => 
@@ -54,10 +57,17 @@ export function groupTransactionsWithSubtotal<T extends {
   
   return Object.entries(groups).map(([key, groupItems]) => {
     const subtotal = groupItems.reduce((sum, item) => {
-      const amount = item.amount || 0;
-      if (item.type === 'expense') return sum - amount;
-      if (item.type === 'income') return sum + amount;
-      return sum; // transfer or unknown
+      const amount = options?.amountExtractor
+        ? options.amountExtractor(item)
+        : ((item as any).amount ?? 0);
+  
+      const type = options?.typeExtractor
+        ? options.typeExtractor(item)
+        : (item as any).type;
+  
+      if (type === "expense") return sum - amount;
+      if (type === "income")  return sum + amount;
+      return sum;
     }, 0);
     
     const formatter = options?.subtotalFormatter || ((amt: number) => {
