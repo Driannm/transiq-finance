@@ -151,7 +151,7 @@ function countActiveFilters(filters: FilterState, defaults: FilterState = {}): n
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useDataControls<T extends Record<string, unknown>>(
+export function useDataControls<T extends object>(
   rawData: T[],
   config: DataControlsConfig
 ): UseDataControlsReturn<T> {

@@ -83,14 +83,14 @@ export default function ExpensesPage() {
   const CONTROLS_CONFIG: DataControlsConfig = {
     search: {
       placeholder: "Cari pengeluaran...",
-      searchKeys: ["name"], // Sesuaikan dengan key di ExpenseItem
+      searchKeys: ["name"],
     },
     sort: {
-      defaultValue: "date",
+      defaultValue: "transaction.date",
       fields: [
-        { value: "date", label: "Tanggal", icon: Calendar01Icon },
-        { value: "amount", label: "Jumlah", icon: Money02Icon },
-        { value: "name", label: "Nama", icon: ArrowDownAZIcon },
+        { value: "transaction.date",   label: "Tanggal", icon: Calendar01Icon },
+        { value: "transaction.amount", label: "Jumlah",  icon: Money02Icon    },
+        { value: "name",               label: "Nama",    icon: ArrowDownAZIcon },
       ],
     },
     view: { modes: ["list"], defaultMode: "list" },
@@ -177,10 +177,14 @@ export default function ExpensesPage() {
     window.location.href = `/expenses/${id}`;
   }, []);
 
-  const controls = useDataControls(
-    expenses as unknown as Record<string, unknown>[],
+  const controls = useDataControls<ExpenseItem>(
+    expenses,
     CONTROLS_CONFIG
   );
+
+  const isSearchActive = controls.state.search.trim().length > 0;
+  const isSortActive   = controls.state.sort.field !== "transaction.date";
+  const isFlat         = isSearchActive || isSortActive;
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
@@ -306,18 +310,21 @@ export default function ExpensesPage() {
         {/* ── Expenses List with Enhanced CardList ── */}
         <SectionBlock title="Semua Expenses" padded={false}>
           <CardList<ExpenseItem>
-            items={expenses}
+            items={controls.data}
             layout="detailed"
             enableSwipe={true}
-            grouping={{
-              enabled: true,
-              groupBy: (item) => getRelativeDateLabel(item.transaction.date),
-              showSubtotal: true,
-              subtotalFormatter: (amount) =>
-                `IDR ${formatIDR(Math.abs(amount))}`,
-              amountExtractor: (item) => item.transaction.amount,
-              typeExtractor: () => "expense",
-            }}
+            grouping={
+              isFlat
+                ? undefined
+                : {
+                    enabled: true,
+                    groupBy: (item) => getRelativeDateLabel(item.transaction.date),
+                    showSubtotal: true,
+                    subtotalFormatter: (amount) => `IDR ${formatIDR(Math.abs(amount))}`,
+                    amountExtractor: (item) => item.transaction.amount,
+                    typeExtractor: () => "expense",
+                  }
+            }
             keyExtractor={(e) => e.id}
             renderItem={(expense) => ({
               left: (
