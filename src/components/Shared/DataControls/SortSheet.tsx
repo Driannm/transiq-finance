@@ -11,6 +11,8 @@ import {
   Sorting01Icon,
   ArrowUp01Icon,
   ArrowDown01Icon,
+  ArrowUpZAIcon,
+  ArrowDownAZIcon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -99,15 +101,14 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
         className={cn(
           "flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border text-[13px] font-semibold transition-all",
           isActive
-            ? "bg-[#6366F1] border-[#6366F1] text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900"
-            : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-neutral-300 hover:border-slate-300 dark:hover:border-neutral-600"
+            ? "bg-white dark:bg-indigo-500 border-indigo-800 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900"
+            : "bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:border-slate-300 dark:hover:border-neutral-600"
         )}
       >
         <HugeiconsIcon icon={Sorting01Icon} size={15} />
-        <span>Sort</span>
         {isActive && (
-          <span className="text-[11px] font-bold opacity-80">
-            · {config.fields.find((f) => f.value === value.field)?.label?.split(" ")[0]}
+          <span className="text-[13px]">
+            {config.fields.find((f) => f.value === value.field)?.label?.split(" ")[0]}
           </span>
         )}
       </button>
@@ -125,7 +126,7 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
                   : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-750"
               )}
             >
-              <HugeiconsIcon icon={ArrowUp01Icon} size={14} />
+              <HugeiconsIcon icon={ArrowUpZAIcon} size={14} />
               Ascending
             </button>
             <button
@@ -137,7 +138,7 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
                   : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-750"
               )}
             >
-              <HugeiconsIcon icon={ArrowDown01Icon} size={14} />
+              <HugeiconsIcon icon={ArrowDownAZIcon} size={14} /> 
               Descending
             </button>
           </div>

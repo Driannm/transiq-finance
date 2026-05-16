@@ -25,6 +25,7 @@ import {
   ViewIcon,
   Edit03Icon,
   Delete02Icon,
+  TextFontIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
@@ -90,7 +91,7 @@ export default function ExpensesPage() {
       fields: [
         { value: "transaction.date",   label: "Tanggal", icon: Calendar01Icon },
         { value: "transaction.amount", label: "Jumlah",  icon: Money02Icon    },
-        { value: "name",               label: "Nama",    icon: ArrowDownAZIcon },
+        { value: "name",               label: "Nama",    icon: TextFontIcon },
       ],
     },
     view: { modes: ["list"], defaultMode: "list" },
