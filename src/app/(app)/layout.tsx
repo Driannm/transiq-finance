@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950">
       <PullToRefresh>
-        <main className="pt-4 pb-24 md:pt-6 md:pb-6">
+        <main className="pt-2 md:pt-6 md:pb-6">
           {children}
           <ConfirmDialog />
           <ToastContainer />

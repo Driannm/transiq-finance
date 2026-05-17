@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import { Add01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 export interface BottomNavItem {
   label: string;
@@ -21,39 +21,6 @@ export function BottomNav({ items }: BottomNavProps) {
   const router = useRouter();
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // ── KEYBOARD ABOVE KEYBOARD ────────────────────────────────────────────────
-  // Di mobile browser, saat keyboard muncul window mengecil (visualViewport).
-  // Kita pantau visualViewport.height untuk tahu seberapa jauh keyboard naik,
-  // lalu geser navbar ke atas keyboard dengan CSS transform.
-  // ──────────────────────────────────────────────────────────────────────────
-  const navRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-
-    const onResize = () => {
-      if (!navRef.current) return;
-
-      // Jarak antara bawah visual viewport dengan bawah layout viewport
-      // = tinggi keyboard yang sedang tampil
-      const keyboardHeight =
-        window.innerHeight - viewport.height - viewport.offsetTop;
-
-      // Geser navbar ke atas sebesar tinggi keyboard (+ sedikit gap)
-      // Kalau keyboard tidak tampil, kembalikan ke posisi semula (0)
-      navRef.current.style.transform = `translateY(-${Math.max(0, keyboardHeight)}px)`;
-    };
-
-    viewport.addEventListener("resize", onResize);
-    viewport.addEventListener("scroll", onResize);
-
-    return () => {
-      viewport.removeEventListener("resize", onResize);
-      viewport.removeEventListener("scroll", onResize);
-    };
-  }, []);
-
   const handlePress = useCallback(
     (path: string) => router.push(path),
     [router]
@@ -63,20 +30,14 @@ export function BottomNav({ items }: BottomNavProps) {
 
   return (
     <>
-      {/* ── QUICK ADD SHEET ──────────────────────────────────────────────────
-          Sheet muncul dari bawah saat FAB ditekan.
-          Pakai conditional render + transition CSS agar smooth.
-          ────────────────────────────────────────────────────────────────── */}
+      {/* ── QUICK ADD SHEET ────────────────────────────────────────────────── */}
       {sheetOpen && (
         <div
           className="fixed inset-0 z-40 flex items-end"
-          // Tap backdrop → tutup sheet
           onClick={() => setSheetOpen(false)}
         >
-          {/* Backdrop blur tipis */}
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-          {/* Sheet panel — stopPropagation agar tap di dalam tidak nutup */}
           <div
             className="
               relative z-50 w-full
@@ -88,7 +49,6 @@ export function BottomNav({ items }: BottomNavProps) {
             "
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Handle bar */}
             <div className="mx-auto mb-4 w-10 h-1 rounded-full bg-white/20" />
 
             <div className="flex items-center justify-between mb-5">
@@ -103,17 +63,13 @@ export function BottomNav({ items }: BottomNavProps) {
               </button>
             </div>
 
-            {/* ── INPUT FIELDS ──────────────────────────────────────────────
-                inputMode="text" dan autoFocus memicu keyboard otomatis.
-                Saat keyboard muncul, visualViewport resize → navbar naik.
-                ──────────────────────────────────────────────────────────── */}
             <div className="flex flex-col gap-3">
               <div>
                 <label className="text-xs text-white/50 mb-1 block">Judul</label>
                 <input
                   type="text"
                   inputMode="text"
-                  autoFocus               // ← langsung fokus = keyboard langsung muncul
+                  autoFocus
                   placeholder="Tulis judul..."
                   className="
                     w-full rounded-xl bg-white/8 border border-white/10
@@ -143,10 +99,7 @@ export function BottomNav({ items }: BottomNavProps) {
                   bg-white text-neutral-900 font-semibold text-sm
                   active:scale-95 transition-transform
                 "
-                onClick={() => {
-                  // handle simpan di sini
-                  setSheetOpen(false);
-                }}
+                onClick={() => setSheetOpen(false)}
               >
                 Simpan
               </button>
@@ -155,20 +108,13 @@ export function BottomNav({ items }: BottomNavProps) {
         </div>
       )}
 
-      {/* ── BOTTOM NAVBAR ────────────────────────────────────────────────────
-          ref={navRef} ← dipakai oleh visualViewport listener di atas
-          transition-transform agar animasi naik/turun smooth
-          will-change: transform → hint browser untuk GPU compositing
-          ─────────────────────────────────────────────────────────────────── */}
+      {/* ── BOTTOM NAVBAR ──────────────────────────────────────────────────── */}
       <div
-        ref={navRef}
         className="
           fixed bottom-4 left-0 right-0 z-50
           flex items-center justify-center gap-2
           pointer-events-none px-4
-          transition-transform duration-200 ease-out
         "
-        style={{ willChange: "transform" }}
       >
         <nav
           className="
@@ -216,7 +162,6 @@ export function BottomNav({ items }: BottomNavProps) {
           })}
         </nav>
 
-        {/* FAB → buka Quick Add Sheet */}
         <button
           onClick={() => setSheetOpen(true)}
           className="
