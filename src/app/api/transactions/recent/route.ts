@@ -48,11 +48,16 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    twoDaysAgo.setHours(0, 0, 0, 0);
+
     // Fetch 10 transaksi terbaru user
     const transactions = await prisma.transaction.findMany({
       where: {
         userId: session.user.id,
         deletedAt: null,
+        date: { gte: twoDaysAgo }
       },
       include: {
         expense: {
@@ -109,7 +114,10 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ transactions: data });
+    return NextResponse.json({
+      transactions: data,
+      cutoffDate: twoDaysAgo.toISOString(),
+    });
   } catch (error) {
     console.error("[RECENT_TRANSACTIONS]", error);
     return NextResponse.json(
