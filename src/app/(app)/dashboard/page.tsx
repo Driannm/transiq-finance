@@ -210,7 +210,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
-      <div className="sticky top-0 z-50 bg-neutral-100 dark:bg-neutral-950">
+      <div className="sticky top-0 z-50">
         <IslandNavbar
           title="Dashboard"
           actions={[
