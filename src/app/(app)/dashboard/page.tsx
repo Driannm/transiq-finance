@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
@@ -48,26 +47,56 @@ function formatIDR(amount: number): string {
 
 function urgencyColor(urgency: string) {
   if (urgency === "high")
-    return { text: "text-red-500", badge: "bg-red-50 dark:bg-red-900/30 text-red-600" };
+    return {
+      text: "text-red-500",
+      badge: "bg-red-50 dark:bg-red-900/30 text-red-600",
+    };
   if (urgency === "medium")
-    return { text: "text-amber-500", badge: "bg-amber-50 dark:bg-amber-900/30 text-amber-600" };
-  return { text: "text-blue-500", badge: "bg-blue-50 dark:bg-blue-900/30 text-blue-600" };
+    return {
+      text: "text-amber-500",
+      badge: "bg-amber-50 dark:bg-amber-900/30 text-amber-600",
+    };
+  return {
+    text: "text-blue-500",
+    badge: "bg-blue-50 dark:bg-blue-900/30 text-blue-600",
+  };
 }
 
 // ─── Sub-Components ─────────────────────────────────────────
 
-function SavingGoalRing({ percentage, color }: { percentage: number; color: string }) {
+function SavingGoalRing({
+  percentage,
+  color,
+}: {
+  percentage: number;
+  color: string;
+}) {
   const r = 14;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (percentage / 100) * circumference;
   return (
     <div className="relative w-10 h-10 flex-shrink-0">
       <svg width="40" height="40" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r={r} fill="none" stroke="currentColor" strokeWidth="4" className="text-gray-200 dark:text-gray-700" />
         <circle
-          cx="20" cy="20" r={r} fill="none" stroke={color} strokeWidth="4"
-          strokeDasharray={circumference} strokeDashoffset={offset}
-          strokeLinecap="round" transform="rotate(-90 20 20)"
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="4"
+          className="text-gray-200 dark:text-gray-700"
+        />
+        <circle
+          cx="20"
+          cy="20"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 20 20)"
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-gray-700 dark:text-gray-300 font-mono">
@@ -105,9 +134,17 @@ function SpendingBreakdownCard() {
           <svg width="80" height="80" viewBox="0 0 80 80">
             {segments.map((seg, i) => (
               <circle
-                key={i} cx="40" cy="40" r={r} fill="none" stroke={seg.color} strokeWidth="12"
-                strokeDasharray={seg.dasharray} strokeDashoffset={seg.dashoffset}
-                strokeLinecap="butt" transform={`rotate(${seg.rotation} 40 40)`}
+                key={i}
+                cx="40"
+                cy="40"
+                r={r}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth="12"
+                strokeDasharray={seg.dasharray}
+                strokeDashoffset={seg.dashoffset}
+                strokeLinecap="butt"
+                transform={`rotate(${seg.rotation} 40 40)`}
               />
             ))}
           </svg>
@@ -122,10 +159,17 @@ function SpendingBreakdownCard() {
           {spendingCategories.map((cat) => (
             <div key={cat.label} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                <span className="text-xs text-gray-600 dark:text-gray-400">{cat.label}</span>
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: cat.color }}
+                />
+                <span className="text-xs text-gray-600 dark:text-gray-400">
+                  {cat.label}
+                </span>
               </div>
-              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono">{cat.percentage}%</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-gray-300 font-mono">
+                {cat.percentage}%
+              </span>
             </div>
           ))}
         </div>
@@ -160,20 +204,24 @@ export default function DashboardPage() {
     });
   }, [confirm]);
 
-  const urgentBillsCount = upcomingBills.filter((b) => b.urgency === "high").length;
+  const urgentBillsCount = upcomingBills.filter(
+    (b) => b.urgency === "high"
+  ).length;
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
-      <IslandNavbar
-        title="Dashboard"
-        actions={[
-          {
-            icon: <HugeiconsIcon icon={Logout03Icon} size={20} />,
-            onPress: handleLogout,
-            label: "Quick Log Out",
-          },
-        ]}
-      />
+      <div className="sticky top-0 z-50 bg-neutral-100 dark:bg-neutral-950">
+        <IslandNavbar
+          title="Dashboard"
+          actions={[
+            {
+              icon: <HugeiconsIcon icon={Logout03Icon} size={20} />,
+              onPress: handleLogout,
+              label: "Quick Log Out",
+            },
+          ]}
+        />
+      </div>
 
       {/* ---- Balance Card ---- */}
       <div className="px-4 pt-4">
@@ -186,14 +234,18 @@ export default function DashboardPage() {
             </svg>
           </div>
           <div className="relative z-10 mb-6">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-medium">Available Balance</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-medium">
+              Available Balance
+            </p>
             <p className="mt-1 text-[36px] font-mono font-bold leading-none tracking-tight text-white">
-              IDR {formatIDR(7820000)}<span className="text-xl font-semibold opacity-80">.00</span>
+              IDR {formatIDR(7820000)}
+              <span className="text-xl font-semibold opacity-80">.00</span>
             </p>
           </div>
           <div className="relative z-10 flex gap-2.5">
             <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-bold text-[#1A3FA8] shadow active:scale-95 transition-transform">
-              <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={16} /> Transfer
+              <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={16} />{" "}
+              Transfer
             </button>
             <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 py-3 text-sm font-bold text-white backdrop-blur-sm active:scale-95 transition-transform">
               <HugeiconsIcon icon={Add01Icon} size={16} /> Add Funds
@@ -210,32 +262,58 @@ export default function DashboardPage() {
       {/* ---- Upcoming Bills ---- */}
       <SectionBlock
         title="Upcoming Bills"
-        badge={urgentBillsCount > 0 ? { label: `${urgentBillsCount} urgent`, variant: "red" } : undefined}
+        badge={
+          urgentBillsCount > 0
+            ? { label: `${urgentBillsCount} urgent`, variant: "red" }
+            : undefined
+        }
         action={{ type: "link", label: "See All", href: "/bills" }}
       >
         <CardList
           items={upcomingBills}
           keyExtractor={(bill) => bill.id}
           emptyState={{
-            icon: <HugeiconsIcon icon={Invoice02Icon} size={32} className="text-gray-300 dark:text-gray-600" />,
+            icon: (
+              <HugeiconsIcon
+                icon={Invoice02Icon}
+                size={32}
+                className="text-gray-300 dark:text-gray-600"
+              />
+            ),
             title: "No upcoming bills",
-            description: "You're all caught up! No bills due soon."
+            description: "You're all caught up! No bills due soon.",
           }}
           renderItem={(bill) => {
             const colors = urgencyColor(bill.urgency);
             return {
               left: (
                 <>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={bill.icon} size={22} className="text-gray-700" />
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}
+                  >
+                    <HugeiconsIcon
+                      icon={bill.icon}
+                      size={22}
+                      className="text-gray-700"
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{bill.name}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">Due in {bill.dueIn} days</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {bill.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
+                      Due in {bill.dueIn} days
+                    </p>
                   </div>
                 </>
               ),
-              right: <span className={`text-sm font-semibold font-mono ${colors.text}`}>IDR {formatIDR(bill.amount)}</span>,
+              right: (
+                <span
+                  className={`text-sm font-semibold font-mono ${colors.text}`}
+                >
+                  IDR {formatIDR(bill.amount)}
+                </span>
+              ),
             };
           }}
         />
@@ -244,44 +322,75 @@ export default function DashboardPage() {
       {/* ---- Saving Goals ---- */}
       <SectionBlock
         title="Saving Goals"
-        action={{ type: "button", label: "Add Savings", onPress: () => router.push("/savings") }}
+        action={{
+          type: "button",
+          label: "Add Savings",
+          onPress: () => router.push("/savings"),
+        }}
       >
         <CardList
           items={savingGoals}
           keyExtractor={(goal) => goal.id}
           emptyState={{
-            icon: <HugeiconsIcon icon={Beach02Icon} size={32} className="text-gray-300 dark:text-gray-600" />,
+            icon: (
+              <HugeiconsIcon
+                icon={Beach02Icon}
+                size={32}
+                className="text-gray-300 dark:text-gray-600"
+              />
+            ),
             title: "No saving goals yet",
-            description: "Start saving for your dreams. Create your first goal."
+            description:
+              "Start saving for your dreams. Create your first goal.",
           }}
           renderItem={(goal) => {
-            const percentage = Math.min(100, Math.round((goal.saved / goal.target) * 100));
+            const percentage = Math.min(
+              100,
+              Math.round((goal.saved / goal.target) * 100)
+            );
             return {
               left: (
                 <>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={goal.icon} size={22} className="text-gray-700" />
+                  <div
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${goal.bg} dark:bg-opacity-20`}
+                  >
+                    <HugeiconsIcon
+                      icon={goal.icon}
+                      size={22}
+                      className="text-gray-700"
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{goal.name}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {goal.name}
+                    </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
                       IDR {formatIDR(goal.saved)} / {formatIDR(goal.target)}
                     </p>
                   </div>
                 </>
               ),
-              right: <SavingGoalRing percentage={percentage} color={goal.color} />,
+              right: (
+                <SavingGoalRing percentage={percentage} color={goal.color} />
+              ),
             };
           }}
         />
       </SectionBlock>
 
       {/* ---- Spending Breakdown ---- */}
-      <SectionBlock title="Spending Breakdown" action={{ type: "text", label: "This month" }}>
+      <SectionBlock
+        title="Spending Breakdown"
+        action={{ type: "text", label: "This month" }}
+      >
         {spendingCategories.length === 0 ? (
           <div className="bg-white dark:bg-neutral-900 rounded-2xl p-8 text-center border border-gray-100 dark:border-gray-800">
-             <HugeiconsIcon icon={PieChartIcon} size={32} className="mx-auto text-gray-300 mb-2" />
-             <p className="text-sm text-gray-500">No spending data</p>
+            <HugeiconsIcon
+              icon={PieChartIcon}
+              size={32}
+              className="mx-auto text-gray-300 mb-2"
+            />
+            <p className="text-sm text-gray-500">No spending data</p>
           </div>
         ) : (
           <SpendingBreakdownCard />
@@ -289,7 +398,7 @@ export default function DashboardPage() {
       </SectionBlock>
 
       {/* ---- Recent Transactions (REAL DATA) ---- */}
-      <SectionBlock title="Recent Transactions" action={{ type: "link", label: "See All", href: "/transactions" }}>
+      <SectionBlock title="Recent Transactions">
         <CardList
           items={transactions}
           keyExtractor={(tx) => tx.id}
@@ -298,23 +407,40 @@ export default function DashboardPage() {
             fields: ["icon", "title", "subtitle", "amount"],
             count: 3,
           }}
-          emptyState={error ? {
-            icon: <HugeiconsIcon icon={AlertCircleIcon} size={32} className="text-red-400" />,
-            title: "Gagal memuat transaksi",
-            description: "Periksa koneksi internet Anda atau coba lagi.",
-            actions: [
-              {
-                id: "retry",
-                label: "Coba Lagi",
-                onPress: () => mutate(),
-                variant: "primary",
-              },
-            ],
-          } : {
-            icon: <HugeiconsIcon icon={MoneyReceive01Icon} size={32} className="text-gray-300 dark:text-gray-600" />,
-            title: "No recent transactions",
-            description: "Your transactions will appear here once you start recording."
-          }}
+          emptyState={
+            error
+              ? {
+                  icon: (
+                    <HugeiconsIcon
+                      icon={MoneyReceive01Icon}
+                      size={32}
+                      className="text-gray-300 dark:text-gray-600"
+                    />
+                  ),
+                  title: "Tidak ada transaksi",
+                  description: "Belum ada transaksi dalam 2 hari terakhir.",
+                  actions: [
+                    {
+                      id: "retry",
+                      label: "Coba Lagi",
+                      onPress: () => mutate(),
+                      variant: "primary",
+                    },
+                  ],
+                }
+              : {
+                  icon: (
+                    <HugeiconsIcon
+                      icon={MoneyReceive01Icon}
+                      size={32}
+                      className="text-gray-300 dark:text-gray-600"
+                    />
+                  ),
+                  title: "No recent transactions",
+                  description:
+                    "Your transactions will appear here once you start recording.",
+                }
+          }
           renderItem={(tx) => {
             const IconComponent = getCategoryIcon(tx.category);
             const bgMap: Record<string, string> = {
@@ -325,17 +451,33 @@ export default function DashboardPage() {
             return {
               left: (
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${bgMap[tx.type] || "bg-gray-200"} dark:bg-opacity-20`}>
-                    <HugeiconsIcon icon={IconComponent} size={22} className="text-gray-700" />
+                  <div
+                    className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center ${
+                      bgMap[tx.type] || "bg-gray-200"
+                    } dark:bg-opacity-20`}
+                  >
+                    <HugeiconsIcon
+                      icon={IconComponent}
+                      size={22}
+                      className="text-gray-700"
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{tx.name}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">{tx.category} · {tx.time}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
+                      {tx.name}
+                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                      {tx.category} · {tx.time}
+                    </p>
                   </div>
                 </div>
               ),
               right: (
-                <span className={`text-sm font-semibold font-mono ${tx.type === "expense" ? "text-red-500" : "text-green-500"}`}>
+                <span
+                  className={`text-sm font-semibold font-mono ${
+                    tx.type === "expense" ? "text-red-500" : "text-green-500"
+                  }`}
+                >
                   {tx.type === "expense" ? "-" : "+"}IDR {formatIDR(tx.amount)}
                 </span>
               ),
