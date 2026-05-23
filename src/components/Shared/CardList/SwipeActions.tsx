@@ -1,3 +1,4 @@
+// src/components/Shared/CardList/SwipeableCard.tsx
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -178,7 +179,7 @@ export function SwipeableCard({
     }
   }, [snapTo, MAX_LEFT, MAX_RIGHT, onOpenChange]);
 
-  // ── Render actions ────────────────────────────────────────────────────────
+  // ── Render actions [FIX: transition shorthand includes delay] ─────────────
 
   const renderActions = (position: "left" | "right") => {
     const filtered = actions.filter((a) =>
@@ -204,6 +205,11 @@ export function SwipeableCard({
             ? Math.min(Math.abs(offset) / ACTION_WIDTH, 1)
             : Math.min(offset / ACTION_WIDTH, 1);
 
+          // ✅ FIX: Include delay in transition shorthand (no separate transitionDelay)
+          const transitionValue = isDraggingRef.current
+            ? "none"
+            : `opacity 300ms ease ${idx * 20}ms, transform 300ms cubic-bezier(0.32, 0.72, 0, 1) ${idx * 20}ms`;
+
           return (
             <button
               key={action.id}
@@ -213,10 +219,8 @@ export function SwipeableCard({
                 width:      ACTION_WIDTH,
                 opacity:    progress,
                 transform:  `scale(${0.8 + progress * 0.2})`,
-                transition: isDraggingRef.current
-                  ? "none"
-                  : `opacity 300ms ease, transform 300ms cubic-bezier(0.32, 0.72, 0, 1)`,
-                transitionDelay: isDraggingRef.current ? "0ms" : `${idx * 20}ms`,
+                transition: transitionValue,  // ✅ Delay included here
+                // ❌ JANGAN pakai transitionDelay terpisah — conflict dengan shorthand!
               }}
               className={[
                 "flex flex-col items-center justify-center gap-1 text-white",
