@@ -82,16 +82,19 @@ export default function ExpensesPage() {
   const router = useRouter();
 
   const CONTROLS_CONFIG: DataControlsConfig = {
+    // TODO : fix search because its need 2 clicks to search, first click is showing the placeholder, second click is searching
+
     search: {
       placeholder: "Cari pengeluaran...",
       searchKeys: ["name"],
     },
     sort: {
+      // TODO : Change defaultValue to date descending or delete the defaultValue
       defaultValue: "transaction.date",
       fields: [
-        { value: "transaction.date",   label: "Tanggal", icon: Calendar01Icon },
-        { value: "transaction.amount", label: "Jumlah",  icon: Money02Icon    },
-        { value: "name",               label: "Nama",    icon: TextFontIcon },
+        { value: "transaction.date", label: "Tanggal", icon: Calendar01Icon },
+        { value: "transaction.amount", label: "Jumlah", icon: Money02Icon },
+        { value: "name", label: "Nama", icon: TextFontIcon },
       ],
     },
     view: { modes: ["list"], defaultMode: "list" },
@@ -178,64 +181,36 @@ export default function ExpensesPage() {
     window.location.href = `/expenses/${id}`;
   }, []);
 
-  const controls = useDataControls<ExpenseItem>(
-    expenses,
-    CONTROLS_CONFIG
-  );
+  const controls = useDataControls<ExpenseItem>(expenses, CONTROLS_CONFIG);
 
   const isSearchActive = controls.state.search.trim().length > 0;
-  const isSortActive   = controls.state.sort.field !== "transaction.date";
-  const isFlat         = isSearchActive || isSortActive;
+  const isSortActive = controls.state.sort.field !== "transaction.date";
+  const isFlat = isSearchActive || isSortActive;
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
-      <IslandNavbar
-        title="Expenses"
-        avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
-        onAvatarPress={handleBack}
-        actions={[
-          {
-            icon: (
-              <Link href="/expenses/add">
-                <HugeiconsIcon icon={Add01Icon} size={18} />
-              </Link>
-            ),
-            onPress: () => {},
-            label: "Add",
-          },
-        ]}
-      />
-
+      <div className="sticky top-0 z-50">
+        <IslandNavbar
+          title="Expenses"
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+          onAvatarPress={handleBack}
+          actions={[
+            {
+              icon: (
+                <Link href="/expenses/add">
+                  <HugeiconsIcon icon={Add01Icon} size={18} />
+                </Link>
+              ),
+              onPress: () => {},
+              label: "Add",
+            },
+          ]}
+        />
+      </div>
       <div className="px-4 pt-4 space-y-5">
-        {/* Expense Summary Card*/}
-        <div className="flex items-center justify-between bg-white dark:bg-neutral-900 rounded-full border border-gray-100 dark:border-gray-800 p-2">
-          {/* Tombol Kiri */}
-          <button
-            onClick={prevMonth}
-            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            ‹
-          </button>
-
-          {/* Teks di Tengah */}
-          <div className="flex-1 text-center">
-            <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-              {safeFormatDate(month + "-01", "MMMM yyyy")}
-            </p>
-          </div>
-
-          {/* Tombol Kanan */}
-          <button
-            onClick={nextMonth}
-            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            ›
-          </button>
-        </div>
-
-        {/* ── Expense Summary Card (Redesigned) ── */}
+        {/* ── Expense Summary Card with Inline Month Selector ── */}
         <div
-          className="relative overflow-hidden rounded-[20px] p-6 text-white"
+          className="relative overflow-hidden rounded-[24px] p-6 text-white"
           style={{
             background: `
       radial-gradient(circle at top right, rgba(220, 38, 38, 0.95) 0%, rgba(220, 38, 38, 0.35) 18%, transparent 42%),
@@ -249,20 +224,41 @@ export default function ExpensesPage() {
     `,
           }}
         >
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-2">
-              <p
-                className="text-sm font-medium"
-                style={{ color: "rgba(255,255,255,0.55)" }}
-              >
+          <div className="relative z-10 flex flex-col gap-3.5">
+            {/* Baris Atas: Label & Month Selector Terintegrasi */}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50">
                 Total pengeluaran
               </p>
+
+              {/* Month Selector Minimalis (Glassmorphism Pill) */}
+              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full select-none">
+                <button
+                  onClick={prevMonth}
+                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
+                >
+                  ‹
+                </button>
+                <span className="text-[11px] md:text-xs font-semibold tracking-wide text-white whitespace-nowrap">
+                  {safeFormatDate(month + "-01", "MMMM yyyy")}
+                </span>
+                <button
+                  onClick={nextMonth}
+                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
+                >
+                  ›
+                </button>
+              </div>
             </div>
 
-            <h2 className="text-[36px] font-mono font-bold tracking-tight mb-1">
-              IDR {formatIDR(total)}
-            </h2>
+            {/* Baris Tengah: Nominal Pengeluaran */}
+            <div>
+              <h2 className="text-[32px] md:text-[36px] font-mono font-bold tracking-tight leading-none">
+                IDR {formatIDR(total)}
+              </h2>
+            </div>
 
+            {/* Baris Bawah: Badges */}
             <div className="flex items-center gap-2">
               {/* Badge Hemat */}
               <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
@@ -319,9 +315,11 @@ export default function ExpensesPage() {
                 ? undefined
                 : {
                     enabled: true,
-                    groupBy: (item) => getRelativeDateLabel(item.transaction.date),
+                    groupBy: (item) =>
+                      getRelativeDateLabel(item.transaction.date),
                     showSubtotal: true,
-                    subtotalFormatter: (amount) => `IDR ${formatIDR(Math.abs(amount))}`,
+                    subtotalFormatter: (amount) =>
+                      `IDR ${formatIDR(Math.abs(amount))}`,
                     amountExtractor: (item) => item.transaction.amount,
                     typeExtractor: () => "expense",
                   }
