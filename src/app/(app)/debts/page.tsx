@@ -16,6 +16,8 @@ import {
 import {
   Add01Icon,
   ArrowLeft02Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   Calendar01Icon,
   Money02Icon,
   TextFontIcon,
@@ -24,13 +26,16 @@ import {
   Delete02Icon,
   CheckmarkCircle02Icon,
   AlertCircleIcon,
-  UserIcon,
   CreditCardIcon,
-  ArrowUp01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
 import { getRelativeDateLabel } from "@/components/Shared/utils/groupBy";
+import { getDebtCategoryIcon } from "@/lib/iconMapping";
+
+// ─── IMPORT BARU UNTUK MODAL DINAMIS ───
+import { ReusableDialog } from "@/components/Shared/DinamicModal";
+import { DebtPaymentForm } from "@/components/Shared/DebtsPaymentForm";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -39,15 +44,15 @@ type DebtCategory = "personal" | "credit_card" | "bank" | "family" | "other";
 
 interface DebtItem {
   id: string;
-  name: string;           // nama utang / deskripsi
-  creditor: string;       // orang/lembaga yang menagih (kamu berhutang ke mereka)
+  name: string;           
+  creditor: string;       
   category: DebtCategory;
-  totalAmount: number;    // total utang
-  paidAmount: number;     // sudah dibayar
+  totalAmount: number;    
+  paidAmount: number;     
   dueDate: string;
   status: DebtStatus;
   notes?: string | null;
-  installment: boolean;   // cicilan?
+  installment: boolean;   
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -77,22 +82,6 @@ function getProgressPercent(paid: number, total: number): number {
 
 // ─── Config ─────────────────────────────────────────────────
 
-const CATEGORY_ICON: Record<DebtCategory, string> = {
-  personal:    "🤝",
-  credit_card: "💳",
-  bank:        "🏦",
-  family:      "👨‍👩‍👧",
-  other:       "📋",
-};
-
-const CATEGORY_LABEL: Record<DebtCategory, string> = {
-  personal:    "Personal",
-  credit_card: "Kartu Kredit",
-  bank:        "Bank",
-  family:      "Keluarga",
-  other:       "Lainnya",
-};
-
 const STATUS_META: Record<
   DebtStatus,
   { label: string; color: string; bg: string; dot: string; bar: string }
@@ -102,28 +91,21 @@ const STATUS_META: Record<
   paid:    { label: "Lunas",       color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/25", dot: "bg-emerald-400", bar: "bg-emerald-400" },
 };
 
-// ─── Mock Data ──────────────────────────────────────────────
-
-const MOCK_DEBTS: DebtItem[] = [
-  { id: "1", name: "Utang HP",           creditor: "Budi Santoso",  category: "personal",    totalAmount: 2000000,  paidAmount: 0,       dueDate: "2026-06-15", status: "unpaid",  installment: false },
-  { id: "2", name: "Cicilan Kredit BCA", creditor: "Bank BCA",      category: "credit_card", totalAmount: 5400000,  paidAmount: 1800000, dueDate: "2026-06-01", status: "partial", installment: true  },
-  { id: "3", name: "Pinjam Kakak",       creditor: "Mbak Rina",     category: "family",      totalAmount: 1500000,  paidAmount: 500000,  dueDate: "2026-07-01", status: "partial", installment: false },
-  { id: "4", name: "KTA Mandiri",        creditor: "Bank Mandiri",  category: "bank",        totalAmount: 12000000, paidAmount: 12000000,dueDate: "2026-05-10", status: "paid",    installment: true  },
-  { id: "5", name: "Utang Makan Siang",  creditor: "Rekan Kantor",  category: "personal",    totalAmount: 150000,   paidAmount: 0,       dueDate: "2026-05-29", status: "unpaid",  installment: false },
-  { id: "6", name: "Cicilan Motor",      creditor: "FIF",           category: "bank",        totalAmount: 18000000, paidAmount: 9000000, dueDate: "2026-06-20", status: "partial", installment: true  },
-];
-
 // ─── Page Component ─────────────────────────────────────────
 
 export default function DebtsPage() {
-  const [debts, setDebts] = useState<DebtItem[]>(MOCK_DEBTS);
-  const [loading, setLoading] = useState(false);
+  const [debts, setDebts] = useState<DebtItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [activeStatus, setActiveStatus] = useState<"all" | DebtStatus>("all");
 
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
+
+  // ─── STATE DIALOG PEMBAYARAN UTANG ───
+  const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
 
   const router = useRouter();
 
@@ -147,21 +129,32 @@ export default function DebtsPage() {
     if (isLoadMore) setLoadingMore(true);
     else setLoading(true);
     try {
-      // TODO: ganti dengan real endpoint
-      // const res = await fetch(`/api/debts?month=${month}&page=${isLoadMore ? page + 1 : 1}&limit=20`);
-      await new Promise((r) => setTimeout(r, 400));
-      if (!isLoadMore) { setDebts(MOCK_DEBTS); setPage(1); }
+      const nextPage = isLoadMore ? page + 1 : 1;
+      const res = await fetch(`/api/debts?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`);
+      
+      if (!res.ok) throw new Error("Gagal mengambil data dari server");
+      const data = await res.json();
+      
+      if (!isLoadMore) {
+        setDebts(data.debts);
+        setPage(1);
+      } else {
+        setDebts((prev) => [...prev, ...data.debts]);
+        setPage(nextPage);
+      }
       setHasMore(false);
     } catch (err) {
-      console.error("Failed to fetch debts:", err);
+      console.error("Gagal memuat data utang:", err);
       if (!isLoadMore) setDebts([]);
     } finally {
       if (isLoadMore) setLoadingMore(false);
       else setLoading(false);
     }
-  }, [month, page]);
+  }, [month, page, activeStatus]);
 
-  useEffect(() => { fetchDebts(); }, [month]); // eslint-disable-line
+  useEffect(() => { 
+    fetchDebts(); 
+  }, [month, activeStatus]); // eslint-disable-line
 
   const prevMonth = () => {
     const d = new Date(month + "-01");
@@ -181,21 +174,23 @@ export default function DebtsPage() {
   const overdueCount     = debts.filter((d) => d.status !== "paid" && getDaysUntilDue(d.dueDate) < 0).length;
 
   // Actions
-  const handleView   = useCallback((id: string | number) => { window.location.href = `/debts/${id}`; }, []);
-  const handleEdit   = useCallback((id: string | number) => { window.location.href = `/debts/${id}/edit`; }, []);
+  const handleView   = useCallback((id: string | number) => { router.push(`/debts/${id}`); }, [router]);
+  const handleEdit   = useCallback((id: string | number) => { router.push(`/debts/${id}/edit`); }, [router]);
+  
   const handleDelete = useCallback(async (id: string | number) => {
     try {
-      // await fetch(`/api/debts/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/debts/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Gagal menghapus utang");
       setDebts((prev) => prev.filter((d) => d.id !== id));
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    }
   }, []);
-  const handleMarkPaid = useCallback(async (id: string | number) => {
-    try {
-      // await fetch(`/api/debts/${id}`, { method: "PATCH", body: JSON.stringify({ status: "paid" }) });
-      setDebts((prev) =>
-        prev.map((d) => d.id === id ? { ...d, status: "paid", paidAmount: d.totalAmount } : d)
-      );
-    } catch (err) { console.error(err); }
+
+  // ─── UPDATE METHOD MARK PAID ───
+  const handlePaid = useCallback((debt: DebtItem) => {
+    setSelectedDebt(debt);
+    setIsPayModalOpen(true);
   }, []);
 
   const controls = useDataControls<DebtItem>(filteredByStatus, CONTROLS_CONFIG);
@@ -226,7 +221,7 @@ export default function DebtsPage() {
 
       <div className="px-4 pt-4 space-y-5">
 
-        {/* ── Hero Card — Rose/Red theme untuk utang ── */}
+        {/* ── Hero Card ── */}
         <div
           className="relative overflow-hidden rounded-[24px] p-6 text-white"
           style={{
@@ -249,12 +244,26 @@ export default function DebtsPage() {
               <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50">
                 Total sisa utang
               </p>
-              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full select-none">
-                <button onClick={prevMonth} className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold">‹</button>
-                <span className="text-[11px] md:text-xs font-semibold tracking-wide text-white whitespace-nowrap">
+              
+              {/* Sleek Month Selector dengan Ikon Hugeicons */}
+              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 p-0.5 rounded-full select-none">
+                <button 
+                  onClick={prevMonth} 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
+                  aria-label="Bulan sebelumnya"
+                >
+                  <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />
+                </button>
+                <span className="text-[11px] md:text-xs font-bold tracking-wide text-white px-2.5 uppercase whitespace-nowrap">
                   {safeFormatDate(month + "-01", "MMMM yyyy")}
                 </span>
-                <button onClick={nextMonth} className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold">›</button>
+                <button 
+                  onClick={nextMonth} 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
+                  aria-label="Bulan berikutnya"
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={14} />
+                </button>
               </div>
             </div>
 
@@ -265,7 +274,7 @@ export default function DebtsPage() {
               </h2>
             </div>
 
-            {/* Progress bar — total paid vs grand total */}
+            {/* Progress bar */}
             <div>
               <div className="flex justify-between mb-1.5">
                 <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">Progress pelunasan</span>
@@ -363,14 +372,16 @@ export default function DebtsPage() {
             keyExtractor={(d) => d.id}
             renderItem={(debt) => {
               const days     = getDaysUntilDue(debt.dueDate);
-              const stat     = STATUS_META[debt.status];
               const progress = getProgressPercent(debt.paidAmount, debt.totalAmount);
               const remaining = debt.totalAmount - debt.paidAmount;
+              
+              const CategoryIcon = getDebtCategoryIcon(debt.category);
+
               return {
                 left: (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center flex-shrink-0 text-lg">
-                      {CATEGORY_ICON[debt.category]}
+                    <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center flex-shrink-0 text-rose-600 dark:text-rose-300">
+                      <HugeiconsIcon icon={CategoryIcon} size={20} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -427,10 +438,13 @@ export default function DebtsPage() {
               },
               {
                 id: "pay",
-                label: "Lunasi",
+                label: "Bayar",
                 variant: "primary",
                 icon: <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />,
-                onExecute: handleMarkPaid,
+                onExecute: (id) => {
+                  const debt = debts.find((d) => d.id === id);
+                  if (debt) handlePaid(debt);
+                },
               },
               {
                 id: "edit",
@@ -459,7 +473,7 @@ export default function DebtsPage() {
                 {
                   id: "add-debt",
                   label: "Tambah Utang",
-                  onPress: () => (window.location.href = "/debts/add"),
+                  onPress: () => router.push("/debts/add"),
                   variant: "primary",
                 },
               ],
@@ -473,6 +487,28 @@ export default function DebtsPage() {
           />
         </SectionBlock>
       </div>
+
+      {/* ─── MODAL DIALOG PEMBAYARAN UTANG (REUSABLE SHADCN) ─── */}
+      <ReusableDialog
+        isOpen={isPayModalOpen}
+        onClose={() => setIsPayModalOpen(false)}
+        title="Pembayaran Utang"
+        description="Isi nominal pembayaran cicilan atau lunasi sisa tagihan utang Anda."
+      >
+        {selectedDebt && (
+          <DebtPaymentForm
+            debtId={selectedDebt.id}
+            debtName={selectedDebt.name}
+            remainingAmount={selectedDebt.totalAmount - selectedDebt.paidAmount}
+            onSuccess={() => {
+              setIsPayModalOpen(false);
+              fetchDebts(); // Tarik data real terbaru untuk mengupdate grafik & sisa utang
+            }}
+            onCancel={() => setIsPayModalOpen(false)}
+          />
+        )}
+      </ReusableDialog>
+
     </div>
   );
 }
