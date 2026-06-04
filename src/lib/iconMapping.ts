@@ -33,6 +33,12 @@ import {
   FuelStationIcon,
   Ticket01Icon,
   DeliveryBox01Icon,
+  
+  // ─── Debt-Specific Icons ───
+  UserIcon,
+  CreditCardIcon,
+  BankIcon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -54,6 +60,8 @@ export interface CategoryMapping {
   icon: HugeIcon;
   group: CategoryGroup;
 }
+
+export type DebtCategory = "personal" | "credit_card" | "bank" | "family" | "other";
 
 // ─── Category Config ─────────────────────────────────────────────────────────
 
@@ -149,6 +157,16 @@ const MERCHANT_CONFIG: Record<string, { icon: HugeIcon; group: string }> = {
   "offline merchant": { icon: Store01Icon, group: "Ritel & Toko" },
 };
 
+// ─── Debt Category Config ───────────────────────────────────────────────────
+
+export const DEBT_CATEGORY_CONFIG: Record<DebtCategory, { icon: HugeIcon; label: string }> = {
+  personal: { icon: UserIcon, label: "Personal" },
+  credit_card: { icon: CreditCardIcon, label: "Kartu Kredit" },
+  bank: { icon: BankIcon, label: "Bank" },
+  family: { icon: UserGroupIcon, label: "Keluarga" },
+  other: { icon: MoreHorizontalIcon, label: "Lainnya" },
+};
+
 // ─── Derived Maps (backward compatibility) ───────────────────────────────────
 
 export const CATEGORY_MAP: Record<string, HugeIcon> = Object.fromEntries(
@@ -207,6 +225,20 @@ export function getMerchantGroup(merchantName?: string | null): string {
   for (const [k, { group }] of Object.entries(MERCHANT_CONFIG)) {
     if (key.includes(k) || k.includes(key)) return group;
   }
+  return "Lainnya";
+}
+
+export function getDebtCategoryIcon(category?: string | null): HugeIcon {
+  if (!category) return MoreHorizontalIcon;
+  const key = category.toLowerCase().trim() as DebtCategory;
+  if (DEBT_CATEGORY_CONFIG[key]) return DEBT_CATEGORY_CONFIG[key].icon;
+  return MoreHorizontalIcon;
+}
+
+export function getDebtCategoryLabel(category?: string | null): string {
+  if (!category) return "Lainnya";
+  const key = category.toLowerCase().trim() as DebtCategory;
+  if (DEBT_CATEGORY_CONFIG[key]) return DEBT_CATEGORY_CONFIG[key].label;
   return "Lainnya";
 }
 
