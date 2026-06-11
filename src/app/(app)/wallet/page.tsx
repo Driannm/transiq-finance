@@ -3,6 +3,7 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { CardList } from "@/components/Shared/CardList";
+import { BankCard } from "@/components/Shared/BankCard";
 import Link from "next/link";
 import {
   Add01Icon,
@@ -11,8 +12,6 @@ import {
   Settings01Icon,
   UserIcon,
   BankIcon,
-  MoneySend02Icon,
-  MoneyReceive02Icon,
 } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 
@@ -112,44 +111,51 @@ function formatIDR(amount: number): string {
   }).format(Math.abs(amount));
 }
 
-// ─── Komponen Kartu ─────────────────────────────────────────────────────────
+// ─── Komponen Kartu (Terintegrasi Dengan BankCard) ───────────────────────────
 
 function CardItem({ card }: { card: CardData }) {
-  const isNegative = card.balance < 0;
+  // Menentukan logo secara berkala berdasarkan ID kartu sebagai contoh pengkondisian
+  const cardLogoType = card.id % 2 === 1 ? "visa" : "mastercard";
+
   return (
-    <div
-      className="rounded-2xl p-5 text-white shadow-lg overflow-hidden relative"
+    <BankCard
+      variant="custom"
       style={{
         background: `linear-gradient(135deg, ${card.color}, ${card.colorEnd ?? card.color})`,
       }}
+      className="text-white shadow-md relative"
     >
-      <div className="flex justify-between items-center mb-8">
-        <div className="w-8 h-6 bg-yellow-300/80 rounded-[4px] flex items-center justify-center shadow-inner">
-          <div className="w-3 h-3 rounded-full bg-yellow-600/30" />
-        </div>
-        <span className="text-xs font-semibold tracking-wider opacity-80">{card.bank}</span>
-      </div>
+      <BankCard.Header>
+        {/* Logo dinamis */}
+        <BankCard.Logo type={cardLogoType} />
+        {/* Jenis kartu dinamis */}
+        <BankCard.Type className="text-white/85">
+          {card.type === "debit" ? "Debit Card" : "Credit Card"}
+        </BankCard.Type>
+      </BankCard.Header>
 
-      <p className="text-lg font-mono tracking-[0.2em] opacity-70 mb-1">
-        •••• •••• •••• {card.lastFour}
-      </p>
+      {/* Menampilkan nomor kartu dengan fitur obscure (sensor otomatis) */}
+      <BankCard.Number value={card.lastFour} obscure={true} className="text-white/95" />
 
-      <div className="flex justify-between items-end">
+      {/* Footer kartu terpadu */}
+      <BankCard.Footer className="mt-6">
         <div>
-          <p className="text-[10px] uppercase tracking-widest opacity-60">Balance</p>
-          <p className="text-2xl font-bold mt-0.5">
-            {isNegative ? "-" : ""}IDR {formatIDR(card.balance)}
-          </p>
+          {/* Fitur masking interaktif untuk saldo */}
+          <BankCard.Balance
+            amount={card.balance}
+            currency="IDR "
+            allowMasking={true}
+            className="text-white font-sans"
+          />
+          <BankCard.Holder name={card.name} className="mt-2 text-white/90" />
         </div>
-        <span className="text-[10px] bg-white/20 px-2 py-1 rounded-md font-bold uppercase backdrop-blur-md">
-          {card.type}
-        </span>
-      </div>
-    </div>
+        <BankCard.Expiry date="12/29" />
+      </BankCard.Footer>
+    </BankCard>
   );
 }
 
-// ─── Halaman ─────────────────────────────────────────────────────────────────
+// ─── Halaman Utama ────────────────────────────────────────────────────────────
 
 export default function WalletPage() {
   const totalBalance = myCards.reduce((sum, c) => sum + c.balance, 0);
@@ -177,12 +183,12 @@ export default function WalletPage() {
           </p>
         </div>
 
-        {/* Daftar Kartu */}
+        {/* Daftar Kartu menggunakan komponen BankCard yang telah dimigrasi */}
         <section>
           <h3 className="text-sm font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-widest mb-3 px-1">
             My Cards
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {myCards.map((card) => (
               <CardItem key={card.id} card={card} />
             ))}
@@ -191,17 +197,17 @@ export default function WalletPage() {
 
         {/* Tombol Manage & Transfer */}
         <div className="flex gap-3">
-          <button className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-white/[0.1] py-3.5 rounded-2xl text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm active:scale-95 transition">
+          <button className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-white/[0.1] py-3.5 rounded-2xl text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm active:scale-95 transition-transform duration-150">
             <HugeiconsIcon icon={Settings01Icon} size={18} />
             Manage
           </button>
-          <button className="flex-1 flex items-center justify-center gap-2 bg-blue-600 py-3.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-blue-600/20 active:scale-95 transition">
+          <button className="flex-1 flex items-center justify-center gap-2 bg-blue-600 py-3.5 rounded-2xl text-sm font-bold text-white shadow-lg shadow-blue-600/20 active:scale-95 transition-transform duration-150">
             <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={18} />
             Transfer
           </button>
         </div>
 
-        {/* Transfer History (Ganti dari Card Transactions) */}
+        {/* Transfer History */}
         <section className="space-y-3">
           <div className="flex items-center justify-between px-1">
             <h3 className="text-sm font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
