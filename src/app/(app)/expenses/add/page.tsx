@@ -10,6 +10,14 @@ import { z } from "zod";
 import { useToast } from "@/hooks/UseToast";
 import { motion, AnimatePresence } from "framer-motion";
 import { formatRupiah } from "@/lib/format";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   ArrowLeft02Icon,
   CheckmarkCircle02Icon,
@@ -213,6 +221,7 @@ function DetailRow({
   onClick,
   error,
   children,
+  customContent,
 }: {
   icon: React.ReactNode;
   iconBg: string;
@@ -222,7 +231,8 @@ function DetailRow({
   placeholder?: string;
   onClick?: () => void;
   error?: boolean;
-  children?: React.ReactNode; // For hidden native inputs (date)
+  children?: React.ReactNode;
+  customContent?: React.ReactNode;
 }) {
   const clickable = !!onClick;
   const Wrapper = clickable ? motion.button : "div";
@@ -258,41 +268,48 @@ function DetailRow({
         </div>
 
         {/* Content */}
+        {/* Content */}
         <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
           <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
             {label}
           </p>
 
-          <div className="flex items-center gap-1.5 min-w-0">
-            <p
-              className={[
-                "text-[13px] truncate max-w-[140px]",
-                value
-                  ? "font-medium text-gray-900 dark:text-gray-100"
-                  : "text-gray-400 dark:text-gray-600",
-              ].join(" ")}
-            >
-              {value || placeholder}
-            </p>
-            {clickable && (
-              <svg
-                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+          {customContent ? (
+            <div className="min-w-0" onClick={(e) => e.stopPropagation()}>
+              {customContent}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p
+                className={[
+                  "text-[13px] truncate max-w-[140px]",
+                  value
+                    ? "font-medium text-gray-900 dark:text-gray-100"
+                    : "text-gray-400 dark:text-gray-600",
+                ].join(" ")}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2.5}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            )}
-          </div>
+                {value || placeholder}
+              </p>
+              {clickable && (
+                <svg
+                  className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Hidden native inputs (date picker overlay) */}
+        {/* Hidden native inputs */}
         {children}
       </div>
     </Wrapper>
@@ -391,9 +408,7 @@ export default function AddExpensePage() {
 
   // Form
   const [name, setName] = useState("");
-  const [date, setDate] = useState(
-    () => new Date().toISOString().split("T")[0]
-  );
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
   const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
   const formatInput = (n: number) =>
@@ -716,22 +731,50 @@ export default function AddExpensePage() {
           <SectionLabel>Detail Transaksi</SectionLabel>
           <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden">
             {/* Date Row */}
-            <label className="block relative cursor-pointer">
-              <DetailRow
-                icon={<HugeiconsIcon icon={Calendar02Icon} size={18} />}
-                iconBg="bg-blue-50 dark:bg-blue-950/40"
-                iconColor="text-blue-500 dark:text-blue-400"
-                label="Tanggal"
-                value={fmtDate(date)}
-              >
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                />
-              </DetailRow>
-            </label>
+            {/* Date Row */}
+            <DetailRow
+              icon={<HugeiconsIcon icon={Calendar02Icon} size={18} />}
+              iconBg="bg-blue-50 dark:bg-blue-950/40"
+              iconColor="text-blue-500 dark:text-blue-400"
+              label="Tanggal"
+              customContent={
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px]"
+                    >
+                      {date
+                        ? format(date, "dd MMM yyyy", { locale: id })
+                        : "Pilih tanggal"}
+                      <svg
+                        className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl"
+                    align="start"
+                  >
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                    />
+                  </PopoverContent>
+                </Popover>
+              }
+            />
 
             {/* Divider */}
             <div className="mx-4 h-px bg-gray-100 dark:bg-neutral-800" />
