@@ -1,14 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  useMemo,
-  memo,
-} from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import {
   Sheet,
   SheetContent,
@@ -16,27 +9,32 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { HugeiconsIcon } from "@hugeicons/react";
+import {
+  Search01Icon,
+  Cancel01Icon,
+  SearchRemoveIcon,
+} from "@hugeicons/core-free-icons";
 import type { HugeIcon } from "@/lib/iconMapping";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PickerItem {
-  id:     string;
-  name:   string;
+  id: string;
+  name: string;
   group?: string;
-  icon?:  HugeIcon;
+  icon?: HugeIcon;
 }
 
 export interface SearchablePickerProps {
-  open:         boolean;
-  onClose:      () => void;
-  onSelect:     (item: PickerItem | null) => void;
-  items:        PickerItem[];
-  selectedId?:  string;
-  title:        string;
+  open: boolean;
+  onClose: () => void;
+  onSelect: (item: PickerItem | null) => void;
+  items: PickerItem[];
+  selectedId?: string;
+  title: string;
   placeholder?: string;
-  emptyText?:   string;
-  clearable?:   boolean;
+  emptyText?: string;
+  clearable?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -60,9 +58,9 @@ const Chip = memo(function Chip({
   isSelected,
   onPress,
 }: {
-  item:       PickerItem;
+  item: PickerItem;
   isSelected: boolean;
-  onPress:    (id: string) => void;
+  onPress: (id: string) => void;
 }) {
   return (
     <button
@@ -103,11 +101,11 @@ export function SearchablePicker({
   items,
   selectedId,
   title,
-  placeholder = "Search...",
-  emptyText   = "Tidak ditemukan",
-  clearable   = true,
+  placeholder = "Cari...",
+  emptyText = "Tidak ada hasil yang cocok. Coba gunakan kata kunci lain atau periksa kembali ejaannya.",
+  clearable = true,
 }: SearchablePickerProps) {
-  const [query,     setQuery]     = useState("");
+  const [query, setQuery] = useState("");
   const [pendingId, setPendingId] = useState<string | undefined>(selectedId);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -127,21 +125,21 @@ export function SearchablePicker({
     if (!q) return items;
     return items.filter(
       (i) =>
-        i.name.toLowerCase().includes(q) ||
-        i.group?.toLowerCase().includes(q)
+        i.name.toLowerCase().includes(q) || i.group?.toLowerCase().includes(q)
     );
   }, [items, query]);
 
-  const grouped    = useMemo(() => groupItems(filtered), [filtered]);
+  const grouped = useMemo(() => groupItems(filtered), [filtered]);
   const showLabels = useMemo(
-    () => grouped.length > 1 || (grouped.length === 1 && grouped[0].group !== ""),
+    () =>
+      grouped.length > 1 || (grouped.length === 1 && grouped[0].group !== ""),
     [grouped]
   );
 
   const handleChipPress = useCallback(
     (id: string) => {
-      const next   = pendingId === id ? undefined : id;
-      const chosen = next ? (items.find((i) => i.id === next) ?? null) : null;
+      const next = pendingId === id ? undefined : id;
+      const chosen = next ? items.find((i) => i.id === next) ?? null : null;
       setPendingId(next);
       onSelect(chosen);
       onClose();
@@ -196,7 +194,12 @@ export function SearchablePicker({
         @keyframes overlay-out { from { opacity: 1; } to { opacity: 0; } }
       `}</style>
 
-      <Sheet open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <Sheet
+        open={open}
+        onOpenChange={(v) => {
+          if (!v) onClose();
+        }}
+      >
         {/* 
           SheetContent with hideCloseButton (or closeButton={false}) to remove 
           the default X from Radix/shadcn. Also strip all default border styles.
@@ -228,14 +231,7 @@ export function SearchablePicker({
                 aria-label="Tutup"
                 className="justify-self-start text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors p-0.5"
               >
-                <svg
-                  width="18" height="18" viewBox="0 0 24 24"
-                  fill="none" stroke="currentColor"
-                  strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+                <HugeiconsIcon icon={Cancel01Icon} size={20} />
               </button>
 
               {/* Tengah: title */}
@@ -243,19 +239,29 @@ export function SearchablePicker({
                 {title}
               </SheetTitle>
 
-              {/* Kanan: spacer — tombol "+ New" dihapus */}
-              <div className="w-[26px]" />
+              {/* Kanan: Hapus Pilihan */}
+              {pendingId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingId("");
+                    onSelect(null);
+                    onClose();
+                  }}
+                  className="absolute right-5 text-sm font-medium text-blue-600 transition hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                >
+                  Hapus Pilihan
+                </button>
+              )}
             </div>
 
             {/* Search bar */}
             <div className="relative mb-3">
-              <svg
+              <HugeiconsIcon
+                icon={Search01Icon}
+                size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none"
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              >
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-              </svg>
+              />
               <input
                 ref={inputRef}
                 type="search"
@@ -285,9 +291,7 @@ export function SearchablePicker({
                   style={{ touchAction: "manipulation" }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-0.5"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
+                  <HugeiconsIcon icon={Cancel01Icon} size={16} />
                 </button>
               )}
             </div>
@@ -296,9 +300,23 @@ export function SearchablePicker({
           {/* ── Chip list ── */}
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 pt-1 pb-4 scrollbar-gutter-stable">
             {filtered.length === 0 ? (
-              <p className="text-center text-sm text-gray-400 dark:text-gray-600 py-10">
-                {emptyText}
-              </p>
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 dark:bg-neutral-800">
+                  <HugeiconsIcon
+                    icon={SearchRemoveIcon}
+                    size={26}
+                    className="text-gray-500 dark:text-gray-400"
+                  />
+                </div>
+
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Tidak ada hasil ditemukan
+                </h3>
+
+                <p className="mt-1 max-w-xs text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  {emptyText}
+                </p>
+              </div>
             ) : (
               <div className="space-y-5">
                 {grouped.map(({ group, items: groupItems }) => (
@@ -323,29 +341,6 @@ export function SearchablePicker({
               </div>
             )}
           </div>
-
-          {/* ── Clear footer ── */}
-          {clearable && pendingId && (
-            <div
-              className="flex-shrink-0 px-4 pt-2 border-t border-gray-100 dark:border-neutral-800"
-              style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
-            >
-              <button
-                type="button"
-                onClick={handleClear}
-                style={{ touchAction: "manipulation" }}
-                className="
-                  w-full py-3 rounded-2xl text-sm font-medium transition-colors
-                  text-gray-500 dark:text-gray-400
-                  bg-gray-100 dark:bg-neutral-800
-                  hover:bg-gray-200 dark:hover:bg-neutral-700
-                  active:scale-[0.98]
-                "
-              >
-                Hapus pilihan
-              </button>
-            </div>
-          )}
         </SheetContent>
       </Sheet>
     </>
