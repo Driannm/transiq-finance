@@ -14,10 +14,18 @@ async function checkDebtAccess(
   return await prisma.debt.findFirst({
     where: {
       id: debtId,
-      transaction: { deletedAt: null },
-      ...(isParent && familyId
-        ? { transaction: { user: { familyId } } }
-        : { transaction: { userId } }),
+      transaction: {
+        deletedAt: null,
+        ...(isParent && familyId
+          ? {
+              user: {
+                familyId,
+              },
+            }
+          : {
+              userId,
+            }),
+      },
     },
     include: {
       transaction: true,
