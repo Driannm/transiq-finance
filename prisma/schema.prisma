@@ -131,6 +131,9 @@ model Transaction {
   // [FEATURE] Group Transaction
   groups TransactionGroupItem[]
 
+   // Relasi timbal balik untuk pencatatan pembayaran utang
+  debtPayments DebtPayment[]
+
   createdAt DateTime  @default(now())
   deletedAt DateTime? // [FIX #1] Soft delete
 
@@ -202,8 +205,9 @@ model Debt {
   description String?
   dueDate     DateTime?
   status      DebtLoanStatus @default(ACTIVE)
+  category    String         @default("other") // "personal" | "credit_card" | "bank" | "family" | "other"
+  installment Boolean        @default(false)
 
-  // [FIX #4] Relasi ke payment transactions (misalnya saat cicilan dibayar)
   payments DebtPayment[]
 
   @@index([status])
@@ -213,11 +217,10 @@ model Debt {
 model DebtPayment {
   id     String @id @default(cuid())
   debtId String
-  debt   Debt   @relation(fields: [debtId], references: [id])
-
-  // Referensi ke transaksi pembayaran
-  transactionId String
-  paidAt        DateTime @default(now())
+  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  transactionId String      @unique
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  paidAt        DateTime    @default(now())
   notes         String?
 
   @@map("debt_payments")
@@ -373,7 +376,7 @@ model Saving {
   @@index([userId])
   @@map("savings")
 }
-
+  
 model Bill {
   id          String   @id @default(cuid())
   name        String
