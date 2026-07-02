@@ -26,6 +26,8 @@ import {
   Edit03Icon,
   Delete02Icon,
   TextFontIcon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
@@ -198,6 +200,15 @@ export default function ExpensesPage() {
             {
               icon: (
                 <Link href="/expenses/add">
+                  <HugeiconsIcon icon={Calendar01Icon} size={18} />
+                </Link>
+              ),
+              onPress: () => {},
+              label: "Add",
+            },
+            {
+              icon: (
+                <Link href="/expenses/add">
                   <HugeiconsIcon icon={Add01Icon} size={18} />
                 </Link>
               ),
@@ -231,22 +242,24 @@ export default function ExpensesPage() {
                 Total pengeluaran
               </p>
 
-              {/* Month Selector Minimalis (Glassmorphism Pill) */}
-              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full select-none">
-                <button
-                  onClick={prevMonth}
-                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
+              {/* Sleek Month Selector dengan Ikon Hugeicons */}
+              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 p-0.5 rounded-full select-none">
+                <button 
+                  onClick={prevMonth} 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
+                  aria-label="Bulan sebelumnya"
                 >
-                  ‹
+                  <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />
                 </button>
-                <span className="text-[11px] md:text-xs font-semibold tracking-wide text-white whitespace-nowrap">
+                <span className="text-[11px] md:text-xs font-bold tracking-wide text-white uppercase whitespace-nowrap">
                   {safeFormatDate(month + "-01", "MMMM yyyy")}
                 </span>
-                <button
-                  onClick={nextMonth}
-                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
+                <button 
+                  onClick={nextMonth} 
+                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
+                  aria-label="Bulan berikutnya"
                 >
-                  ›
+                  <HugeiconsIcon icon={ArrowRight01Icon} size={14} />
                 </button>
               </div>
             </div>
@@ -305,7 +318,7 @@ export default function ExpensesPage() {
         />
 
         {/* ── Expenses List with Enhanced CardList ── */}
-        <SectionBlock title="Semua Expenses" padded={false}>
+        <SectionBlock title="" padded={false}>
           <CardList<ExpenseItem>
             items={controls.data}
             layout="detailed"
@@ -397,14 +410,6 @@ export default function ExpensesPage() {
               title: "Belum ada pengeluaran",
               description:
                 "Catat pengeluaran pertama kamu untuk mulai melacak keuangan.",
-              actions: [
-                {
-                  id: "add-expense",
-                  label: "Catat Expense",
-                  onPress: () => (window.location.href = "/expenses/add"),
-                  variant: "primary",
-                },
-              ],
             }}
             hasMore={hasMore}
             onLoadMore={() => fetchExpenses(true)}
