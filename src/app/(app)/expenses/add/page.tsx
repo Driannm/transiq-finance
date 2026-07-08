@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -210,7 +211,6 @@ function BreakdownRow({
 }
 
 // ─── MetaChip ─────────────────────────────────────────────────────────────────
-
 function DetailRow({
   icon,
   iconBg,
@@ -407,8 +407,12 @@ export default function AddExpensePage() {
   const [cards, setCards] = useState<Card[]>([]);
 
   // Form
+  const today = new Date();
   const [name, setName] = useState("");
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(today);
+  const [dateString, setDateString] = useState<string>(
+    format(today, "yyyy-MM-dd")
+  );
 
   const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
   const formatInput = (n: number) =>
@@ -490,29 +494,48 @@ export default function AddExpensePage() {
     };
   }, []);
 
+  const handleDateSelect = (selected: Date | undefined) => {
+    setDate(selected);
+    setDateString(selected ? format(selected, "yyyy-MM-dd") : "");
+  };
+
   // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async () => {
     setErrors({});
+    const numSubtotal = Number(subtotal);
+    const numDiscount = Number(discount);
+    const numTax = Number(tax);
+    const numFee = Number(fee);
+
     const payload = {
       name,
-      date,
-      subtotal,
-      discount,
-      tax,
-      fee,
+      date: dateString,
+      subtotal: numSubtotal,
+      discount: numDiscount,
+      tax: numTax,
+      fee: numFee,
       notes: notes || undefined,
       categoryId: categoryId || undefined,
       merchantId: merchantId || undefined,
       cardId,
     };
+
     const parsed = expenseSchema.safeParse(payload);
+
     if (!parsed.success) {
+      // Debug: tampilkan issues
+      console.table(parsed.error.issues);
       const e: Record<string, string> = {};
       parsed.error.issues.forEach((i) => {
-        if (i.path[0]) e[i.path[0] as string] = i.message;
+        const key = i.path[0] as string;
+        e[key] = i.message;
       });
       setErrors(e);
-      toast.show({ title: "Form tidak valid", variant: "danger" });
+      toast.show({
+        title: "Form tidak valid",
+        description: parsed.error.issues.map((i) => i.message).join(", "),
+        variant: "danger",
+      });
       return;
     }
     if (!cardId) {
@@ -578,14 +601,16 @@ export default function AddExpensePage() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-neutral-100 dark:bg-neutral-950">
-      <IslandNavbar
-        title="Tambah Expense"
-        avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
-        onAvatarPress={handleBack}
-      />
+    <div className="h-screen flex flex-col mb-20 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <IslandNavbar
+          title="Tambah Expense"
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
+          onAvatarPress={handleBack}
+        />
+      </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-[64px]">
         {/* ── Hero: Amount input ── */}
         <div className="mx-4 bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-6 pt-5 pb-6 mb-4">
           <SectionLabel>Total Pengeluaran</SectionLabel>
@@ -731,7 +756,6 @@ export default function AddExpensePage() {
           <SectionLabel>Detail Transaksi</SectionLabel>
           <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden">
             {/* Date Row */}
-            {/* Date Row */}
             <DetailRow
               icon={<HugeiconsIcon icon={Calendar02Icon} size={18} />}
               iconBg="bg-blue-50 dark:bg-blue-950/40"
@@ -769,7 +793,7 @@ export default function AddExpensePage() {
                     <Calendar
                       mode="single"
                       selected={date}
-                      onSelect={setDate}
+                      onSelect={handleDateSelect}
                     />
                   </PopoverContent>
                 </Popover>
@@ -890,53 +914,71 @@ export default function AddExpensePage() {
       </div>
 
       {/* ── Sticky submit ── */}
-      <div className="flex-shrink-0 px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-[#F5F5F7] dark:from-neutral-950 via-[#F5F5F7]/95 dark:via-neutral-950/95 to-transparent z-10">
-        <motion.button
-          type="button"
-          onClick={handleSubmit}
-          disabled={loading || total === 0 || !name.trim()}
-          whileTap={{ scale: 0.97 }}
-          transition={{ duration: 0.1 }}
-          className={[
-            "w-full h-[52px] rounded-2xl font-semibold text-[15px] tracking-wide transition-all duration-200",
-            "flex items-center justify-center gap-2",
-            loading || total === 0 || !name.trim()
-              ? "bg-gray-200 dark:bg-neutral-800 text-gray-400 dark:text-gray-600 cursor-not-allowed"
-              : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg shadow-gray-900/15 dark:shadow-white/10 active:shadow-md",
-          ].join(" ")}
+      {/* ── Floating submit (mengikuti pola BottomNav) ── */}
+<div
+  data-save-bar
+  className="fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none"
+  style={{
+    bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
+  }}
+>
+  <motion.button
+    type="button"
+    onClick={handleSubmit}
+    disabled={loading || total === 0 || !name.trim()}
+    aria-busy={loading}
+    aria-disabled={loading || total === 0 || !name.trim()}
+    whileTap={{ scale: 0.97 }}
+    transition={{ duration: 0.1 }}
+    className={[
+      "pointer-events-auto",
+      "w-full max-w-md h-[52px] rounded-[28px]",
+      "text-[15px] font-semibold tracking-wide",
+      "flex items-center justify-center gap-2",
+      "backdrop-blur-2xl border",
+      "transition-all duration-200",
+      "motion-reduce:transition-none motion-reduce:active:scale-100",
+      "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+      loading || total === 0 || !name.trim()
+        ? "cursor-not-allowed bg-neutral-900/60 border-white/5 text-neutral-500 shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
+        : "bg-neutral-900/80 border-white/10 text-white shadow-[0_8px_32px_rgba(0,0,0,0.4)] focus-visible:ring-white/40",
+    ].join(" ")}
+  >
+    {loading ? (
+      <span className="flex items-center gap-2">
+        <svg
+          className="h-4 w-4 animate-spin motion-reduce:animate-none"
+          viewBox="0 0 24 24"
         >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              Menyimpan...
-            </span>
-          ) : total === 0 ? (
-            "Masukkan nominal"
-          ) : !name.trim() ? (
-            "Isi nama transaksi"
-          ) : (
-            <span className="flex items-center gap-2">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
-              Simpan {fmtFull(total)}
-            </span>
-          )}
-        </motion.button>
-      </div>
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+            fill="none"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
+        </svg>
+        Menyimpan...
+      </span>
+    ) : total === 0 ? (
+      "Masukkan nominal"
+    ) : !name.trim() ? (
+      "Isi nama transaksi"
+    ) : (
+      <span className="flex items-center gap-2">
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
+        Simpan {fmtFull(total)}
+      </span>
+    )}
+  </motion.button>
+</div>
 
       {/* ── Pickers ── */}
       <SearchablePicker
