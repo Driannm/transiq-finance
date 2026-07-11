@@ -26,6 +26,9 @@ export async function GET() {
     return NextResponse.json({ categories });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Gagal memuat kategori" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memuat kategori" },
+      { status: 500 },
+    );
   }
 }
