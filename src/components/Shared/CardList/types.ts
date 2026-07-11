@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 
 export type LayoutVariant = 'dashboard' | 'detailed' | 'compact' | 'minimal';
 
-export type SwipeVariant = 'primary' | 'danger' | 'success' | 'warning' | 'neutral';
+export type SwipeVariant = 'primary' | 'danger' | 'success' | 'warning' | 'neutral' | 'indigo';
 
 export interface SwipeAction {
   id: string;
