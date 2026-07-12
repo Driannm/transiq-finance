@@ -39,8 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+ARCHITECTURE.md
+file-tree.txt
+next.config.ts
+AGENTS.md
 
 /src/generated/prisma
 
 # local env files
 src/components/DevDashboard/*
+src/app/(app)/savings/* 
