@@ -1,20 +1,35 @@
-// src/app/api/expenses/utils/validation.ts
 import { z } from "zod";
 
-export const createExpenseSchema = z.object({
-  cardId: z.string().min(1, "Kartu wajib dipilih"),
-  name: z.string().min(1, "Nama expense wajib diisi").max(255),
-  date: z.string().min(1, "Tanggal wajib diisi"),
-  subtotal: z.number().positive("Subtotal minimal Rp 1"),
-  discount: z.number().min(0).default(0),
-  tax: z.number().min(0).default(0),
-  fee: z.number().min(0).default(0),
-  categoryId: z.string().optional().nullable(),
-  merchantId: z.string().optional().nullable(),
-  notes: z.string().max(1000).optional().nullable(),
-});
+export const createExpenseSchema = z
+  .object({
+    cardId: z.string().cuid("Kartu tidak valid"),
+    name: z.string().trim().min(1, "Nama expense wajib diisi").max(255),
+    date: z.string().date("Format tanggal harus YYYY-MM-DD"),
+    subtotal: z.number().positive("Subtotal minimal Rp 1"),
+    discount: z.number().min(0).default(0),
+    tax: z.number().min(0).default(0),
+    fee: z.number().min(0).default(0),
+    categoryId: z.string().cuid().optional().nullable(),
+    merchantId: z.string().cuid().optional().nullable(),
+    notes: z.string().trim().max(1000).optional().nullable(),
+  })
+  .refine(
+    (data) => {
+      const total = data.subtotal + data.tax + data.fee - data.discount;
+      return total > 0;
+    },
+    {
+      message: "Total transaksi (subtotal + pajak + biaya - diskon) harus > 0",
+      path: ["discount"], // menyorot diskon sebagai biang masalah
+    }
+  );
 
-export const updateExpenseSchema = createExpenseSchema.partial();
+export const updateExpenseSchema = createExpenseSchema
+  .partial()
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "Minimal satu field harus diisi untuk update" }
+  );
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
