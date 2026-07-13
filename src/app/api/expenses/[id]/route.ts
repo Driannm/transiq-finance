@@ -24,6 +24,13 @@ const EXPENSE_SELECT = {
       card: { 
         select: { id: true, name: true, type: true } 
       },
+      groups: {
+        select: {
+          group: {
+            select: { id: true, name: true, icon: true, iconColor: true }
+          }
+        }
+      }
     },
   },
   category: { select: { id: true, name: true } },
@@ -130,7 +137,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Validasi gagal", details: errors }, { status: 400 });
     }
 
-    const { cardId, name, date, subtotal, discount, tax, fee, categoryId, merchantId, notes } = parsed.data;
+    const { cardId, name, date, subtotal, discount, tax, fee, categoryId, merchantId, groupId, notes } = parsed.data;
     const newTotal = (subtotal ?? 0) + (tax ?? 0) + (fee ?? 0) - (discount ?? 0);
     const oldTotal = existingExpense.transaction.amount;
     const balanceDiff = oldTotal - newTotal;
@@ -179,6 +186,22 @@ export async function PATCH(
           },
           select: EXPENSE_SELECT,
         });
+
+        // Update group association if provided
+        if (groupId !== undefined) {
+          await tx.transactionGroupItem.deleteMany({
+            where: { transactionId: existingExpense.transaction.id }
+          });
+
+          if (groupId) {
+            await tx.transactionGroupItem.create({
+              data: {
+                transactionId: existingExpense.transaction.id,
+                groupId: groupId
+              }
+            });
+          }
+        }
 
         // Update card balance
         if (balanceDiff !== 0) {

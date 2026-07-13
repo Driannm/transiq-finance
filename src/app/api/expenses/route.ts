@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { resolvePaylaterBilling, getPartsInTimezone } from "@/lib/paylater-billing";
 
 // ─── Validation Schema ─────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ const createExpenseSchema = z.object({
   fee: z.number().min(0).default(0),
   categoryId: z.string().optional().nullable(),
   merchantId: z.string().optional().nullable(),
+  groupId: z.string().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 });
 
@@ -34,28 +36,41 @@ const EXPENSE_SELECT = {
     select: {
       id: true,
       amount: true,
-      date: true,       // ← Sumber tanggal transaksi
-      createdAt: true,  // ← Waktu pembuatan transaksi
-      card: { 
-        select: { 
-          id: true, 
-          name: true, 
-          type: true 
-        } 
+      date: true, // ← Sumber tanggal transaksi
+      createdAt: true, // ← Waktu pembuatan transaksi
+      billId: true, // ← Linked bill ID
+      card: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      groups: {
+        select: {
+          group: {
+            select: {
+              id: true,
+              name: true,
+              icon: true,
+              iconColor: true,
+            },
+          },
+        },
       },
     },
   },
-  category: { 
-    select: { 
-      id: true, 
-      name: true 
-    } 
+  category: {
+    select: {
+      id: true,
+      name: true,
+    },
   },
-  merchant: { 
-    select: { 
-      id: true, 
-      name: true 
-    } 
+  merchant: {
+    select: {
+      id: true,
+      name: true,
+    },
   },
 } as const;
 
@@ -69,10 +84,13 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    
+
     // Pagination
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20")));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") ?? "20")),
+    );
     const skip = (page - 1) * limit;
 
     // Filters
@@ -84,7 +102,7 @@ export async function GET(request: Request) {
     // ─── [FIX] Date Range Logic (ikuti pattern working code) ───────────────
     let from: string | undefined;
     let to: string | undefined;
-    
+
     const month = searchParams.get("month");
     if (month && !searchParams.get("from") && !searchParams.get("to")) {
       const [y, m] = month.split("-").map(Number);
@@ -102,7 +120,7 @@ export async function GET(request: Request) {
 
     // ─── Build Where Clause ────────────────────────────────────────────────
     const isParent = session.user.role === "PARENT";
-    
+
     const baseWhere = {
       transaction: {
         deletedAt: null,
@@ -132,33 +150,29 @@ export async function GET(request: Request) {
       }),
     };
 
-    // ─── Execute Queries in Parallel ───────────────────────────────────────
-    const [expenses, total] = await Promise.all([
-      prisma.expense.findMany({
-        where: baseWhere,
-        select: EXPENSE_SELECT,
-        orderBy: { transaction: { date: "desc" } },
-        skip,
-        take: limit,
-      }),
-      prisma.expense.count({ where: baseWhere }),
-    ]);
+    // ─── Execute Query ────────────────────────────────────────────────────
+    // Fetch limit+1 rows to detect hasMore without a separate COUNT query
+    const rows = await prisma.expense.findMany({
+      where: baseWhere,
+      select: EXPENSE_SELECT,
+      orderBy: { transaction: { date: "desc" } },
+      skip,
+      take: limit + 1,
+    });
+
+    const hasMore = rows.length > limit;
+    const expenses = hasMore ? rows.slice(0, limit) : rows;
 
     return NextResponse.json({
       expenses,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasMore: skip + expenses.length < total,
-      },
+      hasMore,
+      pagination: { page, limit, hasMore },
     });
   } catch (error) {
     console.error("[GET /api/expenses]", error);
     return NextResponse.json(
-      { error: "Gagal memuat data expense" }, 
-      { status: 500 }
+      { error: "Gagal memuat data expense" },
+      { status: 500 },
     );
   }
 }
@@ -174,76 +188,170 @@ export async function POST(request: Request) {
 
     if (!session.user.familyId) {
       return NextResponse.json(
-        { error: "Anda belum tergabung dalam keluarga" }, 
-        { status: 400 }
+        { error: "Anda belum tergabung dalam keluarga" },
+        { status: 400 },
       );
     }
 
     const body = await request.json();
     const parsed = createExpenseSchema.safeParse(body);
-    
+
     if (!parsed.success) {
       const errors = parsed.error.issues.map((issue) => ({
         field: issue.path.join("."),
         message: issue.message,
       }));
-      
+
       return NextResponse.json(
-        { error: "Data tidak valid", details: errors }, 
-        { status: 400 }
+        { error: "Data tidak valid", details: errors },
+        { status: 400 },
       );
     }
 
-    const { 
-      cardId, name, date, subtotal, discount, tax, fee, 
-      categoryId, merchantId, notes 
+    const {
+      cardId,
+      name,
+      date,
+      subtotal,
+      discount,
+      tax,
+      fee,
+      categoryId,
+      merchantId,
+      groupId,
+      notes,
     } = parsed.data;
 
     const totalAmount = subtotal + tax + fee - discount;
 
-    // Validate card ownership
+    // Validate card ownership & select billing parameters
     const card = await prisma.card.findFirst({
       where: {
         id: cardId,
         deletedAt: null,
-        OR: [
-          { userId: session.user.id },
-          { familyId: session.user.familyId },
-        ],
+        OR: [{ userId: session.user.id }, { familyId: session.user.familyId }],
       },
-      select: { id: true },
+      select: {
+        id: true,
+        type: true,
+        dueType: true,
+        cutoffDay: true,
+        dueOffset: true,
+        dueDay: true,
+        timezone: true,
+      },
     });
 
     if (!card) {
-      return NextResponse.json({ error: "Kartu tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Kartu tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    // Resolve paylater billing configuration if applicable
+    let billingInfo: { start: Date; end: Date; dueDate: Date } | undefined;
+    let billName = "";
+
+    if (card.type === "PAYLATER") {
+      if (!card.dueType || card.cutoffDay === null || card.dueOffset === null) {
+        return NextResponse.json(
+          { error: "Konfigurasi billing paylater kartu tidak lengkap" },
+          { status: 400 },
+        );
+      }
+
+      billingInfo = resolvePaylaterBilling(new Date(date), {
+        dueType: card.dueType,
+        cutoffDay: card.cutoffDay,
+        dueOffset: card.dueOffset,
+        dueDay: card.dueDay,
+        timezone: card.timezone ?? "Asia/Jakarta",
+      });
+
+      const monthNames = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+      const dueParts = getPartsInTimezone(billingInfo.dueDate, card.timezone ?? "Asia/Jakarta");
+      billName = `Tagihan ${monthNames[dueParts.month - 1]} ${dueParts.year}`;
     }
 
     // Validate category & merchant in parallel
     const [validCategory, validMerchant] = await Promise.all([
       categoryId
-        ? prisma.category.findFirst({ 
+        ? prisma.category.findFirst({
             where: { id: categoryId, familyId: session.user.familyId },
-            select: { id: true }
+            select: { id: true },
           })
         : Promise.resolve(true),
       merchantId
-        ? prisma.merchant.findFirst({ 
+        ? prisma.merchant.findFirst({
             where: { id: merchantId, familyId: session.user.familyId },
-            select: { id: true }
+            select: { id: true },
           })
         : Promise.resolve(true),
     ]);
 
     if (categoryId && !validCategory) {
-      return NextResponse.json({ error: "Kategori tidak valid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Kategori tidak valid" },
+        { status: 400 },
+      );
     }
     if (merchantId && !validMerchant) {
-      return NextResponse.json({ error: "Merchant tidak valid" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Merchant tidak valid" },
+        { status: 400 },
+      );
     }
 
     // Create in transaction
     const result = await prisma.$transaction(
       async (tx) => {
+        let linkedBillId: string | undefined;
+
+        if (card.type === "PAYLATER" && billingInfo) {
+          // Find or create the bill record for this billing cycle
+          let bill = await tx.bill.findUnique({
+            where: {
+              cardId_billingPeriodStart_billingPeriodEnd: {
+                cardId: card.id,
+                billingPeriodStart: billingInfo.start,
+                billingPeriodEnd: billingInfo.end,
+              },
+            },
+          });
+
+          if (!bill) {
+            bill = await tx.bill.create({
+              data: {
+                name: billName,
+                amount: 0, // cached amount, synced below
+                dueDate: billingInfo.dueDate,
+                status: "OPEN",
+                userId: session.user.id,
+                familyId: session.user.familyId,
+                billingPeriodStart: billingInfo.start,
+                billingPeriodEnd: billingInfo.end,
+                cardId: card.id,
+              },
+            });
+          }
+
+          linkedBillId = bill.id;
+        }
+
         const expense = await tx.expense.create({
           data: {
             name,
@@ -260,6 +368,14 @@ export async function POST(request: Request) {
                 userId: session.user.id,
                 cardId,
                 date: new Date(date),
+                ...(linkedBillId && { billId: linkedBillId }),
+                ...(groupId && {
+                  groups: {
+                    create: {
+                      groupId,
+                    },
+                  },
+                }),
               },
             },
           },
@@ -272,26 +388,44 @@ export async function POST(request: Request) {
           data: { balance: { decrement: totalAmount } },
         });
 
+        // Sync local cache for Bill amount
+        if (linkedBillId) {
+          const sumResult = await tx.transaction.aggregate({
+            where: {
+              billId: linkedBillId,
+              deletedAt: null,
+            },
+            _sum: {
+              amount: true,
+            },
+          });
+
+          await tx.bill.update({
+            where: { id: linkedBillId },
+            data: { amount: sumResult._sum?.amount ?? 0 },
+          });
+        }
+
         return expense;
       },
-      { timeout: 10000, maxWait: 5000 }
+      { timeout: 10000, maxWait: 5000 },
     );
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error: any) {
     console.error("[POST /api/expenses]", error);
-    
+
     // Handle Prisma timeout
     if (error.code === "P2028") {
       return NextResponse.json(
         { error: "Server sedang sibuk, coba beberapa saat lagi" },
-        { status: 503 }
+        { status: 503 },
       );
     }
-    
+
     return NextResponse.json(
-      { error: error.message || "Gagal mencatat pengeluaran" }, 
-      { status: 500 }
+      { error: error.message || "Gagal mencatat pengeluaran" },
+      { status: 500 },
     );
   }
 }
