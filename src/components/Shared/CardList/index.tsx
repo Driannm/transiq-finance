@@ -140,7 +140,7 @@ export function CardList<T = any>({
       enableSwipe,
       swipeActions,
       keyExtractor,
-    ]
+    ],
   );
 
   // ── Skeleton ───────────────────────────────────────────────────────────────
