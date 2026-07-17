@@ -1,9 +1,9 @@
-import { NextResponse }  from "next/server";
-import { headers }       from "next/headers";
-import bcrypt            from "bcryptjs";
-import { z }             from "zod";
-import { Prisma }        from "@prisma/client";
-import { prisma }        from "@/lib/prisma";
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getClientIp, checkRegisterRateLimit } from "@/lib/rate-limiting";
 
 // ─── Validation schema ────────────────────────────────────────────────────────
 // Export agar bisa di-reuse di form frontend (zodResolver)
@@ -11,9 +11,12 @@ import { prisma }        from "@/lib/prisma";
 export const registerSchema = z.object({
   name: z
     .string()
-    .min(2,  "Nama minimal 2 karakter")
+    .min(2, "Nama minimal 2 karakter")
     .max(50, "Nama maksimal 50 karakter")
-    .regex(/^[a-zA-Z\s'-]+$/, "Nama hanya boleh berisi huruf, spasi, apostrof, atau tanda hubung"),
+    .regex(
+      /^[a-zA-Z\s'-]+$/,
+      "Nama hanya boleh berisi huruf, spasi, apostrof, atau tanda hubung",
+    ),
 
   email: z
     .string()
@@ -22,43 +25,24 @@ export const registerSchema = z.object({
 
   password: z
     .string()
-    .min(8,  "Password minimal 8 karakter")
+    .min(8, "Password minimal 8 karakter")
     .max(72, "Password maksimal 72 karakter") // batas bcrypt
-    .regex(/[A-Z]/,  "Password harus mengandung huruf kapital")
-    .regex(/[0-9]/,  "Password harus mengandung angka"),
+    .regex(/[A-Z]/, "Password harus mengandung huruf kapital")
+    .regex(/[0-9]/, "Password harus mengandung angka"),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 
-// ─── Rate limiter (in-memory) ─────────────────────────────────────────────────
-// Untuk production multi-instance, ganti dengan Upstash Redis
-
-const registerAttempts = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const LIMIT      = 5;          // Max 5 registrasi per window
-  const WINDOW_MS  = 60 * 60_000; // 1 jam
-
-  const now   = Date.now();
-  const entry = registerAttempts.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    registerAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false; // tidak di-limit
-  }
-
-  if (entry.count >= LIMIT) return true; // di-limit
-
-  entry.count++;
-  return false;
-}
-
 // ─── Helper response ──────────────────────────────────────────────────────────
 
-function errorResponse(message: string, status: number, details?: Record<string, string[]>) {
+function errorResponse(
+  message: string,
+  status: number,
+  details?: Record<string, string[]>,
+) {
   return NextResponse.json(
     { success: false, error: message, ...(details && { details }) },
-    { status }
+    { status },
   );
 }
 
@@ -66,16 +50,13 @@ function errorResponse(message: string, status: number, details?: Record<string,
 
 export async function POST(request: Request) {
   // ── 1. Rate limiting ────────────────────────────────────────────────────────
-  const headersList = await headers();
-  const ip =
-    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    headersList.get("x-real-ip") ??
-    "unknown";
+  const ip = getClientIp(request);
+  const rateLimitResult = checkRegisterRateLimit(ip);
 
-  if (checkRateLimit(ip)) {
+  if (!rateLimitResult.success) {
     return errorResponse(
       "Terlalu banyak percobaan registrasi. Coba lagi dalam 1 jam.",
-      429
+      429,
     );
   }
 
@@ -90,7 +71,10 @@ export async function POST(request: Request) {
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
     // Kirim field-level errors agar form bisa highlight field yang salah
-    const details = parsed.error.flatten().fieldErrors as Record<string, string[]>;
+    const details = parsed.error.flatten().fieldErrors as Record<
+      string,
+      string[]
+    >;
     return errorResponse("Data yang dimasukkan tidak valid.", 422, details);
   }
 
@@ -115,10 +99,7 @@ export async function POST(request: Request) {
       select: { id: true, name: true, email: true },
     });
 
-    return NextResponse.json(
-      { success: true, user },
-      { status: 201 }
-    );
+    return NextResponse.json({ success: true, user }, { status: 201 });
   } catch (error) {
     // Email duplikat
     if (
@@ -127,7 +108,7 @@ export async function POST(request: Request) {
     ) {
       return errorResponse(
         "Email sudah terdaftar. Silakan login atau gunakan email lain.",
-        409
+        409,
       );
     }
 
@@ -136,7 +117,7 @@ export async function POST(request: Request) {
       console.error("[register] DB connection error:", error.message);
       return errorResponse(
         "Layanan sedang tidak tersedia. Coba beberapa saat lagi.",
-        503
+        503,
       );
     }
 
