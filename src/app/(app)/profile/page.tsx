@@ -75,7 +75,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    signOut({ callbackUrl: "/login" });
+    signOut({ callbackUrl: "/" });
   };
 
   return (
