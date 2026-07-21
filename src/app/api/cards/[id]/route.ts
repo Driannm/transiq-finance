@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+import { updateCardSchema } from "../utils/validation";
+
 async function checkCardAccess(
   cardId: string,
   userId: string,
@@ -45,20 +47,26 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, type, balance, cutoffDay, dueDay, dueOffset } = body;
+    const parsed = updateCardSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Validasi gagal", details: parsed.error.issues }, { status: 400 });
+    }
+
+    const { name, type, balance, cutoffDay, dueDay, dueOffset } = parsed.data;
+    const resolvedType = type !== undefined ? type : existingCard.type;
 
     const updatedCard = await prisma.card.update({
       where: { id: cardId },
       data: {
-        ...(name && { name }),
-        ...(type && { type }),
-        ...(balance !== undefined && { balance: parseFloat(balance) }),
-        ...(type === "PAYLATER"
+        ...(name !== undefined && { name }),
+        ...(type !== undefined && { type }),
+        ...(balance !== undefined && { balance }),
+        ...(resolvedType === "PAYLATER"
           ? {
               dueType: "MONTHLY_CUTOFF_DAYS_DUE",
-              cutoffDay: cutoffDay !== undefined ? parseInt(cutoffDay) : existingCard.cutoffDay,
-              dueDay: dueDay !== undefined ? parseInt(dueDay) : existingCard.dueDay,
-              dueOffset: dueOffset !== undefined ? parseInt(dueOffset) : existingCard.dueOffset,
+              cutoffDay: cutoffDay !== undefined ? cutoffDay : existingCard.cutoffDay,
+              dueDay: dueDay !== undefined ? dueDay : existingCard.dueDay,
+              dueOffset: dueOffset !== undefined ? dueOffset : existingCard.dueOffset,
             }
           : {
               dueType: null,
