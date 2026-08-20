@@ -14,7 +14,7 @@ export interface NavbarAction {
 }
 
 export interface IslandNavbarProps {
-  title: string;
+  title: ReactNode;
   avatarIcon?: ReactNode;
   actions?: NavbarAction[];
   onAvatarPress?: () => void;
@@ -22,7 +22,7 @@ export interface IslandNavbarProps {
 
 // Shared class – mendukung dark mode + smooth theme transition
 const island =
-  "relative overflow-hidden bg-white dark:bg-neutral-950 border border-black/[0.07] dark:border-white/[0.1] rounded-full transition-[background-color,border-color] duration-300 ease-out";
+  "relative overflow-hidden bg-white dark:bg-neutral-950 border border-black/[0.07] dark:border-white/[0.1] rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_6px_24px_rgba(0,0,0,0.45)] transition-[background-color,border-color,box-shadow] duration-300 ease-out";
 
 // Animation variants
 const containerVariants = {
