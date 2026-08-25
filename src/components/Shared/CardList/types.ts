@@ -2,9 +2,33 @@
 // src/components/Shared/CardList/types.ts
 import { ReactNode } from "react";
 
-export type LayoutVariant = 'dashboard' | 'detailed' | 'compact' | 'minimal';
+export type LayoutVariant =
+  | "dashboard"
+  | "detailed"
+  | "compact"
+  | "minimal"
+  | "loan";
 
-export type SwipeVariant = 'primary' | 'danger' | 'success' | 'warning' | 'neutral' | 'indigo';
+/** Extended meta for the 'loan' variant */
+export interface LoanItemMeta {
+  remaining: number;
+  totalAmount: number;
+  returnedAmount: number;
+  progressPercent: number;
+  status: "active" | "ongoing" | "overdue" | "paid";
+  debtor: string;
+  category: "personal" | "family" | "colleague" | "other";
+  dueDate: string;
+  onRecordPayment?: () => void;
+}
+
+export type SwipeVariant =
+  | "primary"
+  | "danger"
+  | "success"
+  | "warning"
+  | "neutral"
+  | "indigo";
 
 export interface SwipeAction {
   id: string;
@@ -12,13 +36,21 @@ export interface SwipeAction {
   variant: SwipeVariant;
   icon: ReactNode;
   onExecute: (itemId: string | number) => void | Promise<void>;
-  position?: 'left' | 'right';
+  position?: "left" | "right";
   requiresConfirm?: boolean;
   confirmMessage?: string;
 }
 
 export interface SkeletonConfig {
-  fields: ('icon' | 'title' | 'subtitle' | 'amount' | 'date' | 'badge' | 'bottom')[];
+  fields: (
+    | "icon"
+    | "title"
+    | "subtitle"
+    | "amount"
+    | "date"
+    | "badge"
+    | "bottom"
+  )[];
   count?: number;
 }
 
@@ -28,8 +60,8 @@ export interface GroupConfig<T = any> {
   renderHeader?: (groupKey: string, items: T[], subtotal: number) => ReactNode;
   showSubtotal?: boolean;
   subtotalFormatter?: (amount: number) => string;
-  amountExtractor?: (item: T) => number;                                          // ← tambah
-  typeExtractor?: (item: T) => "expense" | "income" | "transfer" | undefined; 
+  amountExtractor?: (item: T) => number; // ← tambah
+  typeExtractor?: (item: T) => "expense" | "income" | "transfer" | undefined;
 }
 
 export interface CardItemRenderResult {
@@ -40,7 +72,8 @@ export interface CardItemRenderResult {
     date?: string;
     amount?: number;
     badge?: string;
-    type?: 'expense' | 'income' | 'transfer';
+    type?: "expense" | "income" | "transfer";
+    loanData?: LoanItemMeta;
   };
 }
 
@@ -49,50 +82,46 @@ export interface CardListProps<T = any> {
   layout?: LayoutVariant;
   renderItem: (item: T, layout: LayoutVariant) => CardItemRenderResult;
   keyExtractor: (item: T, index: number) => string | number;
-  
+
   // Interactions
   onItemPress?: (item: T) => void;
   swipeActions?: SwipeAction[];
   enableSwipe?: boolean;
-  
+
   // Layout
   layoutVariants?: Partial<Record<LayoutVariant, { className?: string }>>;
-  
+
   // Grouping
   grouping?: GroupConfig<T>;
-  
+
   // Loading
   isLoading?: boolean;
   skeleton?: SkeletonConfig;
-  
+
   // Empty
-  emptyState?: EmptyStateProps | ReactNode; 
-  
+  emptyState?: EmptyStateProps | ReactNode;
+
   // Load More
   hasMore?: boolean;
   onLoadMore?: () => void;
   loadingMore?: boolean;
-  
+
   // Styling
   className?: string;
   itemClassName?: string;
-  
-  // Performance
-  enableVirtualization?: boolean;
-  itemHeight?: number; // for virtualization
 }
 
 export interface EmptyStateAction {
   id: string;
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: "primary" | "secondary" | "danger";
 }
 
 export interface EmptyStateProps {
   icon: ReactNode;
   title: string;
   description: string;
-  variant?: 'card' | 'inline';
+  variant?: "card" | "inline";
   actions?: EmptyStateAction[];
 }
