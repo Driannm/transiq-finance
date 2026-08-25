@@ -51,6 +51,11 @@ const CARD_BASE = `
   border border-gray-100 dark:border-neutral-800
 `;
 
+/** Loan variant renders each item as its own standalone card, not rows inside a shared box */
+const STANDALONE_VARIANTS: Partial<
+  Record<import("./types").LayoutVariant, true>
+> = { loan: true };
+
 // ─── CardList ─────────────────────────────────────────────────────────────────
 
 export function CardList<T = any>({
@@ -72,6 +77,7 @@ export function CardList<T = any>({
   className = "",
   itemClassName = "",
 }: CardListProps<T>) {
+  const isStandalone = layout in STANDALONE_VARIANTS;
   // ── Grouping ───────────────────────────────────────────────────────────────
   const groupedData = useMemo(() => {
     if (!grouping?.enabled) return null;
@@ -145,6 +151,21 @@ export function CardList<T = any>({
 
   // ── Skeleton ───────────────────────────────────────────────────────────────
   if (isLoading && skeleton) {
+    if (isStandalone) {
+      // Loan-style: each skeleton card is standalone
+      return (
+        <div className={["space-y-4", className].join(" ")}>
+          {Array.from({ length: skeleton.count ?? 3 }).map((_, i) => (
+            <SkeletonItem
+              key={i}
+              fields={skeleton.fields}
+              variant={layout}
+              className={itemClassName}
+            />
+          ))}
+        </div>
+      );
+    }
     return (
       <div
         className={[
@@ -220,6 +241,17 @@ export function CardList<T = any>({
   }
 
   // ── Flat render ────────────────────────────────────────────────────────────
+  if (isStandalone) {
+    return (
+      <div className={["space-y-4", className].join(" ")}>
+        {items.map((item, index) => renderCardItem(item, index))}
+        {hasMore && (
+          <LoadMoreButton loading={loadingMore} onPress={onLoadMore} />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className={[
