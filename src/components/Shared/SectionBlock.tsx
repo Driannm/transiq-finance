@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -118,9 +119,12 @@ export function SectionBlock({
   className = "",
   padded = true,
 }: SectionBlockProps) {
+  const hasHeader = !!(title || badge || action);
   return (
-    <div className={`${padded ? "px-4" : ""} mt-5 space-y-2 ${className}`}>
-      <SectionHeader title={title} badge={badge} action={action} />
+    <div className={cn(padded ? "px-4" : "", "mt-5 space-y-2", className)}>
+      {hasHeader && (
+        <SectionHeader title={title} badge={badge} action={action} />
+      )}
       {children}
     </div>
   );
