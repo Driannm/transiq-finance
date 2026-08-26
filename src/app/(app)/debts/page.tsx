@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
+import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -29,6 +30,7 @@ import {
   CreditCardIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { format, isValid } from "date-fns";
 import { getRelativeDateLabel } from "@/components/Shared/utils/groupBy";
 import { getDebtCategoryIcon } from "@/lib/iconMapping";
@@ -44,15 +46,15 @@ type DebtCategory = "personal" | "credit_card" | "bank" | "family" | "other";
 
 interface DebtItem {
   id: string;
-  name: string;           
-  creditor: string;       
+  name: string;
+  creditor: string;
   category: DebtCategory;
-  totalAmount: number;    
-  paidAmount: number;     
+  totalAmount: number;
+  paidAmount: number;
   dueDate: string;
   status: DebtStatus;
   notes?: string | null;
-  installment: boolean;   
+  installment: boolean;
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -61,7 +63,10 @@ function formatIDR(n: number) {
   return new Intl.NumberFormat("id-ID").format(n);
 }
 
-function safeFormatDate(dateStr: string | null | undefined, fmt: string): string {
+function safeFormatDate(
+  dateStr: string | null | undefined,
+  fmt: string,
+): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
   return isValid(d) ? format(d, fmt) : "—";
@@ -86,9 +91,27 @@ const STATUS_META: Record<
   DebtStatus,
   { label: string; color: string; bg: string; dot: string; bar: string }
 > = {
-  unpaid:  { label: "Belum Bayar", color: "text-red-400",     bg: "bg-red-500/15 border-red-500/25",       dot: "bg-red-400",     bar: "bg-red-400"     },
-  partial: { label: "Sebagian",    color: "text-amber-400",   bg: "bg-amber-500/15 border-amber-500/25",   dot: "bg-amber-400",   bar: "bg-amber-400"   },
-  paid:    { label: "Lunas",       color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/25", dot: "bg-emerald-400", bar: "bg-emerald-400" },
+  unpaid: {
+    label: "Belum Bayar",
+    color: "text-red-400",
+    bg: "bg-red-500/15 border-red-500/25",
+    dot: "bg-red-400",
+    bar: "bg-red-400",
+  },
+  partial: {
+    label: "Sebagian",
+    color: "text-amber-400",
+    bg: "bg-amber-500/15 border-amber-500/25",
+    dot: "bg-amber-400",
+    bar: "bg-amber-400",
+  },
+  paid: {
+    label: "Lunas",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/15 border-emerald-500/25",
+    dot: "bg-emerald-400",
+    bar: "bg-emerald-400",
+  },
 };
 
 // ─── Page Component ─────────────────────────────────────────
@@ -117,43 +140,48 @@ export default function DebtsPage() {
     sort: {
       defaultValue: "dueDate",
       fields: [
-        { value: "dueDate",      label: "Jatuh Tempo", icon: Calendar01Icon },
-        { value: "totalAmount",  label: "Jumlah",      icon: Money02Icon    },
-        { value: "name",         label: "Nama",        icon: TextFontIcon   },
+        { value: "dueDate", label: "Jatuh Tempo", icon: Calendar01Icon },
+        { value: "totalAmount", label: "Jumlah", icon: Money02Icon },
+        { value: "name", label: "Nama", icon: TextFontIcon },
       ],
     },
     view: { modes: ["list"], defaultMode: "list" },
   };
 
-  const fetchDebts = useCallback(async (isLoadMore = false) => {
-    if (isLoadMore) setLoadingMore(true);
-    else setLoading(true);
-    try {
-      const nextPage = isLoadMore ? page + 1 : 1;
-      const res = await fetch(`/api/debts?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`);
-      
-      if (!res.ok) throw new Error("Gagal mengambil data dari server");
-      const data = await res.json();
-      
-      if (!isLoadMore) {
-        setDebts(data.debts);
-        setPage(1);
-      } else {
-        setDebts((prev) => [...prev, ...data.debts]);
-        setPage(nextPage);
-      }
-      setHasMore(false);
-    } catch (err) {
-      console.error("Gagal memuat data utang:", err);
-      if (!isLoadMore) setDebts([]);
-    } finally {
-      if (isLoadMore) setLoadingMore(false);
-      else setLoading(false);
-    }
-  }, [month, page, activeStatus]);
+  const fetchDebts = useCallback(
+    async (isLoadMore = false) => {
+      if (isLoadMore) setLoadingMore(true);
+      else setLoading(true);
+      try {
+        const nextPage = isLoadMore ? page + 1 : 1;
+        const res = await fetch(
+          `/api/debts?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`,
+        );
 
-  useEffect(() => { 
-    fetchDebts(); 
+        if (!res.ok) throw new Error("Gagal mengambil data dari server");
+        const data = await res.json();
+
+        if (!isLoadMore) {
+          setDebts(data.debts);
+          setPage(1);
+        } else {
+          setDebts((prev) => [...prev, ...data.debts]);
+          setPage(nextPage);
+        }
+        setHasMore(false);
+      } catch (err) {
+        console.error("Gagal memuat data utang:", err);
+        if (!isLoadMore) setDebts([]);
+      } finally {
+        if (isLoadMore) setLoadingMore(false);
+        else setLoading(false);
+      }
+    },
+    [month, page, activeStatus],
+  );
+
+  useEffect(() => {
+    fetchDebts();
   }, [month, activeStatus]); // eslint-disable-line
 
   const prevMonth = () => {
@@ -168,22 +196,39 @@ export default function DebtsPage() {
   };
 
   // Stats
-  const filteredByStatus = activeStatus === "all" ? debts : debts.filter((d) => d.status === activeStatus);
-  const totalRemaining   = debts.filter((d) => d.status !== "paid").reduce((s, d) => s + (d.totalAmount - d.paidAmount), 0);
-  const totalPaid        = debts.reduce((s, d) => s + d.paidAmount, 0);
-  const overdueCount     = debts.filter((d) => d.status !== "paid" && getDaysUntilDue(d.dueDate) < 0).length;
+  const filteredByStatus =
+    activeStatus === "all"
+      ? debts
+      : debts.filter((d) => d.status === activeStatus);
+  const totalRemaining = debts
+    .filter((d) => d.status !== "paid")
+    .reduce((s, d) => s + (d.totalAmount - d.paidAmount), 0);
+  const totalPaid = debts.reduce((s, d) => s + d.paidAmount, 0);
+  const overdueCount = debts.filter(
+    (d) => d.status !== "paid" && getDaysUntilDue(d.dueDate) < 0,
+  ).length;
 
   // Actions
-  const handleView   = useCallback((id: string | number) => { router.push(`/debts/${id}`); }, [router]);
-  const handleEdit   = useCallback((id: string | number) => { router.push(`/debts/${id}/edit`); }, [router]);
-  
+  const handleView = useCallback(
+    (id: string | number) => {
+      router.push(`/debts/${id}`);
+    },
+    [router],
+  );
+  const handleEdit = useCallback(
+    (id: string | number) => {
+      router.push(`/debts/${id}/edit`);
+    },
+    [router],
+  );
+
   const handleDelete = useCallback(async (id: string | number) => {
     try {
       const res = await fetch(`/api/debts/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Gagal menghapus utang");
       setDebts((prev) => prev.filter((d) => d.id !== id));
-    } catch (err) { 
-      console.error(err); 
+    } catch (err) {
+      console.error(err);
     }
   }, []);
 
@@ -194,11 +239,12 @@ export default function DebtsPage() {
   }, []);
 
   const controls = useDataControls<DebtItem>(filteredByStatus, CONTROLS_CONFIG);
-  const isFlat = controls.state.search.trim().length > 0 || controls.state.sort.field !== "dueDate";
+  const isFlat =
+    controls.state.search.trim().length > 0 ||
+    controls.state.sort.field !== "dueDate";
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
-
       {/* ── Navbar ── */}
       <div className="sticky top-0 z-50">
         <IslandNavbar
@@ -220,98 +266,73 @@ export default function DebtsPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-5">
-
         {/* ── Hero Card ── */}
-        <div
-          className="relative overflow-hidden rounded-[24px] p-6 text-white"
-          style={{
-            background: `
-              radial-gradient(circle at top right, rgba(244, 63, 94, 0.95) 0%, rgba(244, 63, 94, 0.35) 18%, transparent 42%),
-              radial-gradient(circle at bottom right, rgba(225, 29, 72, 0.85) 0%, rgba(225, 29, 72, 0.22) 20%, transparent 45%),
-              linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)
-            `,
-            boxShadow: `
-              inset 0 1px 0 rgba(255,255,255,0.20),
-              inset -1px 0 0 rgba(244, 63, 94, 0.12),
-              0 10px 30px rgba(0,0,0,0.45)
-            `,
-          }}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
-          <div className="relative z-10 flex flex-col gap-3.5">
-
-            {/* Label + Month Selector */}
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50">
-                Total sisa utang
-              </p>
-              
-              {/* Sleek Month Selector dengan Ikon Hugeicons */}
-              <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md border border-white/10 p-0.5 rounded-full select-none">
-                <button 
-                  onClick={prevMonth} 
-                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
-                  aria-label="Bulan sebelumnya"
-                >
-                  <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />
-                </button>
-                <span className="text-[11px] md:text-xs font-bold tracking-wide text-white px-2.5 uppercase whitespace-nowrap">
-                  {safeFormatDate(month + "-01", "MMMM yyyy")}
-                </span>
-                <button 
-                  onClick={nextMonth} 
-                  className="w-7 h-7 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
-                  aria-label="Bulan berikutnya"
-                >
-                  <HugeiconsIcon icon={ArrowRight01Icon} size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* Total Remaining */}
-            <div>
-              <h2 className="text-[32px] md:text-[36px] font-mono font-bold tracking-tight leading-none">
-                IDR {formatIDR(totalRemaining)}
-              </h2>
-            </div>
-
-            {/* Progress bar */}
-            <div>
-              <div className="flex justify-between mb-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">Progress pelunasan</span>
-                <span className="text-[10px] font-mono text-white/60">
-                  {getProgressPercent(totalPaid, totalPaid + totalRemaining)}%
-                </span>
-              </div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-400 rounded-full transition-all duration-500"
-                  style={{ width: `${getProgressPercent(totalPaid, totalPaid + totalRemaining)}%` }}
+          <BalanceHeader
+            label="Total sisa utang"
+            amount={totalRemaining}
+            variant="rose"
+            isLoading={loading}
+            monthSelector={{
+              currentMonth: month,
+              onPrev: prevMonth,
+              onNext: nextMonth,
+              style: "sleek",
+            }}
+            progress={{
+              percentage: getProgressPercent(
+                totalPaid,
+                totalPaid + totalRemaining,
+              ),
+              labelLeft: "Progress pelunasan",
+              labelRight: `${getProgressPercent(totalPaid, totalPaid + totalRemaining)}%`,
+            }}
+            badges={[
+              <div
+                key="paid"
+                className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full"
+              >
+                <HugeiconsIcon
+                  icon={CheckmarkCircle02Icon}
+                  size={14}
+                  className="text-emerald-400"
                 />
-              </div>
-            </div>
-
-            {/* Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} className="text-emerald-400" />
                 <span className="text-xs font-mono font-medium text-white">
                   IDR {formatIDR(totalPaid)} terlunasi
                 </span>
-              </div>
-              {overdueCount > 0 && (
-                <div className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-md border border-red-500/30 px-3 py-1.5 rounded-full">
-                  <HugeiconsIcon icon={AlertCircleIcon} size={14} className="text-red-400" />
-                  <span className="text-xs font-semibold text-red-300">
-                    {overdueCount} melewati jatuh tempo
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+              </div>,
+              ...(overdueCount > 0
+                ? [
+                    <div
+                      key="overdue"
+                      className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-md border border-red-500/30 px-3 py-1.5 rounded-full"
+                    >
+                      <HugeiconsIcon
+                        icon={AlertCircleIcon}
+                        size={14}
+                        className="text-red-400"
+                      />
+                      <span className="text-xs font-semibold text-red-300">
+                        {overdueCount} melewati jatuh tempo
+                      </span>
+                    </div>,
+                  ]
+                : []),
+            ]}
+          />
+        </motion.div>
 
         {/* ── Status Filter Pills ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
+          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+        >
           {(["all", "unpaid", "partial", "paid"] as const).map((s) => {
             const isActive = activeStatus === s;
             const meta = s !== "all" ? STATUS_META[s] : null;
@@ -327,29 +348,43 @@ export default function DebtsPage() {
                     : "bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 border-transparent"
                 }`}
               >
-                {meta && <span className={`w-1.5 h-1.5 rounded-full ${isActive ? meta.dot : "bg-neutral-400"}`} />}
+                {meta && (
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${isActive ? meta.dot : "bg-neutral-400"}`}
+                  />
+                )}
                 {s === "all" ? "Semua" : meta!.label}
-                <span className={`ml-0.5 font-mono ${isActive ? "" : "text-neutral-400 dark:text-neutral-500"}`}>
-                  {s === "all" ? debts.length : debts.filter((d) => d.status === s).length}
+                <span
+                  className={`ml-0.5 font-mono ${isActive ? "" : "text-neutral-400 dark:text-neutral-500"}`}
+                >
+                  {s === "all"
+                    ? debts.length
+                    : debts.filter((d) => d.status === s).length}
                 </span>
               </button>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* ── DataControlsBar ── */}
-        <DataControlsBar
-          config={CONTROLS_CONFIG}
-          state={controls.state}
-          activeFilterCount={controls.activeFilterCount}
-          onSearchChange={controls.setSearch}
-          onSortChange={controls.setSort}
-          onFilterChange={controls.setFilter}
-          onFiltersChange={controls.setFilters}
-          onFiltersReset={controls.resetFilters}
-          onViewChange={controls.setView}
-          onGroupChange={controls.setGroup}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <DataControlsBar
+            config={CONTROLS_CONFIG}
+            state={controls.state}
+            activeFilterCount={controls.activeFilterCount}
+            onSearchChange={controls.setSearch}
+            onSortChange={controls.setSort}
+            onFilterChange={controls.setFilter}
+            onFiltersChange={controls.setFilters}
+            onFiltersReset={controls.resetFilters}
+            onViewChange={controls.setView}
+            onGroupChange={controls.setGroup}
+          />
+        </motion.div>
 
         {/* ── Debt List ── */}
         <SectionBlock title="Semua Utang" padded={false}>
@@ -364,17 +399,22 @@ export default function DebtsPage() {
                     enabled: true,
                     groupBy: (item) => getRelativeDateLabel(item.dueDate),
                     showSubtotal: true,
-                    subtotalFormatter: (amount) => `IDR ${formatIDR(Math.abs(amount))}`,
-                    amountExtractor: (item) => item.totalAmount - item.paidAmount,
+                    subtotalFormatter: (amount) =>
+                      `IDR ${formatIDR(Math.abs(amount))}`,
+                    amountExtractor: (item) =>
+                      item.totalAmount - item.paidAmount,
                     typeExtractor: () => "expense",
                   }
             }
             keyExtractor={(d) => d.id}
             renderItem={(debt) => {
-              const days     = getDaysUntilDue(debt.dueDate);
-              const progress = getProgressPercent(debt.paidAmount, debt.totalAmount);
+              const days = getDaysUntilDue(debt.dueDate);
+              const progress = getProgressPercent(
+                debt.paidAmount,
+                debt.totalAmount,
+              );
               const remaining = debt.totalAmount - debt.paidAmount;
-              
+
               const CategoryIcon = getDebtCategoryIcon(debt.category);
 
               return {
@@ -400,9 +440,17 @@ export default function DebtsPage() {
                         </p>
                         {debt.status !== "paid" && (
                           <>
-                            <span className="text-neutral-300 dark:text-neutral-600">·</span>
-                            <span className={`text-xs font-medium ${days < 0 ? "text-red-400" : days <= 3 ? "text-amber-400" : "text-neutral-400"}`}>
-                              {days < 0 ? `${Math.abs(days)}h lewat` : days === 0 ? "Hari ini" : `${days}h lagi`}
+                            <span className="text-neutral-300 dark:text-neutral-600">
+                              ·
+                            </span>
+                            <span
+                              className={`text-xs font-medium ${days < 0 ? "text-red-400" : days <= 3 ? "text-amber-400" : "text-neutral-400"}`}
+                            >
+                              {days < 0
+                                ? `${Math.abs(days)}h lewat`
+                                : days === 0
+                                  ? "Hari ini"
+                                  : `${days}h lagi`}
                             </span>
                           </>
                         )}
@@ -460,15 +508,26 @@ export default function DebtsPage() {
                 icon: <HugeiconsIcon icon={Delete02Icon} size={18} />,
                 onExecute: handleDelete,
                 requiresConfirm: true,
-                confirmMessage: "Utang akan dihapus permanen. Data tidak dapat dikembalikan.",
+                confirmMessage:
+                  "Utang akan dihapus permanen. Data tidak dapat dikembalikan.",
               },
             ]}
             isLoading={loading}
-            skeleton={{ fields: ["icon", "title", "subtitle", "amount", "date"], count: 5 }}
+            skeleton={{
+              fields: ["icon", "title", "subtitle", "amount", "date"],
+              count: 5,
+            }}
             emptyState={{
-              icon: <HugeiconsIcon icon={CreditCardIcon} size={32} className="text-gray-300 dark:text-gray-600" />,
+              icon: (
+                <HugeiconsIcon
+                  icon={CreditCardIcon}
+                  size={32}
+                  className="text-gray-300 dark:text-gray-600"
+                />
+              ),
               title: "Belum ada utang",
-              description: "Catat utang kamu untuk memantau kewajiban pembayaran.",
+              description:
+                "Catat utang kamu untuk memantau kewajiban pembayaran.",
               actions: [
                 {
                   id: "add-debt",
@@ -481,8 +540,6 @@ export default function DebtsPage() {
             hasMore={hasMore}
             onLoadMore={() => fetchDebts(true)}
             loadingMore={loadingMore}
-            enableVirtualization={debts.length > 50}
-            itemHeight={96}
             className="mt-3"
           />
         </SectionBlock>
@@ -508,7 +565,6 @@ export default function DebtsPage() {
           />
         )}
       </ReusableDialog>
-
     </div>
   );
 }
