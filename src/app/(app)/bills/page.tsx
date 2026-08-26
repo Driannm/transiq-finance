@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
+import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -115,8 +116,8 @@ const MOCK_BILLS: BillItem[] = [
 // ─── Page Component ─────────────────────────────────────────
 
 export default function BillsPage() {
-  const [bills, setBills] = useState<BillItem[]>(MOCK_BILLS);
-  const [loading, setLoading] = useState(false);
+  const [bills, setBills] = useState<BillItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [activeStatus, setActiveStatus] = useState<"all" | BillStatus>("all");
 
@@ -150,15 +151,17 @@ export default function BillsPage() {
       else setLoading(true);
 
       try {
-        // TODO: ganti dengan real endpoint
-        // const res = await fetch(`/api/bills?month=${month}&page=${isLoadMore ? page + 1 : 1}&limit=20`);
-        // const data = await res.json();
-        // const newBills = Array.isArray(data.bills) ? data.bills : [];
-        // ...
-        await new Promise((r) => setTimeout(r, 400)); // simulasi loading
+        const nextPage = isLoadMore ? page + 1 : 1;
+        const res = await fetch(`/api/bills?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`);
+        if (!res.ok) throw new Error("Gagal mengambil data dari server");
+        const data = await res.json();
+        
         if (!isLoadMore) {
-          setBills(MOCK_BILLS);
+          setBills(data.bills || []);
           setPage(1);
+        } else {
+          setBills((prev) => [...prev, ...(data.bills || [])]);
+          setPage(nextPage);
         }
         setHasMore(false);
       } catch (err) {
@@ -169,12 +172,12 @@ export default function BillsPage() {
         else setLoading(false);
       }
     },
-    [month, page]
+    [month, page, activeStatus]
   );
 
   useEffect(() => {
     fetchBills();
-  }, [month]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [month, activeStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Month nav
   const prevMonth = () => {
@@ -203,7 +206,8 @@ export default function BillsPage() {
   const handleEdit   = useCallback((id: string | number) => { window.location.href = `/bills/${id}/edit`; }, []);
   const handleDelete = useCallback(async (id: string | number) => {
     try {
-      // await fetch(`/api/bills/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/bills/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Gagal menghapus tagihan");
       setBills((prev) => prev.filter((b) => b.id !== id));
     } catch (err) {
       console.error("Failed to delete bill:", err);
@@ -212,7 +216,12 @@ export default function BillsPage() {
 
   const handleMarkPaid = useCallback(async (id: string | number) => {
     try {
-      // await fetch(`/api/bills/${id}`, { method: "PATCH", body: JSON.stringify({ status: "paid" }) });
+      const res = await fetch(`/api/bills/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "paid" }),
+      });
+      if (!res.ok) throw new Error("Gagal membayar tagihan");
       setBills((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status: "paid" } : b))
       );
@@ -253,77 +262,26 @@ export default function BillsPage() {
       <div className="px-4 pt-4 space-y-5">
 
         {/* ── Hero Summary Card ── */}
-        <div
-          className="relative overflow-hidden rounded-[24px] p-6 text-white"
-          style={{
-            background: `
-              radial-gradient(circle at top right, rgba(99, 102, 241, 0.95) 0%, rgba(99, 102, 241, 0.35) 18%, transparent 42%),
-              radial-gradient(circle at bottom right, rgba(79, 70, 229, 0.85) 0%, rgba(79, 70, 229, 0.22) 20%, transparent 45%),
-              linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)
-            `,
-            boxShadow: `
-              inset 0 1px 0 rgba(255,255,255,0.20),
-              inset -1px 0 0 rgba(99, 102, 241, 0.12),
-              0 10px 30px rgba(0,0,0,0.45)
-            `,
+        <BalanceHeader
+          label="Total belum dibayar"
+          amount={totalDue}
+          variant="indigo"
+          isLoading={loading}
+          monthSelector={{
+            currentMonth: month,
+            onPrev: prevMonth,
+            onNext: nextMonth,
+            style: "sleek",
           }}
-        >
-          <div className="relative z-10 flex flex-col gap-3.5">
-
-            {/* Label + Month Selector */}
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50">
-                Total belum dibayar
-              </p>
-              <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full select-none">
-                <button
-                  onClick={prevMonth}
-                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
-                >
-                  ‹
-                </button>
-                <span className="text-[11px] md:text-xs font-semibold tracking-wide text-white whitespace-nowrap">
-                  {safeFormatDate(month + "-01", "MMMM yyyy")}
-                </span>
-                <button
-                  onClick={nextMonth}
-                  className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
-                >
-                  ›
-                </button>
-              </div>
+          badges={[
+            <div key="paid" className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} className="text-emerald-400" />
+              <span className="text-xs font-mono font-medium text-white">
+                IDR {formatIDR(totalPaid)} lunas
+              </span>
             </div>
-
-            {/* Amount */}
-            <div>
-              <h2 className="text-[32px] md:text-[36px] font-mono font-bold tracking-tight leading-none">
-                IDR {formatIDR(totalDue)}
-              </h2>
-            </div>
-
-            {/* Stat Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Lunas */}
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} className="text-emerald-400" />
-                <span className="text-xs font-mono font-medium text-white">
-                  IDR {formatIDR(totalPaid)} lunas
-                </span>
-              </div>
-
-              {/* //TODO : Delete or change to something */}
-              {/* Overdue warning */}
-              {/* {overdueCount > 0 && (
-                <div className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-md border border-red-500/30 px-3 py-1.5 rounded-full">
-                  <HugeiconsIcon icon={AlertCircleIcon} size={14} className="text-red-400" />
-                  <span className="text-xs font-semibold text-red-300">
-                    {overdueCount} tagihan lewat jatuh tempo
-                  </span>
-                </div>
-              )} */}
-            </div>
-          </div>
-        </div>
+          ]}
+        />
 
         {/* ── Status Filter Pills ── */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -462,7 +420,7 @@ export default function BillsPage() {
               {
                 id: "view",
                 label: "Detail",
-                variant: "primary",
+                variant: "indigo",
                 icon: <HugeiconsIcon icon={ViewIcon} size={18} />,
                 onExecute: handleView,
                 position: "left",
@@ -470,14 +428,14 @@ export default function BillsPage() {
               {
                 id: "pay",
                 label: "Bayar",
-                variant: "primary",
+                variant: "indigo",
                 icon: <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />,
                 onExecute: handleMarkPaid,
               },
               {
                 id: "edit",
                 label: "Edit",
-                variant: "primary",
+                variant: "indigo",
                 icon: <HugeiconsIcon icon={Edit03Icon} size={18} />,
                 onExecute: handleEdit,
               },
@@ -520,8 +478,6 @@ export default function BillsPage() {
             hasMore={hasMore}
             onLoadMore={() => fetchBills(true)}
             loadingMore={loadingMore}
-            enableVirtualization={bills.length > 50}
-            itemHeight={96}
             className="mt-3"
           />
         </SectionBlock>
