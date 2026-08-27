@@ -6,6 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
+import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -178,54 +179,27 @@ export default function IncomePage() {
 
       <div className="px-4 pt-4 space-y-5">
 
-        {/* ── Month Picker ── */}
-        <div className="flex items-center justify-between bg-white dark:bg-neutral-900 rounded-full border border-gray-100 dark:border-gray-800 p-2">
-          <button
-            onClick={prevMonth}
-            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-          >‹</button>
-          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
-            {safeFormatDate(month + "-01", "MMMM yyyy")}
-          </p>
-          <button
-            onClick={nextMonth}
-            className="w-9 h-9 rounded-full border border-gray-100 dark:border-gray-800 bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
-          >›</button>
-        </div>
-
         {/* ── Summary Card ── */}
-        <div
-          className="relative overflow-hidden rounded-[20px] p-6 text-white"
-          style={{
-            background: `
-              radial-gradient(circle at top right, rgba(34, 197, 94, 0.95) 0%, rgba(34, 197, 94, 0.35) 18%, transparent 42%),
-              radial-gradient(circle at bottom right, rgba(22, 163, 74, 0.85) 0%, rgba(22, 163, 74, 0.22) 20%, transparent 45%),
-              linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)
-            `,
-            boxShadow: `
-              inset 0 1px 0 rgba(255,255,255,0.20),
-              inset -1px 0 0 rgba(34, 197, 94, 0.12),
-              0 10px 30px rgba(0,0,0,0.45)
-            `,
+        <BalanceHeader
+          label="Total Pemasukan"
+          amount={total}
+          variant="green"
+          isLoading={loading}
+          monthSelector={{
+            currentMonth: month,
+            onPrev: prevMonth,
+            onNext: nextMonth,
+            style: "sleek",
           }}
-        >
-          <div className="relative z-10">
-            <p className="text-sm font-medium mb-2" style={{ color: "rgba(255,255,255,0.55)" }}>
-              Total Pemasukan
-            </p>
-            <h2 className="text-[36px] font-mono font-bold tracking-tight mb-1">
-              IDR {formatIDR(total)}
-            </h2>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-                <HugeiconsIcon icon={MoneyReceive02Icon} size={14} className="text-emerald-300" />
-                <span className="text-xs font-mono font-medium text-white">
-                  {incomes.length} transaksi
-                </span>
-              </div>
+          badges={[
+            <div key="cnt" className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
+              <HugeiconsIcon icon={MoneyReceive02Icon} size={14} className="text-emerald-300" />
+              <span className="text-xs font-mono font-medium text-white">
+                {incomes.length} transaksi
+              </span>
             </div>
-          </div>
-        </div>
+          ]}
+        />
 
         {/* ── Controls ── */}
         <DataControlsBar
@@ -333,8 +307,6 @@ export default function IncomePage() {
             hasMore={hasMore}
             onLoadMore={() => fetchIncomes(true)}
             loadingMore={loadingMore}
-            enableVirtualization={incomes.length > 50}
-            itemHeight={96}
             className="mt-3"
           />
         </SectionBlock>
