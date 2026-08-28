@@ -28,7 +28,11 @@ export const CARD_TYPE_LABELS: Record<string, string> = {
   EMONEY: "E-Money / Uang Elektronik",
 };
 
-import { formatIDRInput as globalFormatIDRInput, parseAmount as globalParseAmount, formatIDR } from "@/lib/format";
+import {
+  formatIDRInput as globalFormatIDRInput,
+  parseAmount as globalParseAmount,
+  formatIDR,
+} from "@/lib/format";
 
 export const formatIDRInput = globalFormatIDRInput;
 export const parseAmount = globalParseAmount;
