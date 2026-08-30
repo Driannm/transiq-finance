@@ -18,6 +18,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
+import { useConfirm } from "@/hooks/UseConfirm";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -27,7 +28,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { ReusableDialog } from "@/components/Shared/DinamicModal";
+import { ReusableDialog } from "@/components/Shared/ReusableDialog";
 import { PaymentForm } from "@/components/Loan/PaymentForm";
 import { format, isValid } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
@@ -133,13 +134,7 @@ export default function LoanDetailPage({
   // Payment modal
   const [paymentOpen, setPaymentOpen] = useState(false);
 
-  // Delete confirm
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  // Settle confirm
-  const [settleOpen, setSettleOpen] = useState(false);
-  const [settling, setSettling] = useState(false);
+  const confirm = useConfirm();
 
   const fetchLoan = useCallback(async () => {
     setLoading(true);
@@ -171,49 +166,57 @@ export default function LoanDetailPage({
   // ── Delete ──
 
   async function handleDelete() {
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/loans/${loanId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.show({ title: "Piutang berhasil dihapus", variant: "success" });
-      router.push("/loans");
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menghapus",
-        description: err instanceof Error ? err.message : "Terjadi kesalahan",
-        variant: "danger",
-      });
-    } finally {
-      setDeleting(false);
-      setDeleteOpen(false);
-    }
+    confirm({
+      title: "Hapus Piutang?",
+      description: `Tindakan ini tidak dapat dibatalkan. Seluruh data piutang ${loan?.name} beserta riwayat pembayarannya akan dihapus secara permanen.`,
+      variant: "danger",
+      confirmLabel: "Hapus",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/loans/${loanId}`, { method: "DELETE" });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          toast.show({ title: "Piutang berhasil dihapus", variant: "success" });
+          router.push("/loans");
+        } catch (err: any) {
+          toast.show({
+            title: "Gagal menghapus",
+            description: err.message || "Terjadi kesalahan",
+            variant: "danger",
+          });
+        }
+      },
+    });
   }
 
   // ── Settle ──
 
   async function handleSettle() {
-    setSettling(true);
-    try {
-      const res = await fetch(`/api/loans/${loanId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "settled" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.show({ title: "Piutang berhasil dilunasi", variant: "success" });
-      setSettleOpen(false);
-      await fetchLoan();
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal melunasi piutang",
-        description: err instanceof Error ? err.message : "Terjadi kesalahan",
-        variant: "danger",
-      });
-    } finally {
-      setSettling(false);
-    }
+    confirm({
+      title: "Tandai Lunas Penuh?",
+      description: `Sisa piutang sebesar IDR ${formatIDR(loan?.remaining ?? 0)} akan langsung dilunaskan dan saldo rekening akan ditambahkan.`,
+      variant: "safe",
+      confirmLabel: "Ya, Lunasi",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/loans/${loanId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "settled" }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          toast.show({ title: "Piutang berhasil dilunasi", variant: "success" });
+          await fetchLoan();
+        } catch (err: any) {
+          toast.show({
+            title: "Gagal melunasi piutang",
+            description: err.message || "Terjadi kesalahan",
+            variant: "danger",
+          });
+        }
+      },
+    });
   }
 
   return (
@@ -237,7 +240,7 @@ export default function LoanDetailPage({
                   className="text-red-500 hover:text-red-655 transition-colors"
                 />
               ),
-              onPress: () => setDeleteOpen(true),
+              onPress: handleDelete,
               label: "Hapus",
             },
           ]}
@@ -447,7 +450,7 @@ export default function LoanDetailPage({
                     Catat Pembayaran
                   </button>
                   <button
-                    onClick={() => setSettleOpen(true)}
+                    onClick={handleSettle}
                     className="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/40 text-blue-700 dark:text-blue-300 transition-colors font-semibold text-sm cursor-pointer animate-fade-in"
                   >
                     <HugeiconsIcon
@@ -555,67 +558,7 @@ export default function LoanDetailPage({
         )}
       </ReusableDialog>
 
-      {/* ── Delete Confirm ── */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-red-650 dark:text-red-400">
-              Hapus Piutang?
-            </DialogTitle>
-            <DialogDescription className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">
-              Tindakan ini tidak dapat dibatalkan. Seluruh data piutang{" "}
-              <strong>{loan?.name}</strong> beserta riwayat pembayarannya akan
-              dihapus secara permanen.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2.5 mt-4">
-            <button
-              onClick={() => setDeleteOpen(false)}
-              className="flex-1 h-11 rounded-xl border border-gray-200 dark:border-neutral-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white font-bold text-sm transition-colors cursor-pointer"
-            >
-              {deleting ? "Menghapus..." : "Hapus"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* ── Settle Confirm ── */}
-      <Dialog open={settleOpen} onOpenChange={setSettleOpen}>
-        <DialogContent className="sm:max-w-sm bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold">
-              Tandai Lunas Penuh?
-            </DialogTitle>
-            <DialogDescription className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 leading-relaxed">
-              Sisa piutang sebesar{" "}
-              <strong>IDR {formatIDR(loan?.remaining ?? 0)}</strong> akan
-              langsung dilunaskan dan saldo rekening akan ditambahkan.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-2.5 mt-4">
-            <button
-              onClick={() => setSettleOpen(false)}
-              className="flex-1 h-11 rounded-xl border border-gray-200 dark:border-neutral-700 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
-            >
-              Batal
-            </button>
-            <button
-              onClick={handleSettle}
-              disabled={settling}
-              className="flex-1 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-sm transition-colors cursor-pointer"
-            >
-              {settling ? "Memproses..." : "Ya, Lunasi"}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

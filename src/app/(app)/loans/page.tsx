@@ -46,7 +46,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ReusableDialog } from "@/components/Shared/DinamicModal";
+import { ReusableDialog } from "@/components/Shared/ReusableDialog";
 import { PaymentForm } from "@/components/Loan/PaymentForm";
 import { useToast } from "@/hooks/UseToast";
 import { cn } from "@/lib/utils";
