@@ -30,21 +30,27 @@ interface Card {
 }
 
 interface PaymentFormProps {
-  loanId: string;
-  loanName: string;
-  debtorName: string;
+  obligationId: string;
+  obligationName: string;
+  personName: string;
   remainingAmount: number;
   onSuccess: () => void;
   onCancel: () => void;
+  apiPath: string; // e.g. "/api/loans/ID/payments" or "/api/debts/ID/payments"
+  titleLabel?: string; // e.g. "Piutang Aktif" or "Utang Aktif"
+  personLabel?: string; // e.g. "Debitur:" or "Kreditur:"
 }
 
 export function PaymentForm({
-  loanId,
-  loanName,
-  debtorName,
+  obligationId,
+  obligationName,
+  personName,
   remainingAmount,
   onSuccess,
   onCancel,
+  apiPath,
+  titleLabel = "Piutang Aktif",
+  personLabel = "Debitur:",
 }: PaymentFormProps) {
   const [cards, setCards] = useState<Card[]>([]);
   const [loadingCards, setLoadingCards] = useState(true);
@@ -113,13 +119,13 @@ export function PaymentForm({
     setSubmitting(true);
 
     try {
-      const res = await fetch(`/api/loans/${loanId}/payments`, {
+      const res = await fetch(apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: Number(parsedAmount),
           cardId: selectedCardId,
-          notes: notes.trim() || `Pembayaran cicilan: ${loanName}`,
+          notes: notes.trim() || `Pembayaran cicilan: ${obligationName}`,
         }),
       });
 
@@ -150,15 +156,15 @@ export function PaymentForm({
         <div className="flex justify-between items-start gap-4">
           <div className="min-w-0">
             <p className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
-              Piutang Aktif
+              {titleLabel}
             </p>
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate mt-0.5 animate-fade-in">
-              {loanName}
+              {obligationName}
             </h3>
             <p className="text-xs text-gray-550 dark:text-gray-400 mt-0.5">
-              Debitur:{" "}
+              {personLabel}{" "}
               <span className="font-semibold text-gray-750 dark:text-gray-300">
-                {debtorName}
+                {personName}
               </span>
             </p>
           </div>

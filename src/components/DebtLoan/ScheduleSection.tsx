@@ -17,7 +17,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { CATEGORY_OPTIONS } from "./Format";
-import type { LoanCategory } from "./types";
+import type { ObligationCategory } from "./types";
 
 type ScheduleSectionProps = {
   name: string;
@@ -25,13 +25,14 @@ type ScheduleSectionProps = {
   nameError?: string;
   nameInputRef?: RefObject<HTMLInputElement | null>;
 
-  category: LoanCategory;
-  onCategoryChange: (val: LoanCategory) => void;
+  category: ObligationCategory;
+  onCategoryChange: (val: ObligationCategory) => void;
 
-  loanDate: string;
-  onLoanDateChange: (val: string) => void;
-  loanDateError?: string;
-  loanDateInputRef: RefObject<HTMLButtonElement | null>;
+  startDate: string;
+  onStartDateChange: (val: string) => void;
+  startDateError?: string;
+  startDateInputRef: RefObject<HTMLButtonElement | null>;
+  startDateLabel?: string;
 
   dueDate: string;
   onDueDateChange: (val: string) => void;
@@ -46,18 +47,19 @@ export function ScheduleSection({
   nameInputRef,
   category,
   onCategoryChange,
-  loanDate,
-  onLoanDateChange,
-  loanDateError,
-  loanDateInputRef,
+  startDate,
+  onStartDateChange,
+  startDateError,
+  startDateInputRef,
+  startDateLabel = "Tanggal Pemberian",
   dueDate,
   onDueDateChange,
   dueDateError,
   dueDateInputRef,
 }: ScheduleSectionProps) {
   const durationDays =
-    loanDate && dueDate
-      ? differenceInCalendarDays(new Date(dueDate), new Date(loanDate))
+    startDate && dueDate
+      ? differenceInCalendarDays(new Date(dueDate), new Date(startDate))
       : null;
 
   return (
@@ -134,13 +136,13 @@ export function ScheduleSection({
           </div>
         </div>
 
-        {/* Tanggal Pemberian */}
+        {/* Tanggal Mulai */}
         <DateRow
-          label="Tanggal Pemberian"
-          value={loanDate}
-          onChange={onLoanDateChange}
-          triggerRef={loanDateInputRef}
-          error={loanDateError}
+          label={startDateLabel}
+          value={startDate}
+          onChange={onStartDateChange}
+          triggerRef={startDateInputRef}
+          error={startDateError}
           iconClassName="text-neutral-400 dark:text-neutral-500"
         />
 
@@ -151,7 +153,7 @@ export function ScheduleSection({
           onChange={onDueDateChange}
           triggerRef={dueDateInputRef}
           error={dueDateError}
-          min={loanDate}
+          min={startDate}
           iconClassName="text-amber-500"
         />
       </div>

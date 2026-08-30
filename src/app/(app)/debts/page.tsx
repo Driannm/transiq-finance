@@ -5,9 +5,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
-import { SectionBlock } from "@/components/Shared/SectionBlock";
-import { CardList } from "@/components/Shared/CardList";
 import { BalanceHeader } from "@/components/Shared/BalanceHeader";
+import { CardList } from "@/components/Shared/CardList";
+import type { LoanItemMeta } from "@/components/Shared/CardList/types";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -17,100 +17,155 @@ import {
 import {
   Add01Icon,
   ArrowLeft02Icon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
   Calendar01Icon,
   Money02Icon,
   TextFontIcon,
   ViewIcon,
-  Edit03Icon,
-  Delete02Icon,
-  CheckmarkCircle02Icon,
-  AlertCircleIcon,
-  CreditCardIcon,
+  Coins01Icon,
+  UserIcon,
+  UserGroupIcon,
+  Briefcase01Icon,
+  ClipboardIcon,
 } from "@hugeicons/core-free-icons";
+
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { format, isValid } from "date-fns";
 import { getRelativeDateLabel } from "@/components/Shared/utils/groupBy";
-import { getDebtCategoryIcon } from "@/lib/iconMapping";
-
-// ─── IMPORT BARU UNTUK MODAL DINAMIS ───
-import { ReusableDialog } from "@/components/Shared/DinamicModal";
-import { DebtPaymentForm } from "@/components/Shared/DebtsPaymentForm";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { ReusableDialog } from "@/components/Shared/ReusableDialog";
+import { PaymentForm } from "@/components/DebtLoan/PaymentForm";
+import { useToast } from "@/hooks/UseToast";
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
+import { Textarea } from "@/components/ui/textarea";
 
 // ─── Types ───────────────────────────────────────────────────
 
-type DebtStatus = "unpaid" | "partial" | "paid";
-type DebtCategory = "personal" | "credit_card" | "bank" | "family" | "other";
+type DebtStatus = "unpaid" | "partial" | "overdue" | "paid";
+type DebtCategory = "personal" | "family" | "colleague" | "other";
 
 interface DebtItem {
   id: string;
-  name: string;
-  creditor: string;
+  name: string; // deskripsi pinjaman
+  creditor: string; // orang yang berhutang ke kamu
   category: DebtCategory;
-  totalAmount: number;
-  paidAmount: number;
-  dueDate: string;
+  totalAmount: number; // total yang dipinjamkan
+  paidAmount: number; // sudah dikembalikan
+  debtDate: string; // tanggal dipinjamkan
+  dueDate: string; // jatuh tempo pengembalian
   status: DebtStatus;
   notes?: string | null;
-  installment: boolean;
 }
 
-// ─── Helpers ────────────────────────────────────────────────
+import { formatIDR, safeDate, daysUntil, calcProgress } from "@/lib/format";
 
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID").format(n);
-}
+const safeFormatDate = (dateStr: string | null | undefined, fmt: string) => {
+  return safeDate(dateStr, fmt);
+};
 
-function safeFormatDate(
-  dateStr: string | null | undefined,
-  fmt: string,
-): string {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return isValid(d) ? format(d, fmt) : "—";
-}
+const getDaysUntilDue = (dateStr: string) => {
+  return daysUntil(dateStr);
+};
 
-function getDaysUntilDue(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dateStr);
-  due.setHours(0, 0, 0, 0);
-  return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function getProgressPercent(paid: number, total: number): number {
-  if (total === 0) return 0;
-  return Math.min(100, Math.round((paid / total) * 100));
-}
+const getProgressPercent = (returned: number, total: number) => {
+  return calcProgress(returned, total);
+};
 
 // ─── Config ─────────────────────────────────────────────────
 
+const CATEGORY_ICON: Record<DebtCategory, typeof UserIcon> = {
+  personal: UserIcon,
+  family: UserGroupIcon,
+  colleague: Briefcase01Icon,
+  other: ClipboardIcon,
+};
+
 const STATUS_META: Record<
   DebtStatus,
-  { label: string; color: string; bg: string; dot: string; bar: string }
+  { label: string; color: string; bg: string }
 > = {
   unpaid: {
     label: "Belum Bayar",
-    color: "text-red-400",
-    bg: "bg-red-500/15 border-red-500/25",
-    dot: "bg-red-400",
-    bar: "bg-red-400",
+    color: "text-blue-500 dark:text-blue-400",
+    bg: "bg-blue-500/10 dark:bg-blue-500/15 border-blue-500/20 dark:border-blue-500/25",
   },
   partial: {
-    label: "Sebagian",
-    color: "text-amber-400",
-    bg: "bg-amber-500/15 border-amber-500/25",
-    dot: "bg-amber-400",
-    bar: "bg-amber-400",
+    label: "Dicicil",
+    color: "text-amber-500 dark:text-amber-400",
+    bg: "bg-amber-500/10 dark:bg-amber-500/15 border-amber-500/20 dark:border-amber-500/25",
+  },
+  overdue: {
+    label: "Jatuh Tempo",
+    color: "text-red-500 dark:text-red-400",
+    bg: "bg-red-500/10 dark:bg-red-500/15 border-red-500/20 dark:border-red-500/25",
   },
   paid: {
     label: "Lunas",
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/15 border-emerald-500/25",
-    dot: "bg-emerald-400",
-    bar: "bg-emerald-400",
+    color: "text-emerald-500 dark:text-emerald-400",
+    bg: "bg-emerald-500/10 dark:bg-emerald-500/15 border-emerald-500/20 dark:border-emerald-500/25",
+  },
+};
+
+const STAMP_META: Record<
+  DebtStatus,
+  { label: string; border: string; text: string; bg: string; rotate: string }
+> = {
+  unpaid: {
+    label: "Belum Bayar",
+    border: "border-blue-500/50 dark:border-blue-400/50",
+    text: "text-blue-500 dark:text-blue-400",
+    bg: "bg-blue-500/5 dark:bg-blue-405/5",
+    rotate: "-rotate-6",
+  },
+  partial: {
+    label: "Dicicil",
+    border: "border-amber-500/55 dark:border-amber-400/55",
+    text: "text-amber-500 dark:text-amber-400",
+    bg: "bg-amber-500/5 dark:bg-amber-405/5",
+    rotate: "-rotate-3",
+  },
+  overdue: {
+    label: "Jatuh Tempo",
+    border: "border-red-500/60 dark:border-red-400/60",
+    text: "text-red-500 dark:text-red-400",
+    bg: "bg-red-500/5 dark:bg-red-405/5",
+    rotate: "-rotate-12",
+  },
+  paid: {
+    label: "Lunas",
+    border: "border-emerald-600/70 dark:border-emerald-400/70",
+    text: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-600/10 dark:bg-emerald-400/10",
+    rotate: "-rotate-12 scale-110",
   },
 };
 
@@ -120,17 +175,25 @@ export default function DebtsPage() {
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
-  const [activeStatus, setActiveStatus] = useState<"all" | DebtStatus>("all");
+  const [unpaidStatus, setActiveStatus] = useState<"all" | DebtStatus>("all");
 
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
 
-  // ─── STATE DIALOG PEMBAYARAN UTANG ───
-  const [selectedDebt, setSelectedDebt] = useState<DebtItem | null>(null);
-  const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-
   const router = useRouter();
+
+  // ─── STATE DIALOG PEMBAYARAN UTANG/PIUTANG ───
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [unpaidDebtForPayment, setActiveDebtForPayment] =
+    useState<DebtItem | null>(null);
+
+  const toast = useToast();
+
+  const openPaymentModal = (debt: DebtItem) => {
+    setActiveDebtForPayment(debt);
+    setPaymentModalOpen(true);
+  };
 
   const CONTROLS_CONFIG: DataControlsConfig = {
     search: {
@@ -155,34 +218,33 @@ export default function DebtsPage() {
       try {
         const nextPage = isLoadMore ? page + 1 : 1;
         const res = await fetch(
-          `/api/debts?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`,
+          `/api/debts?month=${month}&status=${unpaidStatus}&page=${nextPage}&limit=100`,
         );
-
         if (!res.ok) throw new Error("Gagal mengambil data dari server");
         const data = await res.json();
 
         if (!isLoadMore) {
-          setDebts(data.debts);
+          setDebts(data.debts || []);
           setPage(1);
         } else {
-          setDebts((prev) => [...prev, ...data.debts]);
+          setDebts((prev) => [...prev, ...(data.debts || [])]);
           setPage(nextPage);
         }
         setHasMore(false);
       } catch (err) {
-        console.error("Gagal memuat data utang:", err);
+        console.error("Failed to fetch debts:", err);
         if (!isLoadMore) setDebts([]);
       } finally {
         if (isLoadMore) setLoadingMore(false);
         else setLoading(false);
       }
     },
-    [month, page, activeStatus],
+    [month, page, unpaidStatus],
   );
 
   useEffect(() => {
     fetchDebts();
-  }, [month, activeStatus]); // eslint-disable-line
+  }, [month, unpaidStatus]); // eslint-disable-line
 
   const prevMonth = () => {
     const d = new Date(month + "-01");
@@ -197,45 +259,56 @@ export default function DebtsPage() {
 
   // Stats
   const filteredByStatus =
-    activeStatus === "all"
-      ? debts
-      : debts.filter((d) => d.status === activeStatus);
-  const totalRemaining = debts
-    .filter((d) => d.status !== "paid")
-    .reduce((s, d) => s + (d.totalAmount - d.paidAmount), 0);
-  const totalPaid = debts.reduce((s, d) => s + d.paidAmount, 0);
+    unpaidStatus === "all"
+      ? debts.filter((l) => l.status !== "paid")
+      : debts.filter((l) => l.status === unpaidStatus);
+  const totalOutstanding = debts
+    .filter((l) => l.status !== "paid")
+    .reduce((s, l) => s + (l.totalAmount - l.paidAmount), 0);
+  const totalReturned = debts.reduce((s, l) => s + l.paidAmount, 0);
+  const totalDebt = debts.reduce((s, l) => s + l.totalAmount, 0);
   const overdueCount = debts.filter(
-    (d) => d.status !== "paid" && getDaysUntilDue(d.dueDate) < 0,
+    (l) => l.status !== "paid" && getDaysUntilDue(l.dueDate) < 0,
   ).length;
 
   // Actions
-  const handleView = useCallback(
-    (id: string | number) => {
-      router.push(`/debts/${id}`);
-    },
-    [router],
-  );
-  const handleEdit = useCallback(
-    (id: string | number) => {
-      router.push(`/debts/${id}/edit`);
-    },
-    [router],
-  );
-
+  const handleView = useCallback((id: string | number) => {
+    window.location.href = `/debts/${id}`;
+  }, []);
+  const handleEdit = useCallback((id: string | number) => {
+    window.location.href = `/debts/${id}/edit`;
+  }, []);
   const handleDelete = useCallback(async (id: string | number) => {
     try {
       const res = await fetch(`/api/debts/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Gagal menghapus utang");
-      setDebts((prev) => prev.filter((d) => d.id !== id));
+      setDebts((prev) => prev.filter((l) => l.id !== id));
     } catch (err) {
       console.error(err);
     }
   }, []);
-
-  // ─── UPDATE METHOD MARK PAID ───
-  const handlePaid = useCallback((debt: DebtItem) => {
-    setSelectedDebt(debt);
-    setIsPayModalOpen(true);
+  const handleMarkSettled = useCallback(async (id: string | number) => {
+    try {
+      const res = await fetch(`/api/debts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "settled" }),
+      });
+      if (!res.ok) throw new Error("Gagal melunasi utang");
+      setDebts((prev) =>
+        prev.map((l) =>
+          l.id === id
+            ? { ...l, status: "paid", paidAmount: l.totalAmount }
+            : l,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+  const handleRemind = useCallback((id: string | number) => {
+    // TODO: kirim notifikasi / reminder ke creditor
+    console.log("Remind creditor for debt:", id);
   }, []);
 
   const controls = useDataControls<DebtItem>(filteredByStatus, CONTROLS_CONFIG);
@@ -246,9 +319,15 @@ export default function DebtsPage() {
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
       {/* ── Navbar ── */}
-      <div className="sticky top-0 z-50">
+      <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
-          title="Utang"
+          title={
+            loading ? (
+              <span className="inline-block w-16 h-3.5 bg-neutral-200 dark:bg-neutral-800 animate-pulse rounded-md mt-1" />
+            ) : (
+              "Utang"
+            )
+          }
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
           onAvatarPress={() => router.push("/dashboard")}
           actions={[
@@ -265,16 +344,16 @@ export default function DebtsPage() {
         />
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
-        {/* ── Hero Card ── */}
+      <div className="px-4 pt-4 space-y-5 pt-[64px]">
+        {/* ── Hero Card — Emerald/Teal theme untuk utang ── */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         >
           <BalanceHeader
-            label="Total sisa utang"
-            amount={totalRemaining}
+            label="Total utang"
+            amount={totalOutstanding}
             variant="rose"
             isLoading={loading}
             monthSelector={{
@@ -284,45 +363,10 @@ export default function DebtsPage() {
               style: "sleek",
             }}
             progress={{
-              percentage: getProgressPercent(
-                totalPaid,
-                totalPaid + totalRemaining,
-              ),
-              labelLeft: "Progress pelunasan",
-              labelRight: `${getProgressPercent(totalPaid, totalPaid + totalRemaining)}%`,
+              percentage: getProgressPercent(totalReturned, totalDebt),
+              labelLeft: "Terbayar",
+              labelRight: `IDR ${formatIDR(totalReturned)}`,
             }}
-            badges={[
-              <div
-                key="paid"
-                className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full"
-              >
-                <HugeiconsIcon
-                  icon={CheckmarkCircle02Icon}
-                  size={14}
-                  className="text-emerald-400"
-                />
-                <span className="text-xs font-mono font-medium text-white">
-                  IDR {formatIDR(totalPaid)} terlunasi
-                </span>
-              </div>,
-              ...(overdueCount > 0
-                ? [
-                    <div
-                      key="overdue"
-                      className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-md border border-red-500/30 px-3 py-1.5 rounded-full"
-                    >
-                      <HugeiconsIcon
-                        icon={AlertCircleIcon}
-                        size={14}
-                        className="text-red-400"
-                      />
-                      <span className="text-xs font-semibold text-red-300">
-                        {overdueCount} melewati jatuh tempo
-                      </span>
-                    </div>,
-                  ]
-                : []),
-            ]}
           />
         </motion.div>
 
@@ -333,37 +377,27 @@ export default function DebtsPage() {
           transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
           className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
         >
-          {(["all", "unpaid", "partial", "paid"] as const).map((s) => {
-            const isActive = activeStatus === s;
-            const meta = s !== "all" ? STATUS_META[s] : null;
-            return (
-              <button
-                key={s}
-                onClick={() => setActiveStatus(s)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
-                  isActive
-                    ? s === "all"
-                      ? "bg-white text-neutral-900 border-white"
-                      : `${meta!.bg} ${meta!.color} border-transparent`
-                    : "bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 border-transparent"
-                }`}
-              >
-                {meta && (
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${isActive ? meta.dot : "bg-neutral-400"}`}
-                  />
-                )}
-                {s === "all" ? "Semua" : meta!.label}
-                <span
-                  className={`ml-0.5 font-mono ${isActive ? "" : "text-neutral-400 dark:text-neutral-500"}`}
+          {(["all", "unpaid", "partial", "overdue", "paid"] as const).map(
+            (s) => {
+              const isActive = unpaidStatus === s;
+              const meta = s !== "all" ? STATUS_META[s] : null;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setActiveStatus(s)}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
+                    isActive
+                      ? s === "all"
+                        ? "bg-white text-neutral-900 border-white"
+                        : `${meta!.bg} ${meta!.color} border-transparent`
+                      : "bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 border-transparent"
+                  }`}
                 >
-                  {s === "all"
-                    ? debts.length
-                    : debts.filter((d) => d.status === s).length}
-                </span>
-              </button>
-            );
-          })}
+                  {s === "all" ? "Semua" : meta!.label}
+                </button>
+              );
+            },
+          )}
         </motion.div>
 
         {/* ── DataControlsBar ── */}
@@ -386,182 +420,106 @@ export default function DebtsPage() {
           />
         </motion.div>
 
-        {/* ── Debt List ── */}
-        <SectionBlock title="Semua Utang" padded={false}>
-          <CardList<DebtItem>
+        {/* ── Debts List Wrapper ── */}
+        <div className="space-y-2">
+          {/* ── Status Count Label ── */}
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 px-1 font-semibold select-none">
+            {unpaidStatus === "all"
+              ? `Menampilkan ${filteredByStatus.length} Utang`
+              : `Status ${STATUS_META[unpaidStatus].label}: ${filteredByStatus.length} Utang`}
+          </p>
+
+          {/* ── Debts List ── */}
+          <CardList
             items={controls.data}
-            layout="detailed"
-            enableSwipe={true}
-            grouping={
-              isFlat
-                ? undefined
-                : {
-                    enabled: true,
-                    groupBy: (item) => getRelativeDateLabel(item.dueDate),
-                    showSubtotal: true,
-                    subtotalFormatter: (amount) =>
-                      `IDR ${formatIDR(Math.abs(amount))}`,
-                    amountExtractor: (item) =>
-                      item.totalAmount - item.paidAmount,
-                    typeExtractor: () => "expense",
-                  }
-            }
-            keyExtractor={(d) => d.id}
+            layout="loan"
+            keyExtractor={(debt) => debt.id}
+            isLoading={loading}
+            skeleton={{
+              fields: [
+                "icon",
+                "title",
+                "subtitle",
+                "amount",
+                "date",
+                "bottom",
+                "badge",
+              ],
+              count: 4,
+            }}
+            onItemPress={(debt) => handleView(debt.id)}
             renderItem={(debt) => {
-              const days = getDaysUntilDue(debt.dueDate);
-              const progress = getProgressPercent(
+              const remaining = debt.totalAmount - debt.paidAmount;
+              const progressPercent = getProgressPercent(
                 debt.paidAmount,
                 debt.totalAmount,
               );
-              const remaining = debt.totalAmount - debt.paidAmount;
-
-              const CategoryIcon = getDebtCategoryIcon(debt.category);
-
-              return {
-                left: (
-                  <>
-                    <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/40 flex items-center justify-center flex-shrink-0 text-rose-600 dark:text-rose-300">
-                      <HugeiconsIcon icon={CategoryIcon} size={20} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                          {debt.name}
-                        </p>
-                        {debt.installment && (
-                          <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
-                            Cicilan
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {debt.creditor}
-                        </p>
-                        {debt.status !== "paid" && (
-                          <>
-                            <span className="text-neutral-300 dark:text-neutral-600">
-                              ·
-                            </span>
-                            <span
-                              className={`text-xs font-medium ${days < 0 ? "text-red-400" : days <= 3 ? "text-amber-400" : "text-neutral-400"}`}
-                            >
-                              {days < 0
-                                ? `${Math.abs(days)}h lewat`
-                                : days === 0
-                                  ? "Hari ini"
-                                  : `${days}h lagi`}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {/* Progress bar per item */}
-                      {debt.status === "partial" && (
-                        <div className="mt-1.5 h-1 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden w-full">
-                          <div
-                            className="h-full bg-amber-400 rounded-full"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </>
-                ),
-                right: `IDR ${formatIDR(remaining)}`,
-                meta: {
-                  date: safeFormatDate(debt.dueDate, "dd MMM yyyy"),
-                  amount: remaining,
-                  type: "expense" as const,
-                },
+              const loanData: LoanItemMeta = {
+                remaining,
+                totalAmount: debt.totalAmount,
+                returnedAmount: debt.paidAmount,
+                progressPercent,
+                status: debt.status as any,
+                debtor: debt.creditor,
+                category: debt.category as any,
+                dueDate: debt.dueDate,
+                isDebt: true,
+                onRecordPayment: () => openPaymentModal(debt),
               };
-            }}
-            swipeActions={[
-              {
-                id: "view",
-                label: "Detail",
-                variant: "primary",
-                icon: <HugeiconsIcon icon={ViewIcon} size={18} />,
-                onExecute: handleView,
-                position: "left",
-              },
-              {
-                id: "pay",
-                label: "Bayar",
-                variant: "primary",
-                icon: <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />,
-                onExecute: (id) => {
-                  const debt = debts.find((d) => d.id === id);
-                  if (debt) handlePaid(debt);
-                },
-              },
-              {
-                id: "edit",
-                label: "Edit",
-                variant: "primary",
-                icon: <HugeiconsIcon icon={Edit03Icon} size={18} />,
-                onExecute: handleEdit,
-              },
-              {
-                id: "delete",
-                label: "Hapus",
-                variant: "danger",
-                icon: <HugeiconsIcon icon={Delete02Icon} size={18} />,
-                onExecute: handleDelete,
-                requiresConfirm: true,
-                confirmMessage:
-                  "Utang akan dihapus permanen. Data tidak dapat dikembalikan.",
-              },
-            ]}
-            isLoading={loading}
-            skeleton={{
-              fields: ["icon", "title", "subtitle", "amount", "date"],
-              count: 5,
+              return {
+                left: debt.name,
+                right: null,
+                meta: { loanData },
+              };
             }}
             emptyState={{
               icon: (
                 <HugeiconsIcon
-                  icon={CreditCardIcon}
-                  size={32}
-                  className="text-gray-300 dark:text-gray-600"
+                  icon={Coins01Icon}
+                  size={24}
+                  className="text-gray-400 dark:text-gray-500"
                 />
               ),
               title: "Belum ada utang",
-              description:
-                "Catat utang kamu untuk memantau kewajiban pembayaran.",
+              description: "Catat utang kamu agar tidak ada yang terlupakan.",
+              variant: "card",
               actions: [
                 {
-                  id: "add-debt",
+                  id: "add",
                   label: "Tambah Utang",
-                  onPress: () => router.push("/debts/add"),
+                  onPress: () => (window.location.href = "/debts/add"),
                   variant: "primary",
                 },
               ],
             }}
-            hasMore={hasMore}
-            onLoadMore={() => fetchDebts(true)}
-            loadingMore={loadingMore}
-            className="mt-3"
           />
-        </SectionBlock>
+        </div>
       </div>
 
-      {/* ─── MODAL DIALOG PEMBAYARAN UTANG (REUSABLE SHADCN) ─── */}
+      {/* ── Record Payment Modal ── */}
       <ReusableDialog
-        isOpen={isPayModalOpen}
-        onClose={() => setIsPayModalOpen(false)}
-        title="Pembayaran Utang"
-        description="Isi nominal pembayaran cicilan atau lunasi sisa tagihan utang Anda."
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title="Catat Pengembalian Utang"
+        description="Catat sebagian atau seluruh pembayaran yang diterima untuk utang ini."
       >
-        {selectedDebt && (
-          <DebtPaymentForm
-            debtId={selectedDebt.id}
-            debtName={selectedDebt.name}
-            remainingAmount={selectedDebt.totalAmount - selectedDebt.paidAmount}
+        {unpaidDebtForPayment && (
+          <PaymentForm
+            obligationId={unpaidDebtForPayment.id}
+            obligationName={unpaidDebtForPayment.name}
+            personName={unpaidDebtForPayment.creditor}
+            remainingAmount={
+              unpaidDebtForPayment.totalAmount -
+              unpaidDebtForPayment.paidAmount
+            }
+            apiPath={`/api/debts/${unpaidDebtForPayment.id}/payments`}
+            titleLabel="Utang Aktif"
+            personLabel="Kreditur:"
             onSuccess={() => {
-              setIsPayModalOpen(false);
-              fetchDebts(); // Tarik data real terbaru untuk mengupdate grafik & sisa utang
+              setPaymentModalOpen(false);
+              fetchDebts();
             }}
-            onCancel={() => setIsPayModalOpen(false)}
+            onCancel={() => setPaymentModalOpen(false)}
           />
         )}
       </ReusableDialog>

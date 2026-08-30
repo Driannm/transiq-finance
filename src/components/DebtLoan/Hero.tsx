@@ -16,10 +16,12 @@ type HeroProps = {
   disabledAmount?: boolean;
   loading?: boolean;
 
-  debtor: string;
-  onDebtorChange: (val: string) => void;
-  debtorInputRef: RefObject<HTMLInputElement | null>;
-  debtorError?: string;
+  personName: string;
+  onPersonChange: (val: string) => void;
+  personInputRef: RefObject<HTMLInputElement | null>;
+  personError?: string;
+  personLabel: string;
+  personPlaceholder?: string;
 };
 
 export function Hero({
@@ -29,10 +31,12 @@ export function Hero({
   amountError,
   disabledAmount = false,
   loading = false,
-  debtor,
-  onDebtorChange,
-  debtorInputRef,
-  debtorError,
+  personName,
+  onPersonChange,
+  personInputRef,
+  personError,
+  personLabel,
+  personPlaceholder = "Nama Entitas",
 }: HeroProps) {
   const [amountFocused, setAmountFocused] = useState(false);
   const amount = parseIDRPreview(amountRaw);
@@ -68,7 +72,7 @@ export function Hero({
                   "absolute inset-0 opacity-0 w-full h-full cursor-text",
                   (disabledAmount || loading) && "cursor-default pointer-events-none"
                 )}
-                aria-label="Nominal piutang"
+                aria-label="Nominal"
                 aria-invalid={!!amountError}
               />
               <span
@@ -98,32 +102,32 @@ export function Hero({
 
       <div className="w-full max-w-[220px] h-px bg-[var(--line,#E7E4DD)] dark:bg-neutral-800 my-6" />
 
-      {/* Debtor */}
+      {/* Person */}
       <div className="w-full max-w-xs relative min-h-[36px]">
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted,#8A857D)] mb-1.5">
-          Kepada
+          {personLabel}
         </p>
         {loading ? (
           <Skeleton className="h-8 w-40 mx-auto rounded-xl bg-neutral-200 dark:bg-neutral-800" />
         ) : (
           <div className="relative animate-fade-in w-full text-center">
             <input
-              ref={debtorInputRef}
+              ref={personInputRef}
               type="text"
-              value={debtor}
-              onChange={(e) => onDebtorChange(e.target.value)}
-              placeholder="Nama peminjam"
-              aria-invalid={!!debtorError}
+              value={personName}
+              onChange={(e) => onPersonChange(e.target.value)}
+              placeholder={personPlaceholder}
+              aria-invalid={!!personError}
               className={cn(
                 "w-full text-center text-xl sm:text-2xl font-medium bg-transparent border-none outline-none placeholder:text-neutral-300 dark:placeholder:text-neutral-700",
-                debtor ? "text-neutral-900 dark:text-white" : "text-neutral-400",
+                personName ? "text-neutral-900 dark:text-white" : "text-neutral-400",
               )}
             />
-            {debtor && (
+            {personName && (
               <button
                 type="button"
-                onClick={() => onDebtorChange("")}
-                aria-label="Hapus nama peminjam"
+                onClick={() => onPersonChange("")}
+                aria-label="Hapus nama"
                 className="absolute right-0 top-1/2 -translate-y-1/2 p-1 text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300"
               >
                 <HugeiconsIcon icon={Cancel01Icon} size={16} />
@@ -132,9 +136,9 @@ export function Hero({
           </div>
         )}
       </div>
-      {debtorError && (
+      {personError && (
         <p role="alert" className="text-xs text-red-500 mt-1.5">
-          {debtorError}
+          {personError}
         </p>
       )}
     </div>

@@ -4,25 +4,33 @@
 import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft02Icon, Calendar01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft02Icon,
+  Calendar01Icon,
+  CheckmarkCircle02Icon,
+} from "@hugeicons/core-free-icons";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { CATEGORY_OPTIONS, formatIDRInput } from "@/components/Loan/Format";
-import { Hero } from "@/components/Loan/Hero";
-import type { LoanCategory } from "@/components/Loan/types";
+import { CATEGORY_OPTIONS, formatIDRInput } from "@/components/DebtLoan/Format";
+import { Hero } from "@/components/DebtLoan/Hero";
+import type { ObligationCategory } from "@/components/DebtLoan/types";
 import { motion } from "framer-motion";
 
 interface LoanData {
   id: string;
   name: string;
   debtor: string;
-  category: LoanCategory;
+  category: ObligationCategory;
   dueDate: string | null;
   totalAmount: number;
 }
@@ -42,7 +50,7 @@ export default function EditLoanPage({
   // Form fields
   const [name, setName] = useState("");
   const [debtor, setDebtor] = useState("");
-  const [category, setCategory] = useState<LoanCategory>("personal");
+  const [category, setCategory] = useState<ObligationCategory>("personal");
   const [dueDate, setDueDate] = useState("");
   const [amountRaw, setAmountRaw] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -84,7 +92,7 @@ export default function EditLoanPage({
   function validate() {
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = "Catatan wajib diisi";
-    if (!debtor.trim()) errs.debtor = "Nama peminjam wajib diisi";
+    if (!debtor.trim()) errs.personName = "Nama peminjam wajib diisi";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -131,7 +139,11 @@ export default function EditLoanPage({
       </div>
 
       <div className="w-full max-w-lg mx-auto flex-1 flex flex-col pt-[64px]">
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1" noValidate>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1"
+          noValidate
+        >
           <Hero
             amountRaw={amountRaw}
             onAmountChange={setAmountRaw}
@@ -139,10 +151,12 @@ export default function EditLoanPage({
             amountError={errors.amount}
             disabledAmount={true}
             loading={loading}
-            debtor={debtor}
-            onDebtorChange={setDebtor}
-            debtorInputRef={debtorInputRef}
-            debtorError={errors.debtor}
+            personName={debtor}
+            onPersonChange={setDebtor}
+            personInputRef={debtorInputRef}
+            personError={errors.personName}
+            personLabel="Kepada"
+            personPlaceholder="Nama Peminjam"
           />
 
           <div className="flex-1 px-4 space-y-6 pb-8">
@@ -154,7 +168,9 @@ export default function EditLoanPage({
               <div className="rounded-2xl border border-[var(--line,#E7E4DD)] dark:border-neutral-800 overflow-hidden divide-y divide-[var(--line,#E7E4DD)] dark:divide-neutral-800 bg-white dark:bg-neutral-900/40">
                 {/* Catatan Field */}
                 <div className="px-4 py-3.5">
-                  <p className="text-xs text-[var(--muted,#8A857D)] mb-1">Catatan</p>
+                  <p className="text-xs text-[var(--muted,#8A857D)] mb-1">
+                    Catatan
+                  </p>
                   {loading ? (
                     <Skeleton className="h-5 w-48 mt-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
                   ) : (
@@ -178,11 +194,13 @@ export default function EditLoanPage({
 
                 {/* Kategori Field */}
                 <div className="py-3.5">
-                  <p className="text-xs text-[var(--muted,#8A857D)] mb-2.5 px-4">Kategori</p>
+                  <p className="text-xs text-[var(--muted,#8A857D)] mb-2.5 px-4">
+                    Kategori
+                  </p>
                   <div
                     className={cn(
                       "flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-opacity duration-300",
-                      loading && "pointer-events-none opacity-60"
+                      loading && "pointer-events-none opacity-60",
                     )}
                     role="radiogroup"
                     aria-label="Kategori piutang"
@@ -205,7 +223,10 @@ export default function EditLoanPage({
                           )}
                         >
                           {active && !loading ? (
-                            <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
+                            <HugeiconsIcon
+                              icon={CheckmarkCircle02Icon}
+                              size={15}
+                            />
                           ) : (
                             <HugeiconsIcon
                               icon={c.icon}
@@ -229,7 +250,9 @@ export default function EditLoanPage({
                       className="flex-shrink-0 text-amber-500"
                     />
                     <div className="flex-1">
-                      <p className="text-xs text-[var(--muted,#8A857D)]">Tanggal Jatuh Tempo</p>
+                      <p className="text-xs text-[var(--muted,#8A857D)]">
+                        Tanggal Jatuh Tempo
+                      </p>
                       <Skeleton className="h-5 w-32 mt-1 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
                     </div>
                   </div>
@@ -248,22 +271,29 @@ export default function EditLoanPage({
                           className="flex-shrink-0 text-amber-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-[var(--muted,#8A857D)]">Tanggal Jatuh Tempo</p>
+                          <p className="text-xs text-[var(--muted,#8A857D)]">
+                            Tanggal Jatuh Tempo
+                          </p>
                           <p
                             className={cn(
                               "text-[15px] font-medium mt-0.5 animate-fade-in",
                               dueDate
                                 ? "text-neutral-900 dark:text-white"
-                                : "text-neutral-400"
+                                : "text-neutral-400",
                             )}
                           >
                             {dueDate
-                              ? format(new Date(dueDate), "d MMM yyyy", { locale: idLocale })
+                              ? format(new Date(dueDate), "d MMM yyyy", {
+                                  locale: idLocale,
+                                })
                               : "Pilih tanggal"}
                           </p>
                         </div>
                         {errors.dueDate && (
-                          <p role="alert" className="text-xs text-red-500 flex-shrink-0">
+                          <p
+                            role="alert"
+                            className="text-xs text-red-500 flex-shrink-0"
+                          >
                             {errors.dueDate}
                           </p>
                         )}
@@ -276,7 +306,9 @@ export default function EditLoanPage({
                       <Calendar
                         mode="single"
                         selected={dueDate ? new Date(dueDate) : undefined}
-                        onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                        onSelect={(date) =>
+                          setDueDate(date ? format(date, "yyyy-MM-dd") : "")
+                        }
                         locale={idLocale}
                       />
                     </PopoverContent>
@@ -289,7 +321,9 @@ export default function EditLoanPage({
           {/* BUTTON BAR - STICKY BOTTOM */}
           <div
             className="sticky bottom-0 left-0 right-0 px-4 pt-3 border-t border-[var(--line,#E7E4DD)] dark:border-neutral-800 bg-[var(--paper,#FAFAF8)]/85 dark:bg-neutral-950/85 backdrop-blur-md flex gap-3"
-            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            style={{
+              paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+            }}
           >
             <motion.button
               type="button"
@@ -307,7 +341,7 @@ export default function EditLoanPage({
                 "flex-1 h-13 sm:h-14 rounded-2xl font-semibold text-[15px] transition-colors flex items-center justify-center gap-2",
                 !saving
                   ? "bg-[var(--accent,#0E6E4E)] hover:bg-emerald-800 text-white"
-                  : "bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 cursor-not-allowed"
+                  : "bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 cursor-not-allowed",
               )}
             >
               {saving && (

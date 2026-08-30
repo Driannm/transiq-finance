@@ -7,7 +7,7 @@ export type CardItem = {
   balance: number;
 };
 
-export type LoanCategory = "personal" | "family" | "colleague" | "other";
+export type ObligationCategory = "personal" | "family" | "colleague" | "credit_card" | "bank" | "other";
 
 /**
  * Distinct fetch states for the source-account list.
@@ -18,7 +18,7 @@ export type CardsFetchState = "loading" | "success" | "error";
 
 export type FormErrors = Partial<
   Record<
-    "debtor" | "name" | "cardId" | "amount" | "loanDate" | "dueDate",
+    "personName" | "name" | "cardId" | "amount" | "startDate" | "dueDate",
     string
   >
 >;

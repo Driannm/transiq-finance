@@ -29,7 +29,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ReusableDialog } from "@/components/Shared/ReusableDialog";
-import { PaymentForm } from "@/components/Loan/PaymentForm";
+import { PaymentForm } from "@/components/DebtLoan/PaymentForm";
 import { format, isValid } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
@@ -206,7 +206,10 @@ export default function LoanDetailPage({
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
-          toast.show({ title: "Piutang berhasil dilunasi", variant: "success" });
+          toast.show({
+            title: "Piutang berhasil dilunasi",
+            variant: "success",
+          });
           await fetchLoan();
         } catch (err: any) {
           toast.show({
@@ -545,10 +548,13 @@ export default function LoanDetailPage({
       >
         {loan && (
           <PaymentForm
-            loanId={loan.id}
-            loanName={loan.name}
-            debtorName={loan.debtor}
+            obligationId={loan.id}
+            obligationName={loan.name}
+            personName={loan.debtor}
             remainingAmount={loan.remaining}
+            apiPath={`/api/loans/${loan.id}/payments`}
+            titleLabel="Piutang Aktif"
+            personLabel="Debitur:"
             onSuccess={() => {
               setPaymentOpen(false);
               fetchLoan();
@@ -557,8 +563,6 @@ export default function LoanDetailPage({
           />
         )}
       </ReusableDialog>
-
-
     </div>
   );
 }

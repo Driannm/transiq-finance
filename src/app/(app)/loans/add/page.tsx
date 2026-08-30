@@ -10,17 +10,17 @@ import { format } from "date-fns";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
 
-import { Hero } from "@/components/Loan/Hero";
-import { SourceAccountSelector } from "@/components/Loan/SourceAccount";
-import { ScheduleSection } from "@/components/Loan/ScheduleSection";
-import { SubmitBar } from "@/components/Loan/SubmitBar";
-import { parseAmount } from "@/components/Loan/Format";
+import { Hero } from "@/components/DebtLoan/Hero";
+import { SourceAccountSelector } from "@/components/DebtLoan/SourceAccount";
+import { ScheduleSection } from "@/components/DebtLoan/ScheduleSection";
+import { SubmitBar } from "@/components/DebtLoan/SubmitBar";
+import { parseAmount } from "@/components/DebtLoan/Format";
 import type {
   CardItem,
   CardsFetchState,
   FormErrors,
-  LoanCategory,
-} from "@/components/Loan/types";
+  ObligationCategory,
+} from "@/components/DebtLoan/types";
 
 export default function AddLoanPage() {
   const router = useRouter();
@@ -43,7 +43,7 @@ export default function AddLoanPage() {
   const [amountRaw, setAmountRaw] = useState("");
   const [debtor, setDebtor] = useState("");
   const [name, setName] = useState("");
-  const [category, setCategory] = useState<LoanCategory>("personal");
+  const [category, setCategory] = useState<ObligationCategory>("personal");
   const [cardId, setCardId] = useState("");
   const [loanDate, setLoanDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [dueDate, setDueDate] = useState("");
@@ -95,12 +95,12 @@ export default function AddLoanPage() {
 
   function validate(): boolean {
     const errs: FormErrors = {};
-    if (!debtor.trim()) errs.debtor = "Nama peminjam wajib diisi";
+    if (!debtor.trim()) errs.personName = "Nama peminjam wajib diisi";
     if (!name.trim()) errs.name = "Deskripsi piutang wajib diisi";
     if (!cardId) errs.cardId = "Pilih rekening asal";
     if (!amount || amount <= 0)
       errs.amount = "Nominal harus lebih besar dari 0";
-    if (!loanDate) errs.loanDate = "Tanggal pemberian wajib diisi";
+    if (!loanDate) errs.startDate = "Tanggal pemberian wajib diisi";
     if (!dueDate) errs.dueDate = "Tanggal jatuh tempo wajib diisi";
     if (dueDate && loanDate && dueDate < loanDate)
       errs.dueDate = "Jatuh tempo harus setelah tanggal pemberian";
@@ -116,9 +116,9 @@ export default function AddLoanPage() {
     // Move focus to the first invalid field so keyboard and screen-reader
     // users land somewhere meaningful instead of just seeing inline text.
     if (errs.amount) return amountInputRef.current?.focus();
-    if (errs.debtor) return debtorInputRef.current?.focus();
+    if (errs.personName) return debtorInputRef.current?.focus();
     if (errs.name) return nameInputRef.current?.focus();
-    if (errs.loanDate) return loanDateInputRef.current?.focus();
+    if (errs.startDate) return loanDateInputRef.current?.focus();
     if (errs.dueDate) return dueDateInputRef.current?.focus();
   }
 
@@ -137,7 +137,7 @@ export default function AddLoanPage() {
           debtor: debtor.trim(),
           category,
           totalAmount: amount,
-          loanDate,
+          date: loanDate,
           dueDate,
           notes: null,
         }),
@@ -171,16 +171,22 @@ export default function AddLoanPage() {
         />
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 pt-[64px]">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col flex-1 pt-[64px]"
+      >
         <Hero
           amountRaw={amountRaw}
           onAmountChange={setAmountRaw}
           amountInputRef={amountInputRef}
           amountError={errors.amount}
-          debtor={debtor}
-          onDebtorChange={setDebtor}
-          debtorInputRef={debtorInputRef}
-          debtorError={errors.debtor}
+          personName={debtor}
+          onPersonChange={setDebtor}
+          personInputRef={debtorInputRef}
+          personError={errors.personName}
+          personLabel="Kepada"
+          personPlaceholder="Nama Peminjam"
         />
 
         <div className="flex-1 px-4 space-y-7 pb-8">
@@ -206,10 +212,11 @@ export default function AddLoanPage() {
             nameInputRef={nameInputRef}
             category={category}
             onCategoryChange={setCategory}
-            loanDate={loanDate}
-            onLoanDateChange={setLoanDate}
-            loanDateError={errors.loanDate}
-            loanDateInputRef={loanDateInputRef}
+            startDate={loanDate}
+            onStartDateChange={setLoanDate}
+            startDateError={errors.startDate}
+            startDateInputRef={loanDateInputRef}
+            startDateLabel="Tanggal Pemberian"
             dueDate={dueDate}
             onDueDateChange={setDueDate}
             dueDateError={errors.dueDate}

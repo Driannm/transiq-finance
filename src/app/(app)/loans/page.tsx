@@ -47,7 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { ReusableDialog } from "@/components/Shared/ReusableDialog";
-import { PaymentForm } from "@/components/Loan/PaymentForm";
+import { PaymentForm } from "@/components/DebtLoan/PaymentForm";
 import { useToast } from "@/hooks/UseToast";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -504,13 +504,16 @@ export default function LoansPage() {
       >
         {activeLoanForPayment && (
           <PaymentForm
-            loanId={activeLoanForPayment.id}
-            loanName={activeLoanForPayment.name}
-            debtorName={activeLoanForPayment.debtor}
+            obligationId={activeLoanForPayment.id}
+            obligationName={activeLoanForPayment.name}
+            personName={activeLoanForPayment.debtor}
             remainingAmount={
               activeLoanForPayment.totalAmount -
               activeLoanForPayment.returnedAmount
             }
+            apiPath={`/api/loans/${activeLoanForPayment.id}/payments`}
+            titleLabel="Piutang Aktif"
+            personLabel="Debitur:"
             onSuccess={() => {
               setPaymentModalOpen(false);
               fetchLoans();
