@@ -70,18 +70,11 @@ const VARIANT_META = {
   },
 };
 
-const safeFormatDate = (isoStr: string | null | undefined, fmtStr: string) => {
-  if (!isoStr) return "";
-  const d = new Date(isoStr);
-  return isValid(d) ? format(d, fmtStr) : "";
-};
+import { formatIDR, safeDate } from "@/lib/format";
 
-function formatIDR(amount: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.abs(amount));
-}
+const safeFormatDate = (isoStr: string | null | undefined, fmtStr: string) => {
+  return safeDate(isoStr, fmtStr, "");
+};
 
 export function BalanceHeader({
   label,
@@ -107,7 +100,11 @@ export function BalanceHeader({
   }, [monthSelector?.currentMonth]);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+      whileInView={{ opacity: 1, scale: 1, y: 0 }}
+      viewport={{ once: false, margin: "-10px" }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
       className={`relative overflow-hidden rounded-[24px] p-6 text-white ${className}`}
       style={{
         background: meta.bg,
@@ -194,7 +191,7 @@ export function BalanceHeader({
                   transition={{ type: "spring", stiffness: 220, damping: 20 }}
                   className="flex items-baseline"
                 >
-                  <span>{formatIDR(amount)}</span>
+                  <span>{formatIDR(Math.abs(amount))}</span>
                   <span className="text-[20px] md:text-[24px] font-mono font-medium opacity-80 select-none">
                     ,00
                   </span>
@@ -235,6 +232,6 @@ export function BalanceHeader({
           <div className="flex items-center gap-2 flex-wrap">{badges}</div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
