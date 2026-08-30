@@ -192,7 +192,7 @@ export async function POST(request: Request) {
       });
 
       return loan;
-    });
+    }, { maxWait: 10000, timeout: 20000 });
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error) {
