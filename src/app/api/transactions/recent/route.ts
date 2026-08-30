@@ -3,24 +3,23 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
-// Helper: Format tanggal ke relatif (10:23 AM, Yesterday, 2d ago)
+// Helper: Format tanggal ke relatif (2 menit yang lalu, Kemarin, 2 hari yang lalu)
 function formatRelativeTime(date: Date): string {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
+  const minutes = diff / (1000 * 60);
   const hours = diff / (1000 * 60 * 60);
   const days = diff / (1000 * 60 * 60 * 24);
 
   if (hours < 1) {
-    return date.toLocaleTimeString("id-ID", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return minutes < 1 ? "Baru saja" : `${Math.floor(minutes)} menit lalu`;
   }
   if (hours < 24) {
-    return `${Math.floor(hours)}h ago`;
+    return `${Math.floor(hours)} jam lalu`;
   }
   if (days < 7) {
-    return days === 1 ? "Yesterday" : `${Math.floor(days)}d ago`;
+    const d = Math.floor(days);
+    return d === 1 ? "Kemarin" : `${d} hari lalu`;
   }
   return date.toLocaleDateString("id-ID", {
     day: "numeric",
@@ -57,9 +56,17 @@ export async function GET() {
       where: {
         userId: session.user.id,
         deletedAt: null,
-        date: { gte: twoDaysAgo }
+        date: { gte: twoDaysAgo },
       },
       include: {
+        debt: true,
+        loan: true,
+        debtPayment: {
+          include: { debt: true },
+        },
+        loanPayment: {
+          include: { loan: true },
+        },
         expense: {
           include: {
             category: { select: { name: true } },
@@ -83,23 +90,47 @@ export async function GET() {
     });
 
     // Transform ke format frontend
-    const data = transactions.map((tx) => {
+    const data = transactions.map((tx: any) => {
       const expense = tx.expense;
       const income = tx.income;
+      const card = tx.card;
 
-      // Ambil nama & category dari sub-model
-      const name = expense?.name || income?.name || tx.card?.name || "Unknown";
-      const category =
-        expense?.category?.name || income?.source || "Uncategorized";
+      // Fallback variables
+      let name = card?.name || "Tidak Diketahui";
+      let category = "Tidak Berkategori";
+      let uiType: "expense" | "income" | "debts" = mapTransactionType(tx.type);
+      let calculatedAmount = tx.amount;
 
-      // Hitung amount final (handle discount/tax/fee untuk expense)
-      let amount = tx.amount;
-      if (expense) {
-        amount =
-          amount +
+      // Strict Priority Mapping
+      if (tx.type === "EXPENSE" && tx.debtPayment) {
+        uiType = "expense";
+        name = tx.debtPayment.notes || "Bayar Utang";
+        category = tx.debtPayment.debt?.personName || "Tidak Berkategori";
+      } else if (tx.type === "INCOME" && tx.loanPayment) {
+        uiType = "income";
+        name = tx.loanPayment.notes || "Terima Pembayaran Piutang";
+        category = tx.loanPayment.loan?.personName || "Tidak Berkategori";
+      } else if (tx.type === "DEBT" && tx.debt) {
+        uiType = "debts";
+        name = tx.debt.description || "Pinjaman Diterima";
+        category = tx.debt.personName || "Tidak Berkategori";
+      } else if (tx.type === "LOAN" && tx.loan) {
+        uiType = "expense"; // Force UI mapped as expense/cash-out
+        name = tx.loan.description || "Memberi Pinjaman";
+        category = tx.loan.personName || "Tidak Berkategori";
+      } else if (tx.type === "EXPENSE" && expense) {
+        uiType = "expense";
+        name = expense.name;
+        category = expense.category?.name || "Tidak Berkategori";
+        calculatedAmount =
+          calculatedAmount +
           (expense.tax || 0) +
           (expense.fee || 0) -
           (expense.discount || 0);
+      } else if (tx.type === "INCOME" && income) {
+        uiType = "income";
+        name = income.name;
+        category = income.source || "Tidak Berkategori";
       }
 
       return {
@@ -107,8 +138,8 @@ export async function GET() {
         name,
         category,
         time: formatRelativeTime(tx.date),
-        amount: Math.abs(amount),
-        type: mapTransactionType(tx.type),
+        amount: Math.abs(calculatedAmount),
+        type: uiType,
         originalType: tx.type,
         date: tx.date.toISOString(),
       };
@@ -122,7 +153,7 @@ export async function GET() {
     console.error("[RECENT_TRANSACTIONS]", error);
     return NextResponse.json(
       { error: "Gagal memuat transaksi" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
