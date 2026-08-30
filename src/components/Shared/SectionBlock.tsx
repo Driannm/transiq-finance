@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,11 +122,17 @@ export function SectionBlock({
 }: SectionBlockProps) {
   const hasHeader = !!(title || badge || action);
   return (
-    <div className={cn(padded ? "px-4" : "", "mt-5 space-y-2", className)}>
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, margin: "-20px" }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className={cn(padded ? "px-4" : "", "mt-5 space-y-2", className)}
+    >
       {hasHeader && (
         <SectionHeader title={title} badge={badge} action={action} />
       )}
       {children}
-    </div>
+    </motion.section>
   );
 }
