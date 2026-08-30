@@ -81,19 +81,13 @@ const LOAN_STAMP_META = {
   },
 } as const;
 
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID").format(n);
-}
+import { formatIDR, formatDate } from "@/lib/format";
 
 function safeFormatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(d);
 }
 
 // ─── LoanCard renderer ────────────────────────────────────────────────────────
@@ -114,8 +108,9 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
     );
   }
 
-  const stamp = LOAN_STAMP_META[loan.status];
-  const isPaid = loan.status === "paid";
+  const rawStatus = (loan.status || "active").toLowerCase() as keyof typeof LOAN_STAMP_META;
+  const stamp = LOAN_STAMP_META[rawStatus] || LOAN_STAMP_META["active"];
+  const isPaid = rawStatus === "paid";
   const categoryIcon = LOAN_CATEGORY_ICON[loan.category] ?? ClipboardIcon;
 
   return (
@@ -170,7 +165,7 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
           {!isPaid ? (
             <>
               <p className="hidden xs:block text-[9px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-550 leading-none">
-                Sisa Piutang
+                {loan.isDebt ? "Sisa Utang" : "Sisa Piutang"}
               </p>
               <p className="text-xs xs:text-sm font-extrabold font-mono text-gray-955 dark:text-white mt-0.5 sm:mt-1 leading-none">
                 IDR {formatIDR(loan.remaining)}
@@ -179,7 +174,7 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
           ) : (
             <>
               <p className="hidden xs:block text-[9px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-650 leading-none">
-                Total Piutang
+                {loan.isDebt ? "Total Utang" : "Total Piutang"}
               </p>
               <p className="text-xs xs:text-sm font-semibold font-mono text-gray-400 dark:text-gray-550 mt-0.5 sm:mt-1 leading-none">
                 IDR {formatIDR(loan.totalAmount)}

@@ -19,6 +19,7 @@ export interface LoanItemMeta {
   debtor: string;
   category: "personal" | "family" | "colleague" | "other";
   dueDate: string;
+  isDebt?: boolean;
   onRecordPayment?: () => void;
 }
 
