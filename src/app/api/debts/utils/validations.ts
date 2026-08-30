@@ -12,3 +12,9 @@ export const createDebtSchema = z.object({
 });
 
 export const updateDebtSchema = createDebtSchema.partial();
+
+export const createPaymentSchema = z.object({
+  amount: z.number().positive("Nominal pembayaran harus lebih besar dari 0"),
+  cardId: z.string().min(1, "Kartu/rekening wajib dipilih"),
+  notes: z.string().max(255).optional().nullable(),
+});
