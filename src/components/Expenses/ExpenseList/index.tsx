@@ -8,18 +8,7 @@ import { ExpenseItem } from "./ExpenseItem";
 import { ExpenseGroupItem } from "./ExpenseGroupItem";
 import { SwipeAction } from "@/components/Shared/CardList/types";
 import { ExpenseDisplayItem, ExpenseDateGroup, ExpenseRecord } from "./types";
-import { format, isValid } from "date-fns";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID").format(n);
-}
-
-function safeTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return isValid(d) ? format(d, "HH:mm") : "—";
-}
+import { formatIDR, safeTime } from "@/lib/format";
 
 // ─── Load More Button ─────────────────────────────────────────────────────────
 
