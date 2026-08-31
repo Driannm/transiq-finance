@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
+import { transferSchema } from "../utils/validation";
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -72,7 +74,10 @@ export async function GET() {
     return NextResponse.json({ transfers: mappedTransfers });
   } catch (error) {
     console.error("[GET /api/cards/transfers]", error);
-    return NextResponse.json({ error: "Gagal memuat riwayat transfer" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memuat riwayat transfer" },
+      { status: 500 },
+    );
   }
 }
 
@@ -84,17 +89,27 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { fromCardId, toCardId, amount, fee, date } = body;
-
-    const parsedAmount = parseFloat(amount);
-    const parsedFee = parseFloat(fee || 0);
-
-    if (!fromCardId || !toCardId || isNaN(parsedAmount) || parsedAmount <= 0) {
-      return NextResponse.json({ error: "Informasi transfer tidak lengkap" }, { status: 400 });
+    const parsed = transferSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Validasi gagal", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
 
+    const {
+      fromCardId,
+      toCardId,
+      amount: parsedAmount,
+      fee: parsedFee,
+      date,
+    } = parsed.data;
+
     if (fromCardId === toCardId) {
-      return NextResponse.json({ error: "Kartu asal dan tujuan tidak boleh sama" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Kartu asal dan tujuan tidak boleh sama" },
+        { status: 400 },
+      );
     }
 
     const familyId = session.user.familyId;
@@ -118,7 +133,10 @@ export async function POST(request: Request) {
     });
 
     if (!fromCard || !toCard) {
-      return NextResponse.json({ error: "Kartu asal atau tujuan tidak ditemukan" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Kartu asal atau tujuan tidak ditemukan" },
+        { status: 404 },
+      );
     }
 
     // Lakukan atomic transaction untuk mencatat transfer & update cache balance
@@ -170,6 +188,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, transfer: result });
   } catch (error) {
     console.error("[POST /api/cards/transfers]", error);
-    return NextResponse.json({ error: "Gagal membuat transfer baru" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal membuat transfer baru" },
+      { status: 500 },
+    );
   }
 }
