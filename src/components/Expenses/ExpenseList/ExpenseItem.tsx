@@ -8,11 +8,7 @@ import { SwipeAction } from "@/components/Shared/CardList/types";
 import { getCategoryIcon } from "@/lib/iconMapping";
 import { ExpenseRecord } from "./types";
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID").format(n);
-}
+import { formatIDR } from "@/lib/format";
 
 // ─── Checkbox ──────────────────────────────────────────────────────────────
 
@@ -25,7 +21,11 @@ function Checkbox({ checked }: { checked: boolean }) {
           : "border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-transparent"
       }`}
     >
-      <HugeiconsIcon icon={CheckmarkCircle02Icon} size={12} className="text-white" />
+      <HugeiconsIcon
+        icon={CheckmarkCircle02Icon}
+        size={12}
+        className="text-white"
+      />
     </div>
   );
 }
@@ -33,14 +33,14 @@ function Checkbox({ checked }: { checked: boolean }) {
 // ─── Props ─────────────────────────────────────────────────────────────────
 
 interface ExpenseItemProps {
-  itemId:       string;         // composite id like "expense-{id}"
-  expense:      ExpenseRecord;
-  selectMode:   boolean;
-  isSelected:   boolean;
+  itemId: string; // composite id like "expense-{id}"
+  expense: ExpenseRecord;
+  selectMode: boolean;
+  isSelected: boolean;
   swipeActions: SwipeAction[];
-  onPress:      () => void;
-  onSelect:     (txId: string) => void;
-  timeLabel:    string;         // pre-formatted time string
+  onPress: () => void;
+  onSelect: (txId: string) => void;
+  timeLabel: string; // pre-formatted time string
 }
 
 // ─── Component ─────────────────────────────────────────────────────────────
@@ -66,7 +66,12 @@ export function ExpenseItem({
         if (selectMode) onSelect(txId);
         else onPress();
       }}
-      onKeyDown={(e) => { if (e.key === "Enter") { if (selectMode) onSelect(txId); else onPress(); } }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          if (selectMode) onSelect(txId);
+          else onPress();
+        }
+      }}
       className={`flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-neutral-800/35 transition-colors cursor-pointer border-b last:border-0 border-gray-200/40 dark:border-neutral-800/40 select-none ${
         isSelected ? "bg-blue-50/20 dark:bg-blue-950/10" : ""
       }`}
@@ -74,7 +79,12 @@ export function ExpenseItem({
       {/* Left */}
       <div className="flex items-center gap-4 min-w-0">
         {selectMode && (
-          <div onClick={(e) => { e.stopPropagation(); onSelect(txId); }}>
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(txId);
+            }}
+          >
             <Checkbox checked={isSelected} />
           </div>
         )}
@@ -97,9 +107,13 @@ export function ExpenseItem({
             )}
             {expense.transaction.groups?.[0]?.group && (
               <>
-                <span className="text-gray-300 dark:text-neutral-700 text-[10px] select-none">&middot;</span>
+                <span className="text-gray-300 dark:text-neutral-700 text-[10px] select-none">
+                  &middot;
+                </span>
                 <span
-                  style={{ color: expense.transaction.groups[0].group.iconColor }}
+                  style={{
+                    color: expense.transaction.groups[0].group.iconColor,
+                  }}
                   className="text-[10px] font-semibold tracking-wide uppercase"
                 >
                   {expense.transaction.groups[0].group.name}
@@ -115,9 +129,24 @@ export function ExpenseItem({
         <p className="text-sm font-bold text-gray-900 dark:text-gray-300">
           IDR {formatIDR(expense.transaction.amount)}
         </p>
-        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-          {timeLabel}
-        </p>
+        {expense.discount > 0 || (expense.tax ?? 0) + (expense.fee ?? 0) > 0 ? (
+          <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[10px] leading-none flex-wrap">
+            {expense.discount > 0 && (
+              <span className="text-emerald-600/70 dark:text-emerald-500/60 font-medium font-mono whitespace-nowrap">
+                - IDR {formatIDR(expense.discount)}
+              </span>
+            )}
+            {(expense.tax ?? 0) + (expense.fee ?? 0) > 0 && (
+              <span className="text-orange-600/70 dark:text-orange-500/60 font-medium font-mono whitespace-nowrap">
+                + IDR {formatIDR((expense.tax ?? 0) + (expense.fee ?? 0))}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+            {timeLabel}
+          </p>
+        )}
       </div>
     </div>
   );
