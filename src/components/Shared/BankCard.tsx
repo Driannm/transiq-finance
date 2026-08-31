@@ -74,12 +74,14 @@ export function BankCard({
   const [isMasked, setIsMasked] = useState(false);
   const toggleMask = () => setIsMasked((prev) => !prev);
 
-  // Mapping style variant sesuai gambar referensi
+  // Mapping premium style variant
   const variantStyles: Record<CardVariant, string> = {
-    white: "bg-white text-[#1A1A1A] border border-gray-100 shadow-sm",
-    purple: "bg-[#E2D4F0] text-[#422D54] shadow-sm",
+    white:
+      "bg-gradient-to-tr from-slate-50/95 via-white/95 to-slate-100/95 dark:from-neutral-900/90 dark:via-neutral-850/90 dark:to-neutral-900/90 text-neutral-850 dark:text-neutral-100 border border-white/40 dark:border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3)] backdrop-blur-md",
+    purple:
+      "bg-gradient-to-br from-[#1b033a] via-[#4c1d95] to-[#130122] text-white border border-purple-500/20 shadow-[0_12px_40px_rgba(76,29,149,0.25)]",
     "blue-gradient":
-      "bg-gradient-to-br from-[#4068E0] via-[#2D4DB5] to-[#142C80] text-white shadow-xl",
+      "bg-gradient-to-br from-[#0c1b40] via-[#1d4ed8] to-[#071128] text-white border border-blue-500/20 shadow-[0_12px_40px_rgba(29,78,216,0.25)]",
     custom: "",
   };
 
@@ -89,7 +91,7 @@ export function BankCard({
     >
       <div
         className={`
-          relative w-full rounded-[28px] p-6 transition-all duration-300 ease-out select-none overflow-hidden
+          relative w-full rounded-[28px] p-6 transition-all duration-300 ease-out select-none overflow-hidden group
           ${variantStyles[variant]}
           ${isStacked ? "hover:-translate-y-6 hover:shadow-2xl cursor-pointer" : ""}
           ${className || ""}
@@ -101,7 +103,23 @@ export function BankCard({
         }}
         {...props}
       >
-        {children}
+        {/* Reflection / shine glare */}
+        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-60 mix-blend-overlay pointer-events-none" />
+        <div className="absolute -top-[150%] -left-[50%] w-[200%] h-[200%] bg-gradient-to-tr from-transparent via-white/10 to-transparent rotate-[35deg] pointer-events-none transition-transform duration-1000 ease-out group-hover:translate-x-[40%]" />
+
+        {/* Subtle dynamic glow spots */}
+        {variant !== "white" && variant !== "custom" && (
+          <div
+            className={`absolute -top-16 -right-16 w-36 h-36 rounded-full blur-3xl opacity-30 pointer-events-none transition-transform duration-500 group-hover:scale-125
+              ${variant === "purple" ? "bg-purple-400" : "bg-blue-400"}
+            `}
+          />
+        )}
+
+        {/* Content */}
+        <div className="relative z-10 w-full h-full flex flex-col">
+          {children}
+        </div>
       </div>
     </BankCardContext.Provider>
   );
@@ -186,19 +204,39 @@ BankCard.Number = function BankCardNumber({
   obscure?: boolean;
   className?: string;
 }) {
-  const formatCardNumber = (num: string, obscureNumber: boolean) => {
-    const cleanNum = num.replace(/\s+/g, "");
-    if (obscureNumber) {
-      return `••••   ••••   ••••   ${cleanNum.slice(-4)}`;
-    }
-    return cleanNum.replace(/(.{4})/g, "$1 ").trim();
-  };
+  const { variant } = useBankCardContext();
+  const isDarkBackground = variant !== "white";
+  const cleanNum = value.replace(/\s+/g, "");
 
+  if (obscure) {
+    return (
+      <div
+        className={`my-4 flex items-center gap-4.5 font-mono text-sm tracking-widest leading-none ${className || ""}`}
+      >
+        <span className="opacity-35 tracking-normal text-xs">••••</span>
+        <span className="opacity-35 tracking-normal text-xs">••••</span>
+        <span className="opacity-35 tracking-normal text-xs">••••</span>
+        <span
+          className={`font-mono text-[13px] font-bold px-2 py-0.5 rounded-md backdrop-blur-md border shadow-sm
+          ${
+            isDarkBackground
+              ? "bg-white/10 border-white/5 text-white"
+              : "bg-black/5 border-black/5 text-neutral-800 dark:bg-white/10 dark:border-white/5 dark:text-white"
+          }
+        `}
+        >
+          {cleanNum.slice(-4) || "0000"}
+        </span>
+      </div>
+    );
+  }
+
+  const formatted = cleanNum.replace(/(.{4})/g, "$1 ").trim();
   return (
     <div
-      className={`my-4 font-mono text-base md:text-lg tracking-widest leading-none ${className || ""}`}
+      className={`my-4 font-mono text-base md:text-[17px] font-semibold tracking-[0.18em] leading-none ${className || ""}`}
     >
-      {formatCardNumber(value, obscure)}
+      {formatted}
     </div>
   );
 };
@@ -240,7 +278,7 @@ BankCard.Balance = function BankCardBalance({
   }).format(amount);
 
   return (
-    <div className={`flex flex-col group ${className || ""}`}>
+    <div className={`flex flex-col group/balance ${className || ""}`}>
       <div
         className="flex items-center gap-1.5 cursor-pointer"
         onClick={allowMasking ? toggleMask : undefined}
@@ -249,7 +287,7 @@ BankCard.Balance = function BankCardBalance({
           {isMasked ? "••••••" : `${currency}${formattedAmount}`}
         </span>
         {allowMasking && (
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs py-0.5 px-1 bg-white/15 rounded">
+          <span className="opacity-0 group-hover/balance:opacity-100 transition-opacity text-xs py-0.5 px-2 bg-neutral-900/5 dark:bg-white/10 dark:text-white/80 rounded-md text-[10px] font-bold border border-neutral-205/10 backdrop-blur-sm self-center">
             {isMasked ? "Show" : "Hide"}
           </span>
         )}
@@ -336,33 +374,40 @@ BankCard.Footer = function BankCardFooter({
 
 // --- Gold Contact Chip + Contactless waves ---
 BankCard.Chip = function BankCardChip({ className }: { className?: string }) {
+  const { variant } = useBankCardContext();
+  const isDarkBackground = variant !== "white";
+
   return (
-    <div className={`flex items-center gap-3 select-none ${className || ""}`}>
-      {/* Golden Metallic Card Chip */}
+    <div className={`flex items-center gap-3.5 select-none ${className || ""}`}>
+      {/* Metallic Premium Card Chip */}
       <div
-        className="w-10 h-7 rounded-[6px] relative overflow-hidden flex flex-col justify-between p-1 bg-gradient-to-br from-amber-200 via-yellow-400 to-amber-500 border border-amber-600/30"
-        style={{
-          boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 3px rgba(0,0,0,0.15)",
-        }}
+        className={`w-9 h-6.5 rounded-[5px] relative overflow-hidden flex flex-col justify-between p-1 border
+          ${
+            isDarkBackground
+              ? "bg-gradient-to-br from-amber-100 via-yellow-400 to-amber-500 border-amber-600/20 shadow-[inset_0_0.5px_0_rgba(255,255,255,0.3),_0_1px_3px_rgba(0,0,0,0.2)]"
+              : "bg-gradient-to-br from-slate-200 via-slate-100 to-slate-300 border-slate-400/20 shadow-[inset_0_0.5px_0_rgba(255,255,255,0.7),_0_1px_2px_rgba(0,0,0,0.1)]"
+          }
+        `}
       >
-        {/* Chip details lines */}
-        <div className="absolute inset-0 bg-transparent flex flex-col justify-between p-0.5 pointer-events-none">
+        {/* Minimalist Microchip grids */}
+        <div className="absolute inset-0 flex flex-col justify-between p-0.5 pointer-events-none opacity-40">
           <div className="flex justify-between w-full h-[30%]">
-            <div className="w-[35%] h-full border-r border-b border-amber-800/30 rounded-br-sm" />
-            <div className="w-[35%] h-full border-l border-b border-amber-800/30 rounded-bl-sm" />
+            <div className="w-[30%] h-full border-r border-b border-neutral-900 rounded-br-sm" />
+            <div className="w-[30%] h-full border-l border-b border-neutral-900 rounded-bl-sm" />
           </div>
-          <div className="w-full h-[3px] border-t border-b border-amber-800/30 my-0.5" />
+          <div className="w-full h-[2px] border-t border-b border-neutral-900 my-0.5" />
           <div className="flex justify-between w-full h-[30%]">
-            <div className="w-[35%] h-full border-r border-t border-amber-800/30 rounded-tr-sm" />
-            <div className="w-[35%] h-full border-l border-t border-amber-800/30 rounded-tl-sm" />
+            <div className="w-[30%] h-full border-r border-t border-neutral-900 rounded-tr-sm" />
+            <div className="w-[30%] h-full border-l border-t border-neutral-900 rounded-tl-sm" />
           </div>
         </div>
       </div>
 
-      {/* Contactless symbol SVG */}
+      {/* Contactless waves SVG */}
       <svg
-        className="w-4 h-4 text-white/55 active:scale-95 transition-transform"
+        className={`w-3.5 h-3.5 transition-transform duration-300 group-hover:scale-105
+          ${isDarkBackground ? "text-white/50" : "text-neutral-400 dark:text-white/50"}
+        `}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
