@@ -9,13 +9,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCategoryIcon } from "@/lib/iconMapping";
+import { formatIDR } from "@/lib/format";
 import { ExpenseGroupMeta, ExpenseRecord } from "./types";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatIDR(n: number) {
-  return new Intl.NumberFormat("id-ID").format(n);
-}
 
 // Icon type from @hugeicons/core-free-icons matches readonly tuple structure
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,9 +179,27 @@ export function ExpenseGroupItem({
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-gray-900 dark:text-gray-300 select-none flex-shrink-0 pl-3">
-                    IDR {formatIDR(child.transaction.amount)}
-                  </span>
+                  <div className="text-right flex-shrink-0 pl-3">
+                    <span className="text-xs font-bold text-gray-905 dark:text-gray-300 select-none block">
+                      IDR {formatIDR(child.transaction.amount)}
+                    </span>
+                    {child.discount > 0 ||
+                    (child.tax ?? 0) + (child.fee ?? 0) > 0 ? (
+                      <div className="flex items-center justify-end gap-1.5 mt-0.5 text-[9px] leading-none select-none flex-wrap">
+                        {child.discount > 0 && (
+                          <span className="text-emerald-600/70 dark:text-emerald-500/60 font-semibold font-mono whitespace-nowrap">
+                            - IDR {formatIDR(child.discount)}
+                          </span>
+                        )}
+                        {(child.tax ?? 0) + (child.fee ?? 0) > 0 && (
+                          <span className="text-orange-600/70 dark:text-orange-500/60 font-semibold font-mono whitespace-nowrap">
+                            + IDR{" "}
+                            {formatIDR((child.tax ?? 0) + (child.fee ?? 0))}
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
