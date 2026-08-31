@@ -5,12 +5,18 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 interface GaugeChartProps {
   percentage: number; // 0 - 100
-  iconId: string;
+  iconId?: string;
+  icon?: any;
   color: string; // Tailwind text color class, e.g., "text-blue-500"
 }
 
-export function GaugeChart({ percentage, iconId, color }: GaugeChartProps) {
-  const IconSvg = resolveIcon(iconId);
+export function GaugeChart({
+  percentage,
+  iconId,
+  icon,
+  color,
+}: GaugeChartProps) {
+  const IconSvg = icon || (iconId ? resolveIcon(iconId) : null);
 
   const size = 120;
   const strokeWidth = 8;
@@ -76,7 +82,7 @@ export function GaugeChart({ percentage, iconId, color }: GaugeChartProps) {
               strokeWidth={1.5}
               strokeLinecap="round"
               className="transform -rotate-150 text-gray-300 dark:text-gray-600"
-              style={{ transformOrigin: 'center' }}
+              style={{ transformOrigin: "center" }}
             />
           );
         })}
