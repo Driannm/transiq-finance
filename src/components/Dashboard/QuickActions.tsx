@@ -27,10 +27,7 @@ export interface QuickAddGridProps {
 
 // ─── Component ─────────────────────────────────
 
-export function QuickAddGrid({
-  items,
-  columns = 4,
-}: QuickAddGridProps) {
+export function QuickAddGrid({ items, columns = 4 }: QuickAddGridProps) {
   const router = useRouter();
 
   const handleClick = (item: QuickAddItem) => {
