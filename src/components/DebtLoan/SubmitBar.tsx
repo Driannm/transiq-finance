@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 type SubmitBarProps = {
   ready: boolean; // minimum required data present
   loading: boolean;
+  label?: string;
 };
 
-export function SubmitBar({ ready, loading }: SubmitBarProps) {
+export function SubmitBar({ ready, loading, label = "Simpan Piutang" }: SubmitBarProps) {
   const disabled = !ready || loading;
 
   return (
@@ -35,7 +36,7 @@ export function SubmitBar({ ready, loading }: SubmitBarProps) {
             aria-hidden
           />
         )}
-        {loading ? "Menyimpan..." : "Simpan Piutang"}
+        {loading ? "Menyimpan..." : label}
       </motion.button>
     </div>
   );
