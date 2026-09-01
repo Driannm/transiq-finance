@@ -1,23 +1,21 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any, react-hooks/immutability */
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
+import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { QuickAddGrid } from "@/components/Dashboard/QuickActions";
 import { CardList } from "@/components/Shared/CardList";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { useConfirm } from "@/hooks/UseConfirm";
 import { signOut } from "next-auth/react";
 
+import useSWR from "swr";
+
 // ✅ Import dummy data
-import {
-  quickActions,
-  upcomingBills,
-  savingGoals,
-  spendingCategories,
-} from "@/lib/data/dashboard";
+import { quickActions, spendingCategories } from "@/lib/data/dashboard";
 
 // ✅ Import icon mapper & utilities
 import { getCategoryIcon } from "@/lib/iconMapping";
@@ -36,8 +34,14 @@ import {
   HomeIcon,
   Analytics01Icon,
   Wallet02Icon,
+  AddMoneyCircleIcon,
+  MoneySavingJarIcon,
+  Car01Icon,
+  Home01Icon,
+  CircleArrowDown02Icon,
+  CircleArrowUp02Icon,
+  CircleArrowUpDownIcon,
 } from "@hugeicons/core-free-icons";
-import { BottomNav, BottomNavItem } from "@/components/Layout/BottomNavbar";
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -180,6 +184,39 @@ function SpendingBreakdownCard() {
 
 // ─── Main Page ──────────────────────────────────────────────
 
+const CATEGORY_META = {
+  utilities: {
+    label: "Utilitas",
+    bg: "bg-amber-100 dark:bg-amber-950/40",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  subscription: {
+    label: "Langganan",
+    bg: "bg-purple-100 dark:bg-purple-950/40",
+    text: "text-purple-600 dark:text-purple-400",
+  },
+  rent: {
+    label: "Sewa Rumah",
+    bg: "bg-blue-100 dark:bg-blue-950/40",
+    text: "text-blue-600 dark:text-blue-400",
+  },
+  insurance: {
+    label: "Asuransi",
+    bg: "bg-emerald-100 dark:bg-emerald-950/40",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  internet: {
+    label: "Internet",
+    bg: "bg-sky-100 dark:bg-sky-950/40",
+    text: "text-sky-600 dark:text-sky-400",
+  },
+  other: {
+    label: "Lainnya",
+    bg: "bg-slate-100 dark:bg-slate-950/40",
+    text: "text-slate-600 dark:text-slate-400",
+  },
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const confirm = useConfirm();
@@ -187,11 +224,65 @@ export default function DashboardPage() {
   const { data, error, isLoading, mutate } = useRecentTransactions();
   const transactions = data?.transactions || [];
 
-  const navItems: BottomNavItem[] = [
-    { path: "/dashboard", label: "Home", icon: HomeIcon },
-    { path: "/analytics", label: "Analytics", icon: Analytics01Icon },
-    { path: "/wallet", label: "Wallet", icon: Wallet02Icon },
-  ];
+  const { data: billsData, isLoading: billsLoading } = useSWR("/api/bills");
+  const { data: savingsData, isLoading: savingsLoading } =
+    useSWR("/api/savings");
+
+  const upcomingBills = useMemo(() => {
+    const rawBills = billsData?.bills || [];
+    return rawBills
+      .filter((b: any) => b.status === "pending" || b.status === "overdue")
+      .map((bill: any) => {
+        const dueIn = Math.ceil(
+          (new Date(bill.dueDate).getTime() - new Date().setHours(0, 0, 0, 0)) /
+            (1000 * 60 * 60 * 24),
+        );
+        const meta =
+          CATEGORY_META[bill.category as keyof typeof CATEGORY_META] ||
+          CATEGORY_META.other;
+        return {
+          id: bill.id,
+          name: bill.name,
+          icon: getCategoryIcon(bill.category),
+          dueIn,
+          amount: bill.amount,
+          urgency:
+            bill.status === "overdue" || dueIn <= 3
+              ? "high"
+              : dueIn <= 7
+                ? "medium"
+                : "low",
+          bg: meta.bg,
+        };
+      })
+      .slice(0, 3);
+  }, [billsData]);
+
+  const savingGoals = useMemo(() => {
+    const rawSavings = savingsData?.savings || [];
+    return rawSavings
+      .map((goal: any, index: number) => {
+        const colors = ["#1D9E75", "#378ADD", "#EF9F27", "#8B5CF6", "#EC4899"];
+        const bgs = [
+          "bg-emerald-50 dark:bg-emerald-950/30",
+          "bg-blue-50 dark:bg-blue-950/30",
+          "bg-amber-50 dark:bg-amber-950/30",
+          "bg-purple-50 dark:bg-purple-950/30",
+          "bg-pink-50 dark:bg-pink-950/30",
+        ];
+        const icons = [MoneySavingJarIcon, Beach02Icon, Home01Icon, Car01Icon];
+        return {
+          id: goal.id,
+          name: goal.name,
+          icon: icons[index % icons.length] || MoneySavingJarIcon,
+          saved: goal.savedAmount,
+          target: goal.targetAmount,
+          color: colors[index % colors.length],
+          bg: bgs[index % bgs.length],
+        };
+      })
+      .slice(0, 3);
+  }, [savingsData]);
 
   const handleLogout = useCallback(() => {
     confirm({
@@ -204,13 +295,13 @@ export default function DashboardPage() {
     });
   }, [confirm]);
 
-  const urgentBillsCount = upcomingBills.filter(
-    (b) => b.urgency === "high"
-  ).length;
+  const urgentBillsCount = useMemo(() => {
+    return upcomingBills.filter((b: any) => b.urgency === "high").length;
+  }, [upcomingBills]);
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
-      <div className="sticky top-0 z-50">
+      <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Dashboard"
           actions={[
@@ -223,35 +314,48 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ---- Balance Card ---- */}
-      <div className="px-4 pt-4">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A3FA8] to-[#0C1A5A] p-5">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white opacity-[0.03] blur-3xl" />
-          <div className="relative z-10 flex items-center justify-between mb-6">
-            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
-              <circle cx="14" cy="12" r="11" fill="white" fillOpacity="0.9" />
-              <circle cx="26" cy="12" r="11" fill="white" fillOpacity="0.9" />
-            </svg>
-          </div>
-          <div className="relative z-10 mb-6">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/60 font-medium">
-              Available Balance
-            </p>
-            <p className="mt-1 text-[36px] font-mono font-bold leading-none tracking-tight text-white">
-              IDR {formatIDR(7820000)}
-              <span className="text-xl font-semibold opacity-80">.00</span>
-            </p>
-          </div>
-          <div className="relative z-10 flex gap-2.5">
-            <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-bold text-[#1A3FA8] shadow active:scale-95 transition-transform">
-              <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={16} />{" "}
-              Transfer
-            </button>
-            <button className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-white/10 py-3 text-sm font-bold text-white backdrop-blur-sm active:scale-95 transition-transform">
-              <HugeiconsIcon icon={Add01Icon} size={16} /> Add Funds
-            </button>
-          </div>
-        </div>
+      <div className="px-4 pt-4 space-y-5 pt-[64px]">
+        {/* ---- Balance Card ---- */}
+        <BalanceHeader
+          label="Total pengeluaran"
+          amount={20499399}
+          variant="yellow"
+          isLoading={isLoading}
+          badges={[
+            /* Badge Hemat */
+            <div
+              key="saved"
+              className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full"
+            >
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-red-200">
+                <HugeiconsIcon icon={AddMoneyCircleIcon} size={16} />
+              </span>
+              <span className="text-xs font-mono font-medium text-white">
+                230.000
+              </span>
+            </div>,
+            /* Badge Persentase */
+            <div
+              key="percent"
+              className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md border border-green-500/30 px-3 py-1.5 rounded-full text-green-300"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
+              <span className="text-xs font-semibold">12.5%</span>
+            </div>,
+          ]}
+        />
       </div>
 
       {/* ---- Quick Actions ---- */}
@@ -272,6 +376,11 @@ export default function DashboardPage() {
         <CardList
           items={upcomingBills}
           keyExtractor={(bill) => bill.id}
+          isLoading={billsLoading}
+          skeleton={{
+            fields: ["icon", "title", "subtitle", "amount"],
+            count: 3,
+          }}
           emptyState={{
             icon: (
               <HugeiconsIcon
@@ -331,6 +440,11 @@ export default function DashboardPage() {
         <CardList
           items={savingGoals}
           keyExtractor={(goal) => goal.id}
+          isLoading={savingsLoading}
+          skeleton={{
+            fields: ["icon", "title", "subtitle", "amount"],
+            count: 3,
+          }}
           emptyState={{
             icon: (
               <HugeiconsIcon
@@ -346,7 +460,7 @@ export default function DashboardPage() {
           renderItem={(goal) => {
             const percentage = Math.min(
               100,
-              Math.round((goal.saved / goal.target) * 100)
+              Math.round((goal.saved / goal.target) * 100),
             );
             return {
               left: (
@@ -442,7 +556,22 @@ export default function DashboardPage() {
                 }
           }
           renderItem={(tx) => {
-            const IconComponent = getCategoryIcon(tx.category);
+            let IconComponent = CircleArrowUp02Icon;
+            if (tx.originalType === "INCOME" || tx.originalType === "DEBT") {
+              IconComponent = CircleArrowDown02Icon;
+            } else if (tx.originalType === "TRANSFER") {
+              IconComponent = CircleArrowUpDownIcon;
+            }
+
+            const typeLabelMap: Record<string, string> = {
+              EXPENSE: "Pengeluaran",
+              INCOME: "Pemasukan",
+              DEBT: "Hutang",
+              LOAN: "Pinjaman",
+              TRANSFER: "Transfer",
+            };
+            const txLabel = typeLabelMap[tx.originalType] || tx.originalType;
+
             const bgMap: Record<string, string> = {
               expense: "bg-red-200",
               income: "bg-green-200",
@@ -467,26 +596,35 @@ export default function DashboardPage() {
                       {tx.name}
                     </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-                      {tx.category} · {tx.time}
+                      {txLabel} - {tx.category}
                     </p>
                   </div>
                 </div>
               ),
               right: (
-                <span
-                  className={`text-sm font-semibold font-mono ${
-                    tx.type === "expense" ? "text-red-500" : "text-green-500"
-                  }`}
-                >
-                  {tx.type === "expense" ? "-" : "+"}IDR {formatIDR(tx.amount)}
-                </span>
+                <div className="flex flex-col items-end justify-center">
+                  <span
+                    className={`flex items-baseline gap-[3px] font-semibold ${
+                      tx.type === "expense" ? "text-red-500" : "text-green-500"
+                    }`}
+                  >
+                    <span className="text-sm">
+                      {tx.type === "expense" ? "-" : "+"}
+                    </span>
+
+                    <span className="font-mono text-sm">
+                      {formatIDR(tx.amount)}
+                    </span>
+                  </span>
+                  <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 mt-0.5">
+                    {tx.time}
+                  </span>
+                </div>
               ),
             };
           }}
         />
       </SectionBlock>
-
-      <BottomNav items={navItems} />
     </div>
   );
 }
