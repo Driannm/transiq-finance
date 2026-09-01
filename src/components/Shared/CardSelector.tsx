@@ -1,40 +1,73 @@
-// components/loans/add-loan/SourceAccountSelector.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
-// NOTE: verify these three export names exist in your installed
-// @hugeicons/core-free-icons version (naming varies by package version);
-// swap for the closest equivalents if they differ.
 import {
   ArrowRight01Icon,
   RefreshIcon,
   Alert01Icon,
+  Wallet01Icon,
+  SmartPhone01Icon,
+  CardExchange01Icon,
+  CreditCardIcon,
 } from "@hugeicons/core-free-icons";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { CARD_TYPE_LABELS, formatIDRDisplay, getCardIcon } from "./Format";
-import type { CardItem, CardsFetchState } from "./types";
 
-type SourceAccountSelectorProps = {
-  state: CardsFetchState;
-  cards: CardItem[]; // already balance-filtered for the current amount
-  amount: number;
+export type FetchState = "loading" | "error" | "success" | "idle";
+
+export interface CardItem {
+  id: string;
+  name: string;
+  type: string;
+  balance: number;
+}
+
+const CARD_TYPE_LABELS: Record<string, string> = {
+  BANK: "Rekening Bank",
+  EWALLET: "E-Wallet",
+  EMONEY: "E-Money",
+  PAYLATER: "Paylater",
+};
+
+function formatIDRDisplay(val: number) {
+  return new Intl.NumberFormat("id-ID").format(val);
+}
+
+function getCardIcon(type: string) {
+  switch (type.toUpperCase()) {
+    case "BANK":
+      return CreditCardIcon;
+    case "EWALLET":
+      return SmartPhone01Icon;
+    case "EMONEY":
+      return CardExchange01Icon;
+    default:
+      return Wallet01Icon;
+  }
+}
+
+type CardSelectorProps = {
+  state: FetchState;
+  cards: CardItem[];
+  amount?: number; // Optional balance filter indicator logic
   cardId: string;
   onSelect: (id: string) => void;
   onRetry: () => void;
   error?: string;
+  label?: string;
 };
 
-export function SourceAccountSelector({
+export function CardSelector({
   state,
   cards,
-  amount,
+  amount = 0,
   cardId,
   onSelect,
   onRetry,
   error,
-}: SourceAccountSelectorProps) {
+  label = "Pilih Kartu/Rekening",
+}: CardSelectorProps) {
   const [open, setOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const selected = cards.find((c) => c.id === cardId);
@@ -56,12 +89,12 @@ export function SourceAccountSelector({
 
   return (
     <section>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted,#8A857D)] px-1 mb-2">
-        Dibayar Dari
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400 dark:text-gray-500 px-1 mb-2">
+        {label}
       </p>
 
       {state === "loading" && (
-        <div className="flex items-center gap-3 rounded-2xl border border-[var(--line,#E7E4DD)] dark:border-neutral-800 px-4 py-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-gray-100 dark:border-neutral-800 px-4 py-4">
           <div className="h-9 w-9 rounded-full bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
           <div className="flex-1 space-y-2">
             <div className="h-3 w-32 rounded bg-neutral-100 dark:bg-neutral-800 animate-pulse" />
@@ -97,7 +130,7 @@ export function SourceAccountSelector({
         <div className="rounded-2xl border border-amber-200 dark:border-amber-950/40 bg-amber-50 dark:bg-amber-950/10 px-4 py-3.5">
           <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
             {amount > 0
-              ? `Tidak ada rekening dengan saldo minimal Rp ${formatIDRDisplay(amount)}`
+              ? `Tidak ada rekening dengan saldo mencukupi (IDR ${formatIDRDisplay(amount)})`
               : "Belum ada rekening yang bisa dipilih"}
           </p>
         </div>
@@ -107,28 +140,27 @@ export function SourceAccountSelector({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="w-full flex items-center gap-3 rounded-2xl border border-[var(--line,#E7E4DD)] dark:border-neutral-800 px-4 py-3.5 text-left hover:border-neutral-300 dark:hover:border-neutral-700 transition-colors"
+          className="w-full flex items-center gap-3 rounded-2xl bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 px-4 py-3.5 text-left hover:border-gray-200 dark:hover:border-neutral-700 shadow-sm transition-colors"
         >
-          <span className="h-9 w-9 rounded-full bg-[var(--accent-soft,#E7F1EC)] dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
+          <span className="h-9 w-9 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
             <HugeiconsIcon
               icon={getCardIcon(selected?.type || "BANK")}
               size={16}
-              className="text-[var(--accent,#0E6E4E)] dark:text-emerald-400"
+              className="text-emerald-600 dark:text-emerald-400"
             />
           </span>
           <span className="flex-1 min-w-0">
-            <span className="block text-[15px] font-medium text-neutral-900 dark:text-white truncate">
+            <span className="block text-[15px] font-semibold text-gray-900 dark:text-white truncate">
               {selected?.name ?? "Pilih rekening"}
             </span>
-            <span className="block text-xs text-[var(--muted,#8A857D)] mt-0.5">
-              {CARD_TYPE_LABELS[(selected?.type || "BANK").toUpperCase()]} · Rp{" "}
-              {formatIDRDisplay(selected?.balance ?? 0)} tersedia
+            <span className="block text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5">
+              IDR {formatIDRDisplay(selected?.balance ?? 0)}
             </span>
           </span>
           <HugeiconsIcon
             icon={ArrowRight01Icon}
             size={16}
-            className="text-neutral-300 dark:text-neutral-600 flex-shrink-0"
+            className="text-gray-300 dark:text-gray-600 flex-shrink-0"
           />
         </button>
       )}
@@ -155,20 +187,20 @@ export function SourceAccountSelector({
               transition={{ type: "spring", damping: 32, stiffness: 320 }}
               className="fixed bottom-0 left-0 right-0 z-[61] max-h-[75vh] overflow-y-auto rounded-t-[28px] bg-white dark:bg-neutral-900 shadow-lg pb-[env(safe-area-inset-bottom)]"
             >
-              <div className="sticky top-0 bg-white dark:bg-neutral-900 pt-3 pb-2 px-5 border-b border-[var(--line,#E7E4DD)] dark:border-neutral-800">
+              <div className="sticky top-0 bg-white dark:bg-neutral-900 pt-3 pb-2 px-5 border-b border-gray-100 dark:border-neutral-800">
                 <div className="mx-auto h-1 w-9 rounded-full bg-neutral-200 dark:bg-neutral-700 mb-3" />
-                <p className="text-[15px] font-semibold text-neutral-900 dark:text-white">
-                  Pilih rekening asal
+                <p className="text-[15px] font-bold text-gray-900 dark:text-white">
+                  Pilih Rekening
                 </p>
               </div>
 
-              <div className="px-3 py-2">
+              <div className="px-3 py-2 space-y-2">
                 {(Object.entries(grouped) as [string, CardItem[]][]).map(
                   ([groupKey, items]) =>
                     items.length > 0 && (
                       <div key={groupKey} className="mb-2">
-                        <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted,#8A857D)]">
-                          {CARD_TYPE_LABELS[groupKey]}
+                        <p className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-gray-400">
+                          {CARD_TYPE_LABELS[groupKey] || groupKey}
                         </p>
                         {items.map((c) => (
                           <button
@@ -181,20 +213,39 @@ export function SourceAccountSelector({
                             className={cn(
                               "w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors",
                               c.id === cardId
-                                ? "bg-[var(--accent-soft,#E7F1EC)] dark:bg-emerald-950/30"
-                                : "hover:bg-neutral-50 dark:hover:bg-neutral-800/60",
+                                ? "bg-emerald-50 dark:bg-emerald-950/30"
+                                : "hover:bg-gray-50 dark:hover:bg-neutral-800/60",
                             )}
                           >
                             <HugeiconsIcon
                               icon={getCardIcon(c.type)}
-                              size={15}
-                              className="text-neutral-400 dark:text-neutral-500 flex-shrink-0"
+                              size={16}
+                              className={cn(
+                                "flex-shrink-0",
+                                c.id === cardId
+                                  ? "text-emerald-500"
+                                  : "text-gray-400",
+                              )}
                             />
-                            <span className="flex-1 min-w-0 text-[14px] font-medium text-neutral-900 dark:text-white truncate">
+                            <span
+                              className={cn(
+                                "flex-1 min-w-0 text-[14px] font-semibold truncate",
+                                c.id === cardId
+                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  : "text-gray-900 dark:text-white",
+                              )}
+                            >
                               {c.name}
                             </span>
-                            <span className="text-xs font-mono tabular-nums text-[var(--muted,#8A857D)] flex-shrink-0">
-                              Rp {formatIDRDisplay(c.balance)}
+                            <span
+                              className={cn(
+                                "text-xs font-mono font-medium flex-shrink-0",
+                                c.id === cardId
+                                  ? "text-emerald-600 dark:text-emerald-500"
+                                  : "text-gray-500",
+                              )}
+                            >
+                              IDR {formatIDRDisplay(c.balance)}
                             </span>
                           </button>
                         ))}
