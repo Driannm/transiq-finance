@@ -108,7 +108,9 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
     );
   }
 
-  const rawStatus = (loan.status || "active").toLowerCase() as keyof typeof LOAN_STAMP_META;
+  const rawStatus = (
+    loan.status || "active"
+  ).toLowerCase() as keyof typeof LOAN_STAMP_META;
   const stamp = LOAN_STAMP_META[rawStatus] || LOAN_STAMP_META["active"];
   const isPaid = rawStatus === "paid";
   const categoryIcon = LOAN_CATEGORY_ICON[loan.category] ?? ClipboardIcon;
@@ -124,7 +126,7 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
       <div className="flex items-start justify-between gap-4">
         {/* Left: Icon, Title, Debtor */}
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-neutral-50 dark:bg-neutral-850 border border-gray-100/50 dark:border-neutral-800 flex items-center justify-center flex-shrink-0 select-none text-gray-550 dark:text-gray-400">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-500/10 dark:border-blue-500/10 flex items-center justify-center flex-shrink-0">
             <HugeiconsIcon
               icon={categoryIcon}
               size={20}
