@@ -11,7 +11,7 @@ import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
 
 import { Hero } from "@/components/DebtLoan/Hero";
-import { SourceAccountSelector } from "@/components/DebtLoan/SourceAccount";
+import { CardSelector } from "@/components/Shared/CardSelector";
 import { ScheduleSection } from "@/components/DebtLoan/ScheduleSection";
 import { SubmitBar } from "@/components/DebtLoan/SubmitBar";
 import { parseAmount } from "@/components/DebtLoan/Format";
@@ -190,7 +190,7 @@ export default function AddLoanPage() {
         />
 
         <div className="flex-1 px-4 space-y-7 pb-8">
-          <SourceAccountSelector
+          <CardSelector
             state={cardsState}
             cards={filteredCards}
             amount={amount}
@@ -198,6 +198,7 @@ export default function AddLoanPage() {
             onSelect={setCardId}
             onRetry={loadCards}
             error={cardsError}
+            label="Dibayar Dari"
           />
           {errors.cardId && (
             <p role="alert" className="text-xs text-red-500 -mt-5 px-1">
