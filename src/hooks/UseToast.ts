@@ -1,4 +1,4 @@
-import { useToastStore, type ToastOptions } from "@/store/ToastStore";
+import { useToastStore, type ToastOptions, type PromiseMessages } from "@/store/ToastStore";
 
 /**
  * Hook untuk menampilkan toast dari mana saja.
@@ -9,6 +9,18 @@ import { useToastStore, type ToastOptions } from "@/store/ToastStore";
  * toast.show({ title: "Transaksi disimpan" });
  * ```
  *
+ * **Promise toast** (loading → success/error in-place):
+ * ```tsx
+ * await toast.promise(
+ *   () => fetch("/api/loans", { method: "POST", body: ... }).then(r => r.json()),
+ *   {
+ *     loading: "Menyimpan...",
+ *     success: "Berhasil disimpan",
+ *     error:   "Gagal menyimpan",
+ *   }
+ * );
+ * ```
+ *
  * Dengan semua opsi:
  * ```tsx
  * toast.show({
@@ -17,8 +29,6 @@ import { useToastStore, type ToastOptions } from "@/store/ToastStore";
  *   variant:     "success",
  *   position:    "top",
  *   duration:    4000,
- *   icon:        <HugeiconsIcon icon={CheckIcon} size={22} />,
- *   iconBg:      "bg-green-500",
  *   action: {
  *     label:   "Lihat",
  *     onPress: () => router.push("/transactions"),
@@ -34,6 +44,6 @@ import { useToastStore, type ToastOptions } from "@/store/ToastStore";
  * ```
  */
 export function useToast() {
-  const { show, hide, clear } = useToastStore();
-  return { show, hide, clear };
+  const { show, update, hide, clear, promise } = useToastStore();
+  return { show, update, hide, clear, promise };
 }
