@@ -9,8 +9,8 @@ export function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
   const hide = useToastStore((s) => s.hide);
 
-  const topToasts = toasts.filter((t) => (t.position ?? "bottom") === "top");
-  const bottomToasts = toasts.filter((t) => (t.position ?? "bottom") === "bottom");
+  const topToasts = toasts.filter((t) => (t.position ?? "top") === "top");
+  const bottomToasts = toasts.filter((t) => (t.position ?? "top") === "bottom");
 
   return (
     <>
