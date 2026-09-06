@@ -31,6 +31,13 @@ enum BillStatus {
   OVERDUE
 }
 
+enum RecurringInterval {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
 enum TransactionType {
   INCOME
   EXPENSE
@@ -48,25 +55,25 @@ enum DebtLoanStatus {
 // ─── USER & FAMILY ─────────────────────────────
 
 model User {
-  id        String    @id @default(cuid())
-  name      String
-  email     String    @unique
-  password  String
-  role      Role      @default(PARENT)
+  id       String @id @default(cuid())
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(PARENT)
 
-  familyId  String?
-  family    Family?   @relation(fields: [familyId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // [FIX #1] Soft delete
 
-  cards        Card[]
-  transactions Transaction[]
-  assets       Asset[]
-  groups       TransactionGroup[]
-  savings      Saving[]
-  bills        Bill[]
+  cards            Card[]
+  transactions     Transaction[]
+  assets           Asset[]
+  groups           TransactionGroup[]
+  savings          Saving[]
+  bills            Bill[]
   expenseTemplates ExpenseTemplate[]
 
   @@index([familyId])
@@ -83,8 +90,8 @@ model Family {
   assets     Asset[]
   categories Category[]
   merchants  Merchant[]
-  savings      Saving[]
-  bills        Bill[]
+  savings    Saving[]
+  bills      Bill[]
   groups     TransactionGroup[]
 
   @@map("families")
@@ -118,10 +125,10 @@ model Card {
   dueDay    Int?
   timezone  String?          @default("Asia/Jakarta")
 
-  transactions  Transaction[]
-  transfersTo   Transfer[]    @relation("ToCard")
-  transfersFrom Transfer[]    @relation("FromCard")
-  bills         Bill[]
+  transactions     Transaction[]
+  transfersTo      Transfer[]        @relation("ToCard")
+  transfersFrom    Transfer[]        @relation("FromCard")
+  bills            Bill[]
   expenseTemplates ExpenseTemplate[]
 
   @@index([userId])
@@ -150,13 +157,13 @@ model Transaction {
   loan     Loan?
 
   // Relasi ke/dari Bill
-  billId   String?
-  bill     Bill?           @relation(fields: [billId], references: [id])
+  billId String?
+  bill   Bill?   @relation(fields: [billId], references: [id])
 
   // [FEATURE] Group Transaction
   groups TransactionGroupItem[]
 
-   // Relasi timbal balik untuk pencatatan pembayaran utang (1:1)
+  // Relasi timbal balik untuk pencatatan pembayaran utang (1:1)
   debtPayment DebtPayment?
   loanPayment LoanPayment?
 
@@ -244,9 +251,9 @@ model Debt {
 }
 
 model DebtPayment {
-  id     String @id @default(cuid())
-  debtId String
-  debt   Debt   @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  id            String      @id @default(cuid())
+  debtId        String
+  debt          Debt        @relation(fields: [debtId], references: [id], onDelete: Cascade)
   transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   paidAt        DateTime    @default(now())
@@ -281,9 +288,9 @@ model LoanPayment {
 
   transactionId String      @unique
   transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  
-  paidAt        DateTime @default(now())
-  notes         String?
+
+  paidAt DateTime @default(now())
+  notes  String?
 
   @@map("loan_payments")
 }
@@ -298,8 +305,8 @@ model TransactionGroup {
   description String?
 
   // Kustomisasi tampilan (icon & warna dari daftar yang tersedia di aplikasi)
-  icon        String  // Nama icon dari daftar preset, e.g. "airplane", "cart", "home"
-  iconColor   String  // Kode warna dari daftar preset, e.g. "#FF5733"
+  icon      String // Nama icon dari daftar preset, e.g. "airplane", "cart", "home"
+  iconColor String // Kode warna dari daftar preset, e.g. "#FF5733"
 
   // Ownership — group milik user, opsional di-share ke keluarga
   userId   String
@@ -320,7 +327,7 @@ model TransactionGroup {
 
 // Tabel junction many-to-many: 1 transaksi bisa di banyak group, 1 group punya banyak transaksi
 model TransactionGroupItem {
-  id      String @id @default(cuid())
+  id      String           @id @default(cuid())
   groupId String
   group   TransactionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
@@ -369,8 +376,9 @@ model Category {
   familyId String
   family   Family @relation(fields: [familyId], references: [id])
 
-  expenses Expense[]
+  expenses         Expense[]
   expenseTemplates ExpenseTemplate[]
+  bills            Bill[]
 
   @@index([familyId])
   @@map("categories")
@@ -385,7 +393,7 @@ model Merchant {
   familyId String
   family   Family @relation(fields: [familyId], references: [id])
 
-  expenses Expense[]
+  expenses         Expense[]
   expenseTemplates ExpenseTemplate[]
 
   @@index([familyId])
@@ -393,55 +401,58 @@ model Merchant {
 }
 
 model Saving {
-  id          String   @id @default(cuid())
-  name        String
+  id           String    @id @default(cuid())
+  name         String
   targetAmount Float
-  savedAmount  Float    @default(0)
+  savedAmount  Float     @default(0)
   dueDate      DateTime?
-  
-  // Relasi ke User/Family pemilik
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  familyId    String?
-  family      Family?  @relation(fields:[familyId], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  // Relasi ke User/Family pemilik
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("savings")
 }
-  
+
 model Bill {
-  id          String   @id @default(cuid())
-  name        String
-  amount      Float
-  dueDate     DateTime
-  status      BillStatus @default(OPEN)
-  
+  id      String     @id @default(cuid())
+  name    String
+  amount  Float
+  dueDate DateTime
+  status  BillStatus @default(OPEN)
+
   // Relasi ke User/Family pemilik
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  familyId    String?
-  family      Family?  @relation(fields: [familyId], references: [id])
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  familyId String?
+  family   Family? @relation(fields: [familyId], references: [id])
 
   // Context & Metadata
-  category            String?    // e.g. "utilities", "subscription", etc.
-  payee               String?    // e.g. "PLN", "IndiHome"
-  recurring           Boolean    @default(false)
-  notes               String?
-  deletedAt           DateTime?  // Soft delete
+  category          String? // e.g. "utilities", "subscription", etc.
+  categoryId        String?
+  categoryRef       Category?          @relation(fields: [categoryId], references: [id])
+  payee             String? // e.g. "PLN", "IndiHome"
+  recurring         Boolean            @default(false)
+  recurringInterval RecurringInterval?
+  notes             String?
+  deletedAt         DateTime? // Soft delete
 
   // Snapshots dan Relasi Paylater
   billingPeriodStart DateTime?
   billingPeriodEnd   DateTime?
   cardId             String?
-  card               Card?            @relation(fields: [cardId], references: [id])
+  card               Card?     @relation(fields: [cardId], references: [id])
 
-  transactions       Transaction[]
+  transactions Transaction[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([cardId, billingPeriodStart, billingPeriodEnd])
   @@index([userId, deletedAt])
@@ -451,29 +462,29 @@ model Bill {
 }
 
 model ExpenseTemplate {
-  id          String   @id @default(cuid())
-  name        String   // Nama identitas template
-  amount      Float    // Nominal pokok
-  
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  
-  merchantId  String?
-  merchant    Merchant? @relation(fields: [merchantId], references: [id])
-  
-  cardId      String?
-  card        Card?     @relation(fields: [cardId], references: [id])
-  
-  tax         Float?    @default(0)
-  fee         Float?    @default(0)
-  discount    Float?    @default(0)
-  notes       String?
-  
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id     String @id @default(cuid())
+  name   String // Nama identitas template
+  amount Float // Nominal pokok
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  merchantId String?
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+
+  cardId String?
+  card   Card?   @relation(fields: [cardId], references: [id])
+
+  tax      Float?  @default(0)
+  fee      Float?  @default(0)
+  discount Float?  @default(0)
+  notes    String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("expense_templates")
