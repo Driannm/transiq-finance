@@ -266,11 +266,9 @@ export const LayoutRenderers: Record<
   dashboard: ({ left, right, meta }) => (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="flex items-center gap-3 min-w-0 flex-1">{left}</div>
-      <span
-        className={`flex-shrink-0 text-sm font-semibold font-mono tabular-nums ${amountColor(meta?.type)}`}
-      >
+      <div className={`flex-shrink-0 text-right flex items-center justify-end ${amountColor(meta?.type)}`}>
         {right}
-      </span>
+      </div>
     </div>
   ),
 
