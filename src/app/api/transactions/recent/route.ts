@@ -3,24 +3,36 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
-// Helper: Format tanggal ke relatif (2 menit yang lalu, Kemarin, 2 hari yang lalu)
-function formatRelativeTime(date: Date): string {
+// Helper: Format tanggal ke relatif yang akurat (Baru saja, X menit lalu, X jam lalu, Kemarin)
+function formatRelativeTime(dateInput: Date | string): string {
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return "—";
+
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  const minutes = diff / (1000 * 60);
-  const hours = diff / (1000 * 60 * 60);
-  const days = diff / (1000 * 60 * 60 * 24);
+  const minutes = Math.floor(diff / (1000 * 60));
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+
+  if (diff < 0 || minutes < 1) {
+    return "Baru saja";
+  }
 
   if (hours < 1) {
-    return minutes < 1 ? "Baru saja" : `${Math.floor(minutes)} menit lalu`;
+    return `${minutes} menit lalu`;
   }
+
   if (hours < 24) {
-    return `${Math.floor(hours)} jam lalu`;
+    return `${hours} jam lalu`;
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days <= 1) {
+    return "Kemarin";
   }
   if (days < 7) {
-    const d = Math.floor(days);
-    return d === 1 ? "Kemarin" : `${d} hari lalu`;
+    return `${days} hari lalu`;
   }
+
   return date.toLocaleDateString("id-ID", {
     day: "numeric",
     month: "short",
@@ -34,7 +46,7 @@ function mapTransactionType(type: string): "expense" | "income" | "debts" {
     INCOME: "income",
     DEBT: "debts",
     LOAN: "debts",
-    TRANSFER: "expense", // Bisa disesuaikan jadi "transfer" jika perlu
+    TRANSFER: "expense",
   };
   return map[type] || "expense";
 }
@@ -51,7 +63,7 @@ export async function GET() {
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
     twoDaysAgo.setHours(0, 0, 0, 0);
 
-    // Fetch 10 transaksi terbaru user
+    // Fetch 10 transaksi terbaru user (Diurutkan berdasarkan tanggal & jam pembuatan)
     const transactions = await prisma.transaction.findMany({
       where: {
         userId: session.user.id,
@@ -85,7 +97,10 @@ export async function GET() {
           },
         },
       },
-      orderBy: { date: "desc" },
+      orderBy: [
+        { createdAt: "desc" },
+        { date: "desc" },
+      ],
       take: 10,
     });
 
@@ -115,7 +130,7 @@ export async function GET() {
         name = tx.debt.description || "Pinjaman Diterima";
         category = tx.debt.personName || "Tidak Berkategori";
       } else if (tx.type === "LOAN" && tx.loan) {
-        uiType = "expense"; // Force UI mapped as expense/cash-out
+        uiType = "expense";
         name = tx.loan.description || "Memberi Pinjaman";
         category = tx.loan.personName || "Tidak Berkategori";
       } else if (tx.type === "EXPENSE" && expense) {
@@ -133,15 +148,19 @@ export async function GET() {
         category = income.source || "Tidak Berkategori";
       }
 
+      // [FIX] Gunakan tx.createdAt jika ada agar jam/menit relatif akurat (bukan jam 00:00 UTC dari datepicker)
+      const effectiveDate = tx.createdAt ? new Date(tx.createdAt) : new Date(tx.date);
+
       return {
         id: tx.id,
         name,
         category,
-        time: formatRelativeTime(tx.date),
+        time: formatRelativeTime(effectiveDate),
         amount: Math.abs(calculatedAmount),
         type: uiType,
         originalType: tx.type,
         date: tx.date.toISOString(),
+        createdAt: tx.createdAt ? tx.createdAt.toISOString() : undefined,
       };
     });
 
