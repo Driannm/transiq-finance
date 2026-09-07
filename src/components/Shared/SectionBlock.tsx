@@ -3,8 +3,10 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +24,10 @@ export interface SectionBlockProps {
   /** Judul section */
   title: string;
 
-  /** Badge kecil di sebelah title (mis. "3 urgent") */
+  /** Link opsional untuk title + arrow icon */
+  titleHref?: string;
+
+  /** Badge kecil (mis. "3 urgent") */
   badge?: SectionBadge;
 
   /** Action di kanan header (See All, button, dsb.) */
@@ -38,62 +43,87 @@ export interface SectionBlockProps {
   padded?: boolean;
 }
 
-// ─── Badge Variants ───────────────────────────────────────────────────────────
+// ─── Badge Outline Color Classes ──────────────────────────────────────────────
 
-const badgeVariants: Record<NonNullable<SectionBadge["variant"]>, string> = {
-  red: "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400",
-  blue: "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400",
-  green: "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400",
-  amber: "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400",
-  gray: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+const badgeOutlineColors: Record<
+  NonNullable<SectionBadge["variant"]>,
+  string
+> = {
+  red: "border-red-500/35 text-red-600 dark:text-red-400 bg-red-500/10 dark:bg-red-500/15",
+  blue: "border-blue-500/35 text-blue-600 dark:text-blue-400 bg-blue-500/10 dark:bg-blue-500/15",
+  green:
+    "border-emerald-500/35 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/15",
+  amber:
+    "border-amber-500/35 text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/15",
+  gray: "border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 bg-neutral-100/50 dark:bg-neutral-900/50",
 };
 
 // ─── SectionHeader ────────────────────────────────────────────────────────────
 
 function SectionHeader({
   title,
+  titleHref,
   badge,
   action,
-}: Pick<SectionBlockProps, "title" | "badge" | "action">) {
+}: Pick<SectionBlockProps, "title" | "titleHref" | "badge" | "action">) {
   return (
     <div className="flex items-center justify-between px-1 mb-2.5">
-      {/* Left: title + badge */}
-      <div className="flex items-center gap-2">
-        <h3 className="text-md font-semibold tracking-tight text-gray-900 dark:text-gray-100">
-          {title}
-        </h3>
-        {badge && (
-          <span
-            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-              badgeVariants[badge.variant ?? "gray"]
-            }`}
+      {/* Left: title + arrow link */}
+      <div className="flex items-center gap-1">
+        {titleHref ? (
+          <Link
+            href={titleHref}
+            className="group flex items-center gap-1 text-md font-semibold tracking-tight text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
           >
-            {badge.label}
-          </span>
+            <span>{title}</span>
+            <HugeiconsIcon
+              icon={ArrowRight01Icon}
+              size={18}
+              className="text-gray-400 dark:text-gray-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors group-hover:translate-x-0.5 transform"
+            />
+          </Link>
+        ) : (
+          <h3 className="text-md font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+            {title}
+          </h3>
         )}
       </div>
 
-      {/* Right: action */}
-      {action &&
-        (action.type === "link" ? (
-          <Link
-            href={action.href}
-            className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+      {/* Right: badge & action */}
+      <div className="flex items-center gap-2">
+        {badge && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-[10px] font-semibold tracking-wide rounded-full px-2 py-0.5 shadow-none border",
+              badgeOutlineColors[badge.variant ?? "gray"],
+            )}
           >
-            {action.label}
-          </Link>
-        ) : action.type === "button" ? (
-          <button
-            onClick={action.onPress}
-            className="text-xs font-medium text-foreground bg-muted hover:bg-muted/80 border border-neutral-800 rounded-lg px-2.5 py-1 transition-colors"
-          >
-            {action.label}
-          </button>
-        ) : (
-          <span className="text-xs text-gray-400 dark:text-gray-500">
-            {action.label}
-          </span>
-        ))}
+            {badge.label}
+          </Badge>
+        )}
+
+        {action &&
+          (action.type === "link" ? (
+            <Link
+              href={action.href}
+              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            >
+              {action.label}
+            </Link>
+          ) : action.type === "button" ? (
+            <button
+              onClick={action.onPress}
+              className="text-xs font-medium text-foreground bg-muted hover:bg-muted/80 border border-neutral-800 rounded-lg px-2.5 py-1 transition-colors"
+            >
+              {action.label}
+            </button>
+          ) : (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {action.label}
+            </span>
+          ))}
+      </div>
     </div>
   );
 }
@@ -102,18 +132,10 @@ function SectionHeader({
 
 /**
  * Komponen wrapper universal untuk section di Dashboard & Analytics.
- *
- * @example
- * <SectionBlock
- *   title="Upcoming Bills"
- *   badge={{ label: "3 urgent", variant: "red" }}
- *   action={{ type: "link", label: "See All", href: "/bills" }}
- * >
- *   <CardList ... />
- * </SectionBlock>
  */
 export function SectionBlock({
   title,
+  titleHref,
   badge,
   action,
   children,
@@ -130,7 +152,12 @@ export function SectionBlock({
       className={cn(padded ? "px-4" : "", "mt-5 space-y-2", className)}
     >
       {hasHeader && (
-        <SectionHeader title={title} badge={badge} action={action} />
+        <SectionHeader
+          title={title}
+          titleHref={titleHref}
+          badge={badge}
+          action={action}
+        />
       )}
       {children}
     </motion.section>
