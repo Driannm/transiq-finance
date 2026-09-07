@@ -1,4 +1,4 @@
-import { format, isValid } from "date-fns";
+import { format, isValid, differenceInCalendarDays, parseISO } from "date-fns";
 
 /**
  * Format ISO date string or Date object to "12 Jun 2025" in Indonesian locale.
@@ -36,3 +36,18 @@ export function safeTime(
   const d = typeof dateStr === "string" ? new Date(dateStr) : dateStr;
   return isValid(d) ? format(d, "HH:mm") : fallback;
 }
+
+/**
+ * Calculates calendar days until due date consistently across all pages.
+ */
+export function getDaysUntilDue(dateStr: string | Date | null | undefined): number {
+  if (!dateStr) return 0;
+  const d =
+    typeof dateStr === "string"
+      ? dateStr.includes("T")
+        ? parseISO(dateStr)
+        : new Date(dateStr.replace(/-/g, "/"))
+      : dateStr;
+  return isValid(d) ? differenceInCalendarDays(d, new Date()) : 0;
+}
+
