@@ -11,6 +11,7 @@ export interface RecentTransaction {
   type: "expense" | "income" | "debts";
   originalType: string;
   date: string;
+  createdAt?: string;
 }
 
 export interface RecentTransactionsResponse {
@@ -20,7 +21,7 @@ export interface RecentTransactionsResponse {
 
 export function useRecentTransactions() {
   return useSWR<RecentTransactionsResponse>("/api/transactions/recent", {
-    // Refresh tiap 60 detik (bisa disesuaikan)
+    // Refresh tiap 60 detik
     refreshInterval: 60_000,
     // Tetap revalidate saat tab aktif kembali
     revalidateOnFocus: true,
