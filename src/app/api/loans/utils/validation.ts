@@ -1,17 +1,31 @@
 import { z } from "zod";
 
-const LOAN_CATEGORIES = ["personal", "family", "colleague", "other"] as const;
+const LOAN_CATEGORIES = [
+  "personal",
+  "family",
+  "colleague",
+  "credit_card",
+  "bank",
+  "other",
+] as const;
 
-export const createLoanSchema = z.object({
-  cardId: z.string().min(1, "Kartu/rekening wajib dipilih"),
-  name: z.string().min(1, "Nama piutang/deskripsi wajib diisi").max(255),
-  debtor: z.string().min(1, "Penerima piutang/peminjam wajib diisi").max(255),
-  category: z.enum(LOAN_CATEGORIES).default("personal"),
-  totalAmount: z.number().positive("Total piutang harus lebih besar dari 0"),
-  loanDate: z.string().min(1, "Tanggal piutang diberikan wajib diisi"),
-  dueDate: z.string().min(1, "Tanggal jatuh tempo pengembalian wajib diisi"),
-  notes: z.string().max(1000).optional().nullable(),
-});
+export const createLoanSchema = z
+  .object({
+    cardId: z.string().min(1, "Kartu/rekening wajib dipilih"),
+    name: z.string().min(1, "Nama piutang/deskripsi wajib diisi").max(255),
+    debtor: z.string().min(1, "Penerima piutang/peminjam wajib diisi").max(255),
+    category: z.enum(LOAN_CATEGORIES).default("personal"),
+    totalAmount: z.number().positive("Total piutang harus lebih besar dari 0"),
+    loanDate: z.string().optional().nullable(),
+    date: z.string().optional().nullable(),
+    dueDate: z.string().min(1, "Tanggal jatuh tempo pengembalian wajib diisi"),
+    notes: z.string().max(1000).optional().nullable(),
+  })
+  .transform((data) => ({
+    ...data,
+    loanDate:
+      data.loanDate || data.date || new Date().toISOString().split("T")[0],
+  }));
 
 export const updateLoanSchema = z.object({
   name: z.string().min(1).max(255).optional(),
