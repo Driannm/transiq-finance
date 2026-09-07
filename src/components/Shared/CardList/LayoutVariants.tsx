@@ -2,7 +2,7 @@ import React from "react";
 import { CardItemRenderResult, LayoutVariant, LoanItemMeta } from "./types";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Calendar01Icon,
+  CalendarRemove02Icon,
   UserIcon,
   UserGroupIcon,
   Briefcase01Icon,
@@ -54,28 +54,28 @@ const LOAN_STAMP_META = {
   active: {
     label: "Belum Bayar",
     border: "border-blue-500/50 dark:border-blue-400/50",
-    text: "text-blue-500 dark:text-blue-400",
+    text: "text-blue-500 font-sans dark:text-blue-400",
     bg: "bg-blue-500/5",
-    rotate: "-rotate-6",
+    rotate: "-rotate-12",
   },
   ongoing: {
     label: "Dicicil",
     border: "border-amber-500/55 dark:border-amber-400/55",
-    text: "text-amber-500 dark:text-amber-400",
+    text: "text-amber-500 font-sans dark:text-amber-400",
     bg: "bg-amber-500/5",
-    rotate: "-rotate-3",
+    rotate: "-rotate-12",
   },
   overdue: {
     label: "Jatuh Tempo",
     border: "border-red-500/60 dark:border-red-400/60",
-    text: "text-red-500 dark:text-red-400",
+    text: "text-red-500 font-sans dark:text-red-400",
     bg: "bg-red-500/5",
     rotate: "-rotate-12",
   },
   paid: {
     label: "Lunas",
     border: "border-emerald-600/70 dark:border-emerald-400/70",
-    text: "text-emerald-600 dark:text-emerald-400",
+    text: "text-emerald-600 font-sans dark:text-emerald-400",
     bg: "bg-emerald-600/10",
     rotate: "-rotate-12 scale-110",
   },
@@ -230,8 +230,8 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
           <div className="flex items-center justify-between gap-4 pt-0.5">
             <div className="flex items-center gap-1.5 text-xs text-gray-405 dark:text-gray-455 font-medium">
               <HugeiconsIcon
-                icon={Calendar01Icon}
-                size={14}
+                icon={CalendarRemove02Icon}
+                size={16}
                 className="text-gray-350 dark:text-gray-600 flex-shrink-0"
               />
               <span>
