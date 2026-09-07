@@ -1,15 +1,24 @@
 "use client";
 
 import React from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { formatIDR, safeDate } from "@/lib/format";
+import { formatIDR } from "@/lib/format";
 import type { BalanceHeaderProps, BalanceHeaderVariant } from "./types";
+import {
+  MonthSelector,
+  PrivacyToggle,
+  TrendIndicator,
+  SecondaryAmount,
+  ProgressBar,
+  Badges,
+} from "./addons";
 
 // Map variants to backgrounds and borders
-const VARIANT_META: Record<BalanceHeaderVariant, { bg: string; shadow: string }> = {
+const VARIANT_META: Record<
+  BalanceHeaderVariant,
+  { bg: string; shadow: string }
+> = {
   emerald: {
     bg: "radial-gradient(circle at top right, rgba(16, 185, 129, 0.95) 0%, rgba(16, 185, 129, 0.35) 18%, transparent 42%), radial-gradient(circle at bottom right, rgba(5, 150, 105, 0.85) 0%, rgba(5, 150, 105, 0.22) 20%, transparent 45%), linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)",
     shadow:
@@ -42,32 +51,24 @@ const VARIANT_META: Record<BalanceHeaderVariant, { bg: string; shadow: string }>
   },
 };
 
-const safeFormatDate = (isoStr: string | null | undefined, fmtStr: string) => {
-  return safeDate(isoStr, fmtStr, "");
-};
-
 export function BalanceHeader({
   label,
   amount,
   variant,
   isLoading = false,
+  currency = "IDR",
   monthSelector,
   progress,
+  privacyToggle,
+  trend,
+  secondaryAmount,
+  topRightAction,
   badges,
   className = "",
 }: BalanceHeaderProps) {
   const meta = VARIANT_META[variant] || VARIANT_META.emerald;
-
-  const formattedMonth = React.useMemo(() => {
-    if (!monthSelector?.currentMonth) return "";
-    if (
-      monthSelector.currentMonth.includes("-") &&
-      monthSelector.currentMonth.length === 7
-    ) {
-      return safeFormatDate(monthSelector.currentMonth + "-01", "MMMM yyyy");
-    }
-    return monthSelector.currentMonth;
-  }, [monthSelector?.currentMonth]);
+  const isMasked = privacyToggle?.isHidden;
+  const maskText = privacyToggle?.maskText || "••••••••";
 
   return (
     <motion.div
@@ -82,83 +83,55 @@ export function BalanceHeader({
       }}
     >
       <div className="relative z-10 flex flex-col gap-3.5">
-        {/* Top line: Label & Month Selector */}
+        {/* Top Header Row: Label, Privacy Toggle, Month Selector & Actions */}
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50 select-none">
-            {label}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs md:text-sm font-medium tracking-wide uppercase text-white/50 select-none">
+              {label}
+            </p>
+            {privacyToggle && <PrivacyToggle privacyToggle={privacyToggle} />}
+          </div>
 
-          {monthSelector && (
-            <>
-              {monthSelector.style === "sleek" ? (
-                /* Sleek style (icons with background pill) */
-                <div className="flex items-center gap-0.5 bg-white/10 backdrop-blur-md border border-white/10 p-0.5 rounded-full select-none">
-                  <button
-                    onClick={monthSelector.onPrev}
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
-                    type="button"
-                  >
-                    <HugeiconsIcon icon={ArrowLeft01Icon} size={12} />
-                  </button>
-                  <span className="text-[10px] font-bold tracking-wide text-white uppercase px-1.5 whitespace-nowrap">
-                    {formattedMonth}
-                  </span>
-                  <button
-                    onClick={monthSelector.onNext}
-                    className="w-6 h-6 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 active:scale-90 transition-all duration-200"
-                    type="button"
-                  >
-                    <HugeiconsIcon icon={ArrowRight01Icon} size={12} />
-                  </button>
-                </div>
-              ) : (
-                /* Minimal style (‹ MMMM yyyy › arrows text-based) */
-                <div className="flex items-center gap-2.5 bg-white/10 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full select-none">
-                  <button
-                    onClick={monthSelector.onPrev}
-                    className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
-                    type="button"
-                  >
-                    ‹
-                  </button>
-                  <span className="text-[11px] md:text-xs font-semibold tracking-wide text-white whitespace-nowrap">
-                    {formattedMonth}
-                  </span>
-                  <button
-                    onClick={monthSelector.onNext}
-                    className="w-5 h-5 flex items-center justify-center text-white/70 hover:text-white transition-colors text-base font-bold"
-                    type="button"
-                  >
-                    ›
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+          <div className="flex items-center gap-2">
+            {monthSelector && <MonthSelector monthSelector={monthSelector} />}
+            {topRightAction}
+          </div>
         </div>
 
-        {/* Middle level: Amount */}
-        <div>
+        {/* Amount Level & Trend Indicator */}
+        <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2">
           <h2 className="text-[32px] md:text-[36px] font-mono font-bold tracking-tight leading-none select-all flex items-baseline">
             <span className="font-sans font-bold text-white/70 select-none mr-2">
-              IDR
+              {currency}
             </span>
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="popLayout" initial={false}>
               {isLoading ? (
                 <motion.span
                   key="skeleton"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.15 }}
+                  transition={{ duration: 0.1 }}
                   className="inline-block h-[28px] md:h-[32px] w-[140px] bg-white/20 rounded-xl animate-pulse self-center ml-1"
                 />
+              ) : isMasked ? (
+                <motion.span
+                  key="masked"
+                  initial={{ opacity: 0, scale: 0.96, y: -2 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: 2 }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
+                  className="tracking-widest font-sans opacity-80 text-[28px]"
+                >
+                  {maskText}
+                </motion.span>
               ) : (
                 <motion.span
                   key="amount"
-                  initial={{ opacity: 0, y: 6, filter: "blur(2px)" }}
-                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  transition={{ type: "spring", stiffness: 220, damping: 20 }}
+                  initial={{ opacity: 0, scale: 0.96, y: 2 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.96, y: -2 }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
                   className="flex items-baseline"
                 >
                   <span>{formatIDR(Math.abs(amount))}</span>
@@ -169,38 +142,20 @@ export function BalanceHeader({
               )}
             </AnimatePresence>
           </h2>
+
+          {trend && <TrendIndicator trend={trend} />}
         </div>
 
-        {/* Progress level */}
-        {progress && (
-          <div>
-            <div className="flex justify-between mb-1.5 select-none">
-              {progress.labelLeft && (
-                <span className="text-[10px] uppercase tracking-wider text-white/40 font-medium">
-                  {progress.labelLeft}
-                </span>
-              )}
-              {progress.labelRight !== undefined && (
-                <span className="text-[10px] font-mono text-white/60">
-                  {progress.labelRight}
-                </span>
-              )}
-            </div>
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-400 rounded-full transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, Math.max(0, progress.percentage))}%`,
-                }}
-              />
-            </div>
-          </div>
+        {/* Secondary Amount Addon */}
+        {secondaryAmount && (
+          <SecondaryAmount secondaryAmount={secondaryAmount} />
         )}
 
-        {/* Bottom level: Badges */}
-        {badges && badges.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">{badges}</div>
-        )}
+        {/* Progress Bar Addon */}
+        {progress && <ProgressBar progress={progress} />}
+
+        {/* Bottom Level Badges Addon */}
+        {badges && badges.length > 0 && <Badges badges={badges} />}
       </div>
     </motion.div>
   );
