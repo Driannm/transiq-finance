@@ -7,18 +7,13 @@ export const billBaseSchema = z.object({
   dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Format tanggal jatuh tempo tidak valid",
   }),
-  category: z.enum([
-    "utilities",
-    "subscription",
-    "rent",
-    "insurance",
-    "internet",
-    "other"
-  ]).optional().nullable(),
+  category: z.string().optional().nullable(), // Allow generic strings for now until UI migrate full category picker
+  categoryId: z.string().optional().nullable(),
   payee: z.string().trim().max(255).optional().nullable(),
   recurring: z.boolean().default(false),
+  recurringInterval: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional().nullable(),
   notes: z.string().trim().max(1000).optional().nullable(),
-  cardId: z.string().cuid("ID Kartu/Rekening tidak valid").optional().nullable(),
+  cardId: z.string().min(1, "ID Kartu/Rekening tidak valid").optional().nullable(),
 });
 
 export const createBillSchema = billBaseSchema;
@@ -29,18 +24,13 @@ export const updateBillSchema = z.object({
   dueDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Format tanggal jatuh tempo tidak valid",
   }).optional(),
-  category: z.enum([
-    "utilities",
-    "subscription",
-    "rent",
-    "insurance",
-    "internet",
-    "other"
-  ]).optional().nullable(),
+  category: z.string().optional().nullable(),
+  categoryId: z.string().optional().nullable(),
   payee: z.string().trim().max(255).optional().nullable(),
   recurring: z.boolean().optional(),
+  recurringInterval: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional().nullable(),
   notes: z.string().trim().max(1000).optional().nullable(),
-  cardId: z.string().cuid("ID Kartu/Rekening tidak valid").optional().nullable(),
+  cardId: z.string().min(1, "ID Kartu/Rekening tidak valid").optional().nullable(),
   status: z.enum(["OPEN", "PAID", "OVERDUE", "paid", "pending", "overdue"]).optional(),
 });
 
