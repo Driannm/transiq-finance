@@ -132,7 +132,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Validasi gagal", details: parsed.error.issues }, { status: 400 });
     }
 
-    const { cardId, name, creditor, category, totalAmount, dueDate, notes, installment } = parsed.data;
+    const { cardId, name, creditor, category, totalAmount, debtDate, dueDate, notes, installment } = parsed.data;
+
+    // Verify card ownership
+    const card = await prisma.card.findFirst({
+      where: {
+        id: cardId,
+        deletedAt: null,
+        OR: [
+          { userId: session.user.id },
+          ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
+        ],
+      },
+    });
+    if (!card) {
+      return NextResponse.json({ error: "Kartu tidak valid atau tidak ditemukan" }, { status: 400 });
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. Buat transaksi finansial inti sebagai DEBT
@@ -142,7 +157,7 @@ export async function POST(request: Request) {
           type: "DEBT",
           userId: session.user.id,
           cardId,
-          date: new Date(dueDate),
+          date: new Date(debtDate),
         },
       });
 
