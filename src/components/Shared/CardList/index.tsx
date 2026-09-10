@@ -84,6 +84,7 @@ export function CardList<T = any>({
 
     return groupTransactionsWithSubtotal(items as any[], {
       groupBy: grouping.groupBy as any,
+      groupSorter: grouping.groupSorter as any,
       subtotalFormatter: grouping.subtotalFormatter,
       includeSign: true,
       amountExtractor: grouping.amountExtractor as any,

@@ -58,6 +58,10 @@ export interface SkeletonConfig {
 export interface GroupConfig<T = any> {
   enabled: boolean;
   groupBy: (item: T) => string;
+  groupSorter?: (
+    a: import("../utils/groupBy").GroupedResult<T>,
+    b: import("../utils/groupBy").GroupedResult<T>,
+  ) => number;
   renderHeader?: (groupKey: string, items: T[], subtotal: number) => ReactNode;
   showSubtotal?: boolean;
   subtotalFormatter?: (amount: number) => string;
