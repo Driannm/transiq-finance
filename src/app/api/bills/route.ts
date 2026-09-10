@@ -105,6 +105,7 @@ export async function GET(request: Request) {
       where: baseWhere,
       include: {
         card: true,
+        categoryRef: true,
         transactions: {
           where: { deletedAt: null },
           include: {
@@ -124,7 +125,7 @@ export async function GET(request: Request) {
 
     const mappedBills = bills.map((b) => {
       // Determine category (virtualized fallback -> database column -> transaction category)
-      let category = b.category || "other";
+      let category = b.categoryRef?.name || b.category || "other";
       let notes = b.notes || null;
       const recurring = b.recurring;
       const payee = b.payee || b.card?.name || "Tagihan Umum";
@@ -170,6 +171,7 @@ export async function GET(request: Request) {
         payee,
         recurring,
         notes,
+        createExpense: b.createExpense ?? true,
       };
     });
 
@@ -202,10 +204,13 @@ export async function POST(request: Request) {
       amount,
       dueDate,
       category,
+      categoryId,
       payee,
       recurring,
+      recurringInterval,
       notes,
       cardId,
+      createExpense,
     } = parsed.data;
 
     // Validate payment card ownership if cardId is provided
@@ -238,10 +243,13 @@ export async function POST(request: Request) {
         userId: session.user.id,
         familyId: session.user.familyId,
         category: category || null,
+        categoryId: categoryId || null,
         payee: payee || null,
         recurring,
+        recurringInterval: recurringInterval || null,
         notes: notes || null,
         cardId: cardId || null,
+        createExpense: createExpense ?? true,
       },
     });
 
