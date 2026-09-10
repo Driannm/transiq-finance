@@ -62,7 +62,17 @@ export interface GroupConfig<T = any> {
   showSubtotal?: boolean;
   subtotalFormatter?: (amount: number) => string;
   amountExtractor?: (item: T) => number; // ← tambah
-  typeExtractor?: (item: T) => "expense" | "income" | "transfer" | undefined;
+  typeExtractor?: (
+    item: T,
+  ) =>
+    | "expense"
+    | "income"
+    | "transfer"
+    | "debts"
+    | "loans"
+    | "bills"
+    | undefined;
+  type?: import("./GroupHeader").GroupHeaderType;
 }
 
 export interface CardItemRenderResult {
@@ -73,7 +83,13 @@ export interface CardItemRenderResult {
     date?: string;
     amount?: number;
     badge?: string;
-    type?: "expense" | "income" | "transfer";
+    type?:
+      | "expense"
+      | "income"
+      | "transfer"
+      | "debts"
+      | "loans"
+      | "bills";
     loanData?: LoanItemMeta;
   };
 }

@@ -2,11 +2,20 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type GroupHeaderType =
+  | "expense"
+  | "income"
+  | "debts"
+  | "loans"
+  | "bills"
+  | "default";
+
 interface GroupHeaderProps {
   label: string;
   subtotal?: number;
   formattedSubtotal?: string;
   showSubtotal?: boolean;
+  type?: GroupHeaderType;
   className?: string;
 }
 
@@ -18,10 +27,35 @@ export function GroupHeader({
   subtotal,
   formattedSubtotal,
   showSubtotal = true,
+  type,
   className = "",
 }: GroupHeaderProps) {
-  const isExpense = subtotal !== undefined && subtotal < 0;
-  const isIncome = subtotal !== undefined && subtotal > 0;
+  const getBadgeStyle = () => {
+    if (type === "debts") {
+      return "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400";
+    }
+    if (type === "loans") {
+      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400";
+    }
+    if (type === "bills") {
+      return "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400";
+    }
+    if (type === "expense") {
+      return "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400";
+    }
+    if (type === "income") {
+      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400";
+    }
+
+    if (subtotal !== undefined && subtotal < 0) {
+      return "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400";
+    }
+    if (subtotal !== undefined && subtotal > 0) {
+      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400";
+    }
+
+    return "bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400";
+  };
 
   return (
     <div
@@ -40,11 +74,7 @@ export function GroupHeader({
           className={[
             "text-[11px] font-semibold font-mono tabular-nums",
             "px-2 py-0.5 rounded-md",
-            isExpense
-              ? "bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400"
-              : isIncome
-                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
-                : "bg-gray-100 dark:bg-neutral-800 text-gray-500 dark:text-gray-400",
+            getBadgeStyle(),
           ].join(" ")}
         >
           {formattedSubtotal}

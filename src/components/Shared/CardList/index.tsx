@@ -213,6 +213,7 @@ export function CardList<T = any>({
               subtotal={group.subtotal}
               formattedSubtotal={group.formattedSubtotal}
               showSubtotal={grouping?.showSubtotal}
+              type={grouping?.type}
             />
             <div className="divide-y divide-gray-100 dark:divide-neutral-800">
               {group.items.map((item, idx) => (

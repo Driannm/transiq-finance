@@ -12,7 +12,12 @@ import { cn } from "@/lib/utils";
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
-function amountColor(type?: "expense" | "income" | "transfer"): string {
+function amountColor(
+  type?: "expense" | "income" | "transfer" | "debts" | "loans" | "bills"
+): string {
+  if (type === "debts") return "text-rose-600 dark:text-rose-400";
+  if (type === "loans") return "text-emerald-600 dark:text-emerald-400";
+  if (type === "bills") return "text-indigo-600 dark:text-indigo-400";
   if (type === "expense") return "text-red-500 dark:text-red-400";
   if (type === "income") return "text-emerald-500 dark:text-emerald-400";
   return "text-gray-700 dark:text-gray-300";
