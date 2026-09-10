@@ -14,6 +14,7 @@ interface BillWithRelations {
   category?: string | null;
   payee?: string | null;
   recurring: boolean;
+  createExpense?: boolean;
   notes?: string | null;
   cardId?: string | null;
   card?: { name: string } | null;
@@ -106,6 +107,7 @@ function mapBill(b: BillWithRelations) {
     payee,
     recurring,
     notes,
+    createExpense: b.createExpense ?? true,
   };
 }
 
@@ -180,142 +182,159 @@ export async function PATCH(
       notes,
       cardId,
       status,
+      createExpense,
     } = parsed.data;
 
     // Check payment recording action (if status passed is "paid" or "PAID")
     const markAsPaid = status === "paid" || status === "PAID";
 
     if (markAsPaid) {
-      if (existingBill.status === "PAID") {
-        return NextResponse.json({ success: true, message: "Tagihan sudah lunas", data: mapBill(existingBill as unknown as BillWithRelations) });
-      }
-
-      // Check if we can deduce which card to use (either passed in parameter or registered on the manual bill)
       const targetCardId = cardId || existingBill.cardId;
 
-      if (targetCardId) {
-        // Record transactional cashflow payment
-        const card = await prisma.card.findFirst({
-          where: {
-            id: targetCardId,
-            deletedAt: null,
-            OR: [
-              { userId: session.user.id },
-              ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
-            ],
-          },
-        });
+      if (!targetCardId) {
+        return NextResponse.json({ error: "Rekening/Kartu pembayaran tidak valid atau wajib dipilih" }, { status: 400 });
+      }
 
-        if (!card) {
-          return NextResponse.json({ error: "Rekening/Kartu pembayaran tidak valid" }, { status: 400 });
-        }
+      const txAmount = amount !== undefined ? amount : existingBill.amount;
 
-        const txAmount = amount !== undefined ? amount : existingBill.amount;
-
-        const updated = await prisma.$transaction(async (tx) => {
-          // 1. Create matching expense transaction
-          const paymentTx = await tx.transaction.create({
-            data: {
-              amount: txAmount,
-              type: "EXPENSE",
-              userId: session.user.id,
-              cardId: targetCardId,
-              date: new Date(),
-              billId: billId,
-            },
+      try {
+        const updatedBill = await prisma.$transaction(async (tx) => {
+          // 1. Double check bill status inside transaction to guarantee idempotency
+          const currentBill = await tx.bill.findUnique({
+            where: { id: billId }
           });
 
-          // 2. Resolve expense category name
-          const systemCategory = await tx.category.findFirst({
-            where: {
-              name: {
-                contains: category || existingBill.category || "other",
-                mode: "insensitive"
+          if (!currentBill) throw new Error("Tagihan tidak ditemukan");
+          if (currentBill.status === "PAID") throw new Error("Tagihan sudah lunas");
+
+          // 2. Determine whether to create Expense transaction
+          const shouldCreateExpense = createExpense !== undefined
+            ? createExpense
+            : (currentBill.createExpense ?? true);
+
+          if (shouldCreateExpense) {
+            // Verify Card
+            const card = await tx.card.findFirst({
+              where: {
+                id: targetCardId,
+                deletedAt: null,
+                OR: [
+                  { userId: session.user.id },
+                  ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
+                ],
               },
-              familyId: session.user.familyId || undefined,
-            },
-          });
+            });
 
-          // 3. Create expense record subtype
-          await tx.expense.create({
-            data: {
-              transactionId: paymentTx.id,
-              name: name || existingBill.name,
-              notes: notes || existingBill.notes,
-              categoryId: systemCategory?.id || null,
-            },
-          });
+            if (!card) throw new Error("Rekening/Kartu pembayaran tidak valid");
 
-          // 4. Deduct payment method balance
-          await tx.card.update({
-            where: { id: targetCardId },
-            data: { balance: { decrement: txAmount } },
-          });
+            // Create expense transaction
+            const paymentTx = await tx.transaction.create({
+              data: {
+                amount: txAmount,
+                type: "EXPENSE",
+                userId: session.user.id,
+                cardId: targetCardId,
+                date: new Date(),
+                billId: billId,
+              },
+            });
 
-          // 5. Update bill status to PAID and save any changed standard fields
-          const updatedBill = await tx.bill.update({
+            // Resolve expense category
+            let systemCategoryId = category !== undefined ? category : currentBill.categoryId;
+            if (!systemCategoryId && currentBill.category) {
+              const systemCategory = await tx.category.findFirst({
+                where: {
+                  name: {
+                    contains: currentBill.category || "other",
+                    mode: "insensitive"
+                  },
+                  familyId: session.user.familyId || undefined,
+                },
+              });
+              if (systemCategory) systemCategoryId = systemCategory.id;
+            }
+
+            // Create expense record subtype
+            await tx.expense.create({
+              data: {
+                transactionId: paymentTx.id,
+                name: name || currentBill.name,
+                notes: notes || currentBill.notes,
+                categoryId: systemCategoryId || null,
+              },
+            });
+
+            // Deduct card balance
+            await tx.card.update({
+              where: { id: targetCardId },
+              data: { balance: { decrement: txAmount } },
+            });
+          }
+
+          // 7. Update current bill simply to PAID
+          const markedPaidBill = await tx.bill.update({
             where: { id: billId },
             data: {
               status: "PAID",
               amount: txAmount,
               ...(name && { name }),
               ...(dueDate && { dueDate: new Date(dueDate) }),
-              ...(category !== undefined && { category }),
+              ...(category !== undefined && { category }), // Legacy string mapping fallback
               ...(payee !== undefined && { payee }),
               ...(recurring !== undefined && { recurring }),
               ...(notes !== undefined && { notes }),
+              ...(createExpense !== undefined && { createExpense }),
               cardId: targetCardId,
             },
             include: {
               card: true,
               transactions: {
                 where: { deletedAt: null },
-                include: {
-                  expense: {
-                    include: {
-                      category: true,
-                      merchant: true,
-                    }
-                  }
-                }
+                include: { expense: { include: { category: true, merchant: true } } }
               }
             }
           });
 
-          return updatedBill as unknown as BillWithRelations;
+          // 8. Generate Next Recurring Occurrence if enabled
+          const isRecurring = recurring !== undefined ? recurring : currentBill.recurring;
+          if (isRecurring) {
+            const nextDueDate = new Date(currentBill.dueDate);
+            const interval = currentBill.recurringInterval || "MONTHLY";
+            
+            if (interval === "DAILY") nextDueDate.setDate(nextDueDate.getDate() + 1);
+            else if (interval === "WEEKLY") nextDueDate.setDate(nextDueDate.getDate() + 7);
+            else if (interval === "YEARLY") nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+            else nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+
+            await tx.bill.create({
+              data: {
+                name: currentBill.name,
+                amount: currentBill.amount,
+                dueDate: nextDueDate,
+                status: "OPEN",
+                userId: currentBill.userId,
+                familyId: currentBill.familyId,
+                category: currentBill.category,
+                categoryId: currentBill.categoryId,
+                payee: currentBill.payee,
+                recurring: currentBill.recurring,
+                recurringInterval: currentBill.recurringInterval,
+                notes: currentBill.notes,
+                cardId: currentBill.cardId,
+                createExpense: currentBill.createExpense,
+              }
+            });
+          }
+
+          return markedPaidBill as unknown as BillWithRelations;
         });
 
-        return NextResponse.json({ success: true, data: mapBill(updated) });
-      } else {
-        // Without card payment, simply mark status as PAID
-        const updatedBill = await prisma.bill.update({
-          where: { id: billId },
-          data: {
-            status: "PAID",
-            ...(amount !== undefined && { amount }),
-            ...(name && { name }),
-            ...(dueDate && { dueDate: new Date(dueDate) }),
-            ...(category !== undefined && { category }),
-            ...(payee !== undefined && { payee }),
-            ...(recurring !== undefined && { recurring }),
-            ...(notes !== undefined && { notes }),
-          },
-          include: {
-            card: true,
-            transactions: {
-              where: { deletedAt: null },
-              include: {
-                expense: {
-                  include: {
-                    category: true,
-                    merchant: true,
-                  }
-                }
-              }
-            }
-          }
-        });
-        return NextResponse.json({ success: true, data: mapBill(updatedBill as unknown as BillWithRelations) });
+        return NextResponse.json({ success: true, data: mapBill(updatedBill) });
+      } catch (err: any) {
+        if (err.message === "Tagihan sudah lunas") {
+          return NextResponse.json({ success: true, message: "Tagihan sudah lunas", data: mapBill(existingBill as unknown as BillWithRelations) });
+        }
+        return NextResponse.json({ error: err.message || "Gagal melunasi tagihan" }, { status: 400 });
       }
     }
 
@@ -329,6 +348,7 @@ export async function PATCH(
     if (recurring !== undefined) updateData.recurring = recurring;
     if (notes !== undefined) updateData.notes = notes;
     if (cardId !== undefined) updateData.cardId = cardId;
+    if (createExpense !== undefined) updateData.createExpense = createExpense;
     
     if (status !== undefined) {
       const statusStr = status as string;
