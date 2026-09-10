@@ -72,7 +72,7 @@ export function groupTransactionsWithSubtotal<
 
       if (type === "expense") return sum - amount;
       if (type === "income") return sum + amount;
-      return sum;
+      return sum + Math.abs(amount);
     }, 0);
 
     const formatter =
