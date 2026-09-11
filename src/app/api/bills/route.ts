@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") ?? undefined;
     const status = searchParams.get("status") ?? undefined;
     const month = searchParams.get("month") ?? undefined;
-    
+
     const page = parseInt(searchParams.get("page") ?? "1", 10);
     const limit = parseInt(searchParams.get("limit") ?? "100", 10);
     const skip = (page - 1) * limit;
@@ -40,7 +40,8 @@ export async function GET(request: Request) {
     const now = new Date();
 
     // DB-level Status filter mapping
-    let statusFilter: Prisma.EnumBillStatusFilter | BillStatus | undefined = undefined;
+    let statusFilter: Prisma.EnumBillStatusFilter | BillStatus | undefined =
+      undefined;
     if (status && status !== "all") {
       if (status === "paid") {
         statusFilter = "PAID";
@@ -60,9 +61,7 @@ export async function GET(request: Request) {
     const baseWhere: Prisma.BillWhereInput = {
       deletedAt: null, // Always exclude soft-deleted records
       // Ownership check matches other modules
-      ...(isParent && familyId
-        ? { familyId }
-        : { userId: session.user.id }),
+      ...(isParent && familyId ? { familyId } : { userId: session.user.id }),
       ...(search && {
         name: { contains: search, mode: "insensitive" },
       }),
@@ -81,20 +80,20 @@ export async function GET(request: Request) {
     if (status === "pending") {
       baseWhere.status = "OPEN";
       baseWhere.dueDate = {
-        ...(baseWhere.dueDate as object || {}),
+        ...((baseWhere.dueDate as object) || {}),
         gte: now,
       };
     } else if (status === "overdue") {
       baseWhere.OR = [
         { status: "OVERDUE" },
-        { 
-          status: "OPEN", 
-          dueDate: { 
+        {
+          status: "OPEN",
+          dueDate: {
             ...(from ? { gte: from } : {}),
             ...(to ? { lte: to } : {}),
-            lt: now 
-          } 
-        }
+            lt: now,
+          },
+        },
       ];
       // Clean up base fields overridden by OR
       delete baseWhere.status;
@@ -113,10 +112,10 @@ export async function GET(request: Request) {
               include: {
                 category: true,
                 merchant: true,
-              }
-            }
-          }
-        }
+              },
+            },
+          },
+        },
       },
       orderBy: { dueDate: "asc" },
       skip,
@@ -138,16 +137,45 @@ export async function GET(request: Request) {
         if (!b.category) {
           const catName = firstTx.expense?.category?.name?.toLowerCase() || "";
           const billName = b.name.toLowerCase();
-          
-          if (catName.includes("listrik") || catName.includes("air") || catName.includes("pln") || catName.includes("pdam") || billName.includes("listrik") || billName.includes("pln")) {
+
+          if (
+            catName.includes("listrik") ||
+            catName.includes("air") ||
+            catName.includes("pln") ||
+            catName.includes("pdam") ||
+            billName.includes("listrik") ||
+            billName.includes("pln")
+          ) {
             category = "utilities";
-          } else if (catName.includes("langganan") || catName.includes("netflix") || catName.includes("spotify") || billName.includes("netflix") || billName.includes("spotify")) {
+          } else if (
+            catName.includes("langganan") ||
+            catName.includes("netflix") ||
+            catName.includes("spotify") ||
+            billName.includes("netflix") ||
+            billName.includes("spotify")
+          ) {
             category = "subscription";
-          } else if (catName.includes("sewa") || catName.includes("kos") || billName.includes("kos") || billName.includes("sewa")) {
+          } else if (
+            catName.includes("sewa") ||
+            catName.includes("kos") ||
+            billName.includes("kos") ||
+            billName.includes("sewa")
+          ) {
             category = "rent";
-          } else if (catName.includes("asuransi") || catName.includes("bpjs") || billName.includes("bpjs") || billName.includes("insurance")) {
+          } else if (
+            catName.includes("asuransi") ||
+            catName.includes("bpjs") ||
+            billName.includes("bpjs") ||
+            billName.includes("insurance")
+          ) {
             category = "insurance";
-          } else if (catName.includes("internet") || catName.includes("wifi") || catName.includes("indihome") || billName.includes("internet") || billName.includes("indihome")) {
+          } else if (
+            catName.includes("internet") ||
+            catName.includes("wifi") ||
+            catName.includes("indihome") ||
+            billName.includes("internet") ||
+            billName.includes("indihome")
+          ) {
             category = "internet";
           }
         }
@@ -157,7 +185,10 @@ export async function GET(request: Request) {
       let calculatedStatus: "pending" | "paid" | "overdue" = "pending";
       if (b.status === "PAID") {
         calculatedStatus = "paid";
-      } else if (b.status === "OVERDUE" || (b.status === "OPEN" && new Date(b.dueDate) < now)) {
+      } else if (
+        b.status === "OVERDUE" ||
+        (b.status === "OPEN" && new Date(b.dueDate) < now)
+      ) {
         calculatedStatus = "overdue";
       }
 
@@ -170,6 +201,7 @@ export async function GET(request: Request) {
         status: calculatedStatus,
         payee,
         recurring,
+        recurringInterval: b.recurringInterval,
         notes,
         createExpense: b.createExpense ?? true,
       };
@@ -178,7 +210,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ bills: mappedBills });
   } catch (error) {
     console.error("[GET /api/bills]", error);
-    return NextResponse.json({ error: "Gagal memuat data tagihan" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal memuat data tagihan" },
+      { status: 500 },
+    );
   }
 }
 
@@ -195,7 +230,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Validasi gagal", details: parsed.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -221,12 +256,17 @@ export async function POST(request: Request) {
           deletedAt: null,
           OR: [
             { userId: session.user.id },
-            ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
+            ...(session.user.familyId
+              ? [{ familyId: session.user.familyId }]
+              : []),
           ],
         },
       });
       if (!card) {
-        return NextResponse.json({ error: "Rekening/Kartu tidak valid atau tidak ditemukan" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Rekening/Kartu tidak valid atau tidak ditemukan" },
+          { status: 400 },
+        );
       }
     }
 
@@ -256,6 +296,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: newBill }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/bills]", error);
-    return NextResponse.json({ error: "Gagal membuat tagihan baru" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal membuat tagihan baru" },
+      { status: 500 },
+    );
   }
 }
