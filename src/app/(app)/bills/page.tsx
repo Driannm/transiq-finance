@@ -8,6 +8,10 @@ import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { SectionBlock } from "@/components/Shared/SectionBlock";
 import { CardList } from "@/components/Shared/CardList";
 import { BalanceHeader } from "@/components/Shared/BalanceHeader";
+import {
+  StatusFilterPills,
+  type FilterOption,
+} from "@/components/Shared/StatusFilterPills";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -29,32 +33,40 @@ import {
   Clock01Icon,
   Invoice02Icon,
   FilterIcon,
+  ArrowReloadHorizontalIcon,
 } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { format, isValid } from "date-fns";
-import { getRelativeDateLabel } from "@/components/Shared/utils/groupBy";
+import {
+  getRelativeDateLabel,
+  getRelativeWeekLabel,
+  compareWeekGroups,
+} from "@/components/Shared/utils/groupBy";
 
 // ─── Types ───────────────────────────────────────────────────
 
 type BillStatus = "paid" | "pending" | "overdue";
-type BillCategory =
-  | "utilities"
-  | "subscription"
-  | "rent"
-  | "insurance"
-  | "internet"
-  | "other";
 
 interface BillItem {
   id: string;
   name: string;
-  category: BillCategory;
+  category: string;
   amount: number;
   dueDate: string;
   status: BillStatus;
   payee: string;
   recurring: boolean;
+  recurringInterval?: string | null;
   notes?: string | null;
+}
+
+function getPeriodLabel(interval?: string | null, recurring?: boolean): string {
+  if (interval === "DAILY") return "Harian";
+  if (interval === "WEEKLY") return "Mingguan";
+  if (interval === "MONTHLY") return "Bulanan";
+  if (interval === "YEARLY") return "Tahunan";
+  if (recurring) return "Bulanan";
+  return "Bulanan";
 }
 
 // ─── Helpers ────────────────────────────────────────────────
@@ -65,53 +77,41 @@ function formatIDR(n: number) {
 
 function safeFormatDate(
   dateStr: string | null | undefined,
-  fmt: string
+  fmt: string,
 ): string {
   if (!dateStr) return "—";
   const d = new Date(dateStr);
   return isValid(d) ? format(d, fmt) : "—";
 }
 
-function getDaysUntilDue(dateStr: string): number {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dateStr);
-  due.setHours(0, 0, 0, 0);
-  return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-}
+import { getDaysUntilDue } from "@/lib/format";
+import { getCategoryIcon } from "@/lib/iconMapping";
 
 // ─── Config ─────────────────────────────────────────────────
-
-const CATEGORY_ICON: Record<BillCategory, string> = {
-  utilities:    "⚡",
-  subscription: "📱",
-  rent:         "🏠",
-  insurance:    "🛡️",
-  internet:     "🌐",
-  other:        "📋",
-};
 
 const STATUS_META: Record<
   BillStatus,
   { label: string; color: string; bg: string; dot: string }
 > = {
-  paid:    { label: "Lunas",    color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/25", dot: "bg-emerald-400" },
-  pending: { label: "Belum",    color: "text-amber-400",   bg: "bg-amber-500/15 border-amber-500/25",     dot: "bg-amber-400"   },
-  overdue: { label: "Lewat",    color: "text-red-400",     bg: "bg-red-500/15 border-red-500/25",         dot: "bg-red-400"     },
+  paid: {
+    label: "Lunas",
+    color: "text-emerald-400",
+    bg: "bg-emerald-500/15 border-emerald-500/25",
+    dot: "bg-emerald-400",
+  },
+  pending: {
+    label: "Belum Dibayar",
+    color: "text-amber-400",
+    bg: "bg-amber-500/15 border-amber-500/25",
+    dot: "bg-amber-400",
+  },
+  overdue: {
+    label: "Jatuh Tempo",
+    color: "text-red-400",
+    bg: "bg-red-500/15 border-red-500/25",
+    dot: "bg-red-400",
+  },
 };
-
-// ─── MOCK DATA (ganti dengan fetch API) ────────────────────
-
-const MOCK_BILLS: BillItem[] = [
-  { id: "1", name: "Listrik PLN",       category: "utilities",    amount: 142500,  dueDate: "2026-06-01", status: "pending", payee: "PLN",            recurring: true  },
-  { id: "2", name: "Netflix",           category: "subscription", amount: 65000,   dueDate: "2026-05-28", status: "overdue", payee: "Netflix Inc.",    recurring: true  },
-  { id: "3", name: "Sewa Kos",          category: "rent",         amount: 3500000, dueDate: "2026-06-05", status: "pending", payee: "Pak Budi",        recurring: true  },
-  { id: "4", name: "IndiHome",          category: "internet",     amount: 385000,  dueDate: "2026-05-25", status: "paid",    payee: "Telkom",          recurring: true  },
-  { id: "5", name: "BPJS Kesehatan",    category: "insurance",    amount: 250000,  dueDate: "2026-05-30", status: "paid",    payee: "BPJS",            recurring: true  },
-  { id: "6", name: "Air PDAM",          category: "utilities",    amount: 75000,   dueDate: "2026-06-10", status: "pending", payee: "PDAM",            recurring: true  },
-  { id: "7", name: "Spotify Premium",   category: "subscription", amount: 54990,   dueDate: "2026-06-03", status: "pending", payee: "Spotify AB",      recurring: true  },
-  { id: "8", name: "Jasa Raharja",      category: "insurance",    amount: 180000,  dueDate: "2026-05-20", status: "paid",    payee: "Jasa Raharja",    recurring: false },
-];
 
 // ─── Page Component ─────────────────────────────────────────
 
@@ -136,9 +136,9 @@ export default function BillsPage() {
     sort: {
       defaultValue: "dueDate",
       fields: [
-        { value: "dueDate",  label: "Jatuh Tempo", icon: Calendar01Icon },
-        { value: "amount",   label: "Jumlah",      icon: Money02Icon    },
-        { value: "name",     label: "Nama",        icon: TextFontIcon   },
+        { value: "dueDate", label: "Jatuh Tempo", icon: Calendar01Icon },
+        { value: "amount", label: "Jumlah", icon: Money02Icon },
+        { value: "name", label: "Nama", icon: TextFontIcon },
       ],
     },
     view: { modes: ["list"], defaultMode: "list" },
@@ -152,10 +152,12 @@ export default function BillsPage() {
 
       try {
         const nextPage = isLoadMore ? page + 1 : 1;
-        const res = await fetch(`/api/bills?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`);
+        const res = await fetch(
+          `/api/bills?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`,
+        );
         if (!res.ok) throw new Error("Gagal mengambil data dari server");
         const data = await res.json();
-        
+
         if (!isLoadMore) {
           setBills(data.bills || []);
           setPage(1);
@@ -172,7 +174,7 @@ export default function BillsPage() {
         else setLoading(false);
       }
     },
-    [month, page, activeStatus]
+    [month, page, activeStatus],
   );
 
   useEffect(() => {
@@ -197,13 +199,21 @@ export default function BillsPage() {
       ? bills
       : bills.filter((b) => b.status === activeStatus);
 
-  const totalDue   = bills.filter((b) => b.status !== "paid").reduce((s, b) => s + b.amount, 0);
-  const totalPaid  = bills.filter((b) => b.status === "paid").reduce((s, b) => s + b.amount, 0);
+  const totalDue = bills
+    .filter((b) => b.status !== "paid")
+    .reduce((s, b) => s + b.amount, 0);
+  const totalPaid = bills
+    .filter((b) => b.status === "paid")
+    .reduce((s, b) => s + b.amount, 0);
   const overdueCount = bills.filter((b) => b.status === "overdue").length;
 
   // Swipe handlers
-  const handleView   = useCallback((id: string | number) => { window.location.href = `/bills/${id}`; }, []);
-  const handleEdit   = useCallback((id: string | number) => { window.location.href = `/bills/${id}/edit`; }, []);
+  const handleView = useCallback((id: string | number) => {
+    window.location.href = `/bills/${id}`;
+  }, []);
+  const handleEdit = useCallback((id: string | number) => {
+    window.location.href = `/bills/${id}/edit`;
+  }, []);
   const handleDelete = useCallback(async (id: string | number) => {
     try {
       const res = await fetch(`/api/bills/${id}`, { method: "DELETE" });
@@ -221,10 +231,20 @@ export default function BillsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "paid" }),
       });
-      if (!res.ok) throw new Error("Gagal membayar tagihan");
+      const data = await res.json();
+      if (!res.ok) {
+        // We cannot use strict toast without importing useToast, so just a basic alert if it fails
+        // Wait, useToast is not imported. We can just use window.alert for now since we don't have toast in this page
+        alert(
+          data.error ||
+            "Gagal membayar tagihan. Pastikan kartu pembayaran sudah diset.",
+        );
+        throw new Error(data.error || "Gagal membayar tagihan");
+      }
       setBills((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: "paid" } : b))
+        prev.map((b) => (b.id === id ? { ...b, status: "paid" } : b)),
       );
+      alert("Tagihan lunas! Pengeluaran telah otomatis dicatat.");
     } catch (err) {
       console.error("Failed to mark paid:", err);
     }
@@ -233,12 +253,11 @@ export default function BillsPage() {
   const controls = useDataControls<BillItem>(filteredByStatus, CONTROLS_CONFIG);
 
   const isSearchActive = controls.state.search.trim().length > 0;
-  const isSortActive   = controls.state.sort.field !== "dueDate";
-  const isFlat         = isSearchActive || isSortActive;
+  const isSortActive = controls.state.sort.field !== "dueDate";
+  const isFlat = isSearchActive || isSortActive;
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
-
       {/* ── Sticky Navbar ── */}
       <div className="sticky top-0 z-50">
         <IslandNavbar
@@ -260,7 +279,6 @@ export default function BillsPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-5">
-
         {/* ── Hero Summary Card ── */}
         <BalanceHeader
           label="Total belum dibayar"
@@ -274,45 +292,39 @@ export default function BillsPage() {
             style: "sleek",
           }}
           badges={[
-            <div key="paid" className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={14} className="text-emerald-400" />
+            <div
+              key="paid"
+              className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full"
+            >
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                size={14}
+                className="text-emerald-400"
+              />
               <span className="text-xs font-mono font-medium text-white">
                 IDR {formatIDR(totalPaid)} lunas
               </span>
-            </div>
+            </div>,
           ]}
         />
 
         {/* ── Status Filter Pills ── */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {(["all", "pending", "overdue", "paid"] as const).map((s) => {
-            const isActive = activeStatus === s;
-            const meta = s !== "all" ? STATUS_META[s] : null;
-            return (
-              <button
-                key={s}
-                onClick={() => setActiveStatus(s)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
-                  isActive
-                    ? s === "all"
-                      ? "bg-white text-neutral-900 border-white"
-                      : `${meta!.bg} ${meta!.color} border-transparent`
-                    : "bg-neutral-300 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-200 border-transparent hover:border-neutral-300 dark:hover:border-neutral-600" 
-                }`}
-              >
-                {meta && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? meta.dot : "bg-neutral-400"}`} />
-                )}
-                {s === "all" ? "Semua" : meta!.label}
-                <span className={`ml-0.5 font-mono ${isActive ? "" : "text-neutral-400 dark:text-neutral-500"}`}>
-                  {s === "all"
-                    ? bills.length
-                    : bills.filter((b) => b.status === s).length}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <StatusFilterPills
+          options={[
+            { value: "all", label: "Semua", count: bills.length },
+            ...(["pending", "overdue", "paid"] as const).map((s) => ({
+              value: s,
+              label: STATUS_META[s].label,
+              count: bills.filter((b) => b.status === s).length,
+              activeBgClass: STATUS_META[s].bg,
+              activeTextClass: STATUS_META[s].color,
+              dotClass: STATUS_META[s].dot,
+            })),
+          ]}
+          value={activeStatus}
+          onChange={(v) => setActiveStatus(v as any)}
+          inactiveBgClass="bg-neutral-300 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-200 border-transparent hover:border-neutral-300 dark:hover:border-neutral-600"
+        />
 
         {/* ── DataControlsBar ── */}
         <DataControlsBar
@@ -339,13 +351,13 @@ export default function BillsPage() {
                 ? undefined
                 : {
                     enabled: true,
-                    groupBy: (item) =>
-                      getRelativeDateLabel(item.dueDate),
+                    groupBy: (item) => getRelativeWeekLabel(item.dueDate),
+                    groupSorter: compareWeekGroups,
                     showSubtotal: true,
                     subtotalFormatter: (amount) =>
                       `IDR ${formatIDR(Math.abs(amount))}`,
                     amountExtractor: (item) => item.amount,
-                    typeExtractor: () => "expense",
+                    type: "bills",
                   }
             }
             keyExtractor={(b) => b.id}
@@ -357,7 +369,11 @@ export default function BillsPage() {
                   <>
                     {/* Category icon */}
                     <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center flex-shrink-0 text-lg">
-                      {CATEGORY_ICON[bill.category]}
+                      <HugeiconsIcon
+                        icon={getCategoryIcon(bill.category)}
+                        size={22}
+                        className="text-indigo-500 dark:text-indigo-400"
+                      />
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -365,33 +381,40 @@ export default function BillsPage() {
                         <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                           {bill.name}
                         </p>
-                        {bill.recurring && (
-                          <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-neutral-200 dark:bg-neutral-700 text-neutral-500 dark:text-neutral-400">
-                            Rutin
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {bill.payee}
-                        </p>
+                        <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                          <HugeiconsIcon
+                            icon={ArrowReloadHorizontalIcon}
+                            size={13}
+                            className="text-gray-400 dark:text-gray-500 flex-shrink-0"
+                          />
+                          <span className="truncate">
+                            {getPeriodLabel(
+                              bill.recurringInterval,
+                              bill.recurring,
+                            )}
+                          </span>
+                        </div>
                         {bill.status !== "paid" && (
                           <>
-                            <span className="text-neutral-300 dark:text-neutral-600">·</span>
+                            <span className="text-neutral-300 dark:text-neutral-600">
+                              ·
+                            </span>
                             <span
                               className={`text-xs font-medium ${
                                 days < 0
                                   ? "text-red-400"
                                   : days <= 3
-                                  ? "text-amber-400"
-                                  : "text-neutral-400"
+                                    ? "text-amber-400"
+                                    : "text-neutral-400"
                               }`}
                             >
                               {days < 0
                                 ? `${Math.abs(days)}h lewat`
                                 : days === 0
-                                ? "Hari ini"
-                                : `${days} hari lagi`}
+                                  ? "Hari ini"
+                                  : `${days} hari lagi`}
                             </span>
                           </>
                         )}
@@ -403,7 +426,7 @@ export default function BillsPage() {
                 meta: {
                   date: safeFormatDate(bill.dueDate, "dd MMM yyyy"),
                   amount: bill.amount,
-                  type: "expense" as const,
+                  type: "bills" as const,
                   // Status badge rendered via subtitle slot jika CardList support
                   statusBadge: (
                     <span
