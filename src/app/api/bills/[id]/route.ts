@@ -210,7 +210,7 @@ export async function PATCH(
           // 2. Determine whether to create Expense transaction
           const shouldCreateExpense = createExpense !== undefined
             ? createExpense
-            : (currentBill.createExpense ?? true);
+            : ((currentBill as { createExpense?: boolean }).createExpense ?? true);
 
           if (shouldCreateExpense) {
             // Verify Card
@@ -321,7 +321,7 @@ export async function PATCH(
                 recurringInterval: currentBill.recurringInterval,
                 notes: currentBill.notes,
                 cardId: currentBill.cardId,
-                createExpense: currentBill.createExpense,
+                createExpense: (currentBill as { createExpense?: boolean }).createExpense ?? true,
               }
             });
           }
