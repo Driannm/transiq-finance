@@ -6,3 +6,4 @@ export * from "./merchant";
 export * from "./debt";
 export * from "./loan";
 export * from "./income";
+export * from "./bill";
