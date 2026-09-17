@@ -9,7 +9,8 @@ interface BillWithRelations {
   id: string;
   name: string;
   amount: number;
-  dueDate: Date;
+  dueDate: Date | null;
+  isFlexible?: boolean;
   status: string;
   category?: string | null;
   payee?: string | null;
@@ -59,6 +60,16 @@ async function checkBillAccess(
   });
 }
 
+function addMonthsClamped(date: Date, months: number): Date {
+  const next = new Date(date);
+  const currentDay = date.getDate();
+  next.setMonth(next.getMonth() + months);
+  if (next.getDate() !== currentDay) {
+    next.setDate(0);
+  }
+  return next;
+}
+
 function mapBill(b: BillWithRelations) {
   // Determine category (virtualized fallback -> database column -> transaction category)
   let category = b.category || "other";
@@ -90,10 +101,13 @@ function mapBill(b: BillWithRelations) {
   }
 
   // Determine payment status dynamically (paid / overdue / pending)
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
   let calculatedStatus: "pending" | "paid" | "overdue" = "pending";
   if (b.status === "PAID") {
     calculatedStatus = "paid";
-  } else if (b.status === "OVERDUE" || (b.status === "OPEN" && new Date(b.dueDate) < new Date())) {
+  } else if (!b.isFlexible && b.dueDate && (b.status === "OVERDUE" || new Date(b.dueDate) < startOfToday)) {
     calculatedStatus = "overdue";
   }
 
@@ -102,7 +116,8 @@ function mapBill(b: BillWithRelations) {
     name: b.name,
     category,
     amount: b.amount,
-    dueDate: b.dueDate.toISOString().split("T")[0],
+    isFlexible: b.isFlexible ?? false,
+    dueDate: b.dueDate ? new Date(b.dueDate).toISOString().split("T")[0] : "",
     status: calculatedStatus,
     payee,
     recurring,
@@ -175,6 +190,7 @@ export async function PATCH(
     const {
       name,
       amount,
+      isFlexible,
       dueDate,
       category,
       payee,
@@ -183,6 +199,8 @@ export async function PATCH(
       cardId,
       status,
       createExpense,
+      actualAmount,
+      periodsPaid,
     } = parsed.data;
 
     // Check payment recording action (if status passed is "paid" or "PAID")
@@ -195,50 +213,54 @@ export async function PATCH(
         return NextResponse.json({ error: "Rekening/Kartu pembayaran tidak valid atau wajib dipilih" }, { status: 400 });
       }
 
-      const txAmount = amount !== undefined ? amount : existingBill.amount;
+      const pPaid = Math.max(1, periodsPaid || 1);
+      // Determine actual payment amount (actualAmount > amount > (existingBill.amount * pPaid))
+      const txAmount = actualAmount !== undefined
+        ? actualAmount
+        : (amount !== undefined ? amount : (existingBill.amount * pPaid));
 
       try {
         const updatedBill = await prisma.$transaction(async (tx) => {
-          // 1. Double check bill status inside transaction to guarantee idempotency
+          // 1. Check bill existence
           const currentBill = await tx.bill.findUnique({
             where: { id: billId }
           });
 
           if (!currentBill) throw new Error("Tagihan tidak ditemukan");
-          if (currentBill.status === "PAID") throw new Error("Tagihan sudah lunas");
 
           // 2. Determine whether to create Expense transaction
           const shouldCreateExpense = createExpense !== undefined
             ? createExpense
             : ((currentBill as { createExpense?: boolean }).createExpense ?? true);
 
+          // Verify Card
+          const card = await tx.card.findFirst({
+            where: {
+              id: targetCardId,
+              deletedAt: null,
+              OR: [
+                { userId: session.user.id },
+                ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
+              ],
+            },
+          });
+
+          if (!card) throw new Error("Rekening/Kartu pembayaran tidak valid");
+
+          // Create payment transaction linked to bill (records history & periodsPaid)
+          const paymentTx = await tx.transaction.create({
+            data: {
+              amount: txAmount,
+              type: "EXPENSE",
+              userId: session.user.id,
+              cardId: targetCardId,
+              date: new Date(),
+              billId: billId,
+              periodsPaid: pPaid,
+            },
+          });
+
           if (shouldCreateExpense) {
-            // Verify Card
-            const card = await tx.card.findFirst({
-              where: {
-                id: targetCardId,
-                deletedAt: null,
-                OR: [
-                  { userId: session.user.id },
-                  ...(session.user.familyId ? [{ familyId: session.user.familyId }] : []),
-                ],
-              },
-            });
-
-            if (!card) throw new Error("Rekening/Kartu pembayaran tidak valid");
-
-            // Create expense transaction
-            const paymentTx = await tx.transaction.create({
-              data: {
-                amount: txAmount,
-                type: "EXPENSE",
-                userId: session.user.id,
-                cardId: targetCardId,
-                date: new Date(),
-                billId: billId,
-              },
-            });
-
             // Resolve expense category
             let systemCategoryId = category !== undefined ? category : currentBill.categoryId;
             if (!systemCategoryId && currentBill.category) {
@@ -264,22 +286,27 @@ export async function PATCH(
               },
             });
 
-            // Deduct card balance
+            // Deduct card balance by ACTUAL paid amount
             await tx.card.update({
               where: { id: targetCardId },
               data: { balance: { decrement: txAmount } },
             });
           }
 
-          // 7. Update current bill simply to PAID
+          // Advance due date if NOT flexible bill
+          let nextDueDate: Date | null = currentBill.dueDate;
+          if (!currentBill.isFlexible && currentBill.dueDate) {
+            nextDueDate = addMonthsClamped(currentBill.dueDate, pPaid);
+          }
+
+          // Update bill record (keep estimated amount unchanged!)
           const markedPaidBill = await tx.bill.update({
             where: { id: billId },
             data: {
-              status: "PAID",
-              amount: txAmount,
+              status: "OPEN",
+              ...(nextDueDate && { dueDate: nextDueDate }),
               ...(name && { name }),
-              ...(dueDate && { dueDate: new Date(dueDate) }),
-              ...(category !== undefined && { category }), // Legacy string mapping fallback
+              ...(category !== undefined && { category }),
               ...(payee !== undefined && { payee }),
               ...(recurring !== undefined && { recurring }),
               ...(notes !== undefined && { notes }),
@@ -295,45 +322,11 @@ export async function PATCH(
             }
           });
 
-          // 8. Generate Next Recurring Occurrence if enabled
-          const isRecurring = recurring !== undefined ? recurring : currentBill.recurring;
-          if (isRecurring) {
-            const nextDueDate = new Date(currentBill.dueDate);
-            const interval = currentBill.recurringInterval || "MONTHLY";
-            
-            if (interval === "DAILY") nextDueDate.setDate(nextDueDate.getDate() + 1);
-            else if (interval === "WEEKLY") nextDueDate.setDate(nextDueDate.getDate() + 7);
-            else if (interval === "YEARLY") nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
-            else nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-
-            await tx.bill.create({
-              data: {
-                name: currentBill.name,
-                amount: currentBill.amount,
-                dueDate: nextDueDate,
-                status: "OPEN",
-                userId: currentBill.userId,
-                familyId: currentBill.familyId,
-                category: currentBill.category,
-                categoryId: currentBill.categoryId,
-                payee: currentBill.payee,
-                recurring: currentBill.recurring,
-                recurringInterval: currentBill.recurringInterval,
-                notes: currentBill.notes,
-                cardId: currentBill.cardId,
-                createExpense: (currentBill as { createExpense?: boolean }).createExpense ?? true,
-              }
-            });
-          }
-
           return markedPaidBill as unknown as BillWithRelations;
         });
 
         return NextResponse.json({ success: true, data: mapBill(updatedBill) });
       } catch (err: any) {
-        if (err.message === "Tagihan sudah lunas") {
-          return NextResponse.json({ success: true, message: "Tagihan sudah lunas", data: mapBill(existingBill as unknown as BillWithRelations) });
-        }
         return NextResponse.json({ error: err.message || "Gagal melunasi tagihan" }, { status: 400 });
       }
     }
@@ -342,7 +335,13 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (amount !== undefined) updateData.amount = amount;
-    if (dueDate !== undefined) updateData.dueDate = new Date(dueDate);
+    if (isFlexible !== undefined) {
+      updateData.isFlexible = isFlexible;
+      if (isFlexible) updateData.dueDate = null;
+    }
+    if (dueDate !== undefined && !isFlexible) {
+      updateData.dueDate = dueDate ? new Date(dueDate) : null;
+    }
     if (category !== undefined) updateData.category = category;
     if (payee !== undefined) updateData.payee = payee;
     if (recurring !== undefined) updateData.recurring = recurring;
