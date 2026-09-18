@@ -182,13 +182,12 @@ export async function GET(request: Request) {
       }
 
       // Determine payment status dynamically (paid / overdue / pending)
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       let calculatedStatus: "pending" | "paid" | "overdue" = "pending";
+      
       if (b.status === "PAID") {
         calculatedStatus = "paid";
-      } else if (
-        b.status === "OVERDUE" ||
-        (b.status === "OPEN" && new Date(b.dueDate) < now)
-      ) {
+      } else if (!b.isFlexible && b.dueDate && (b.status === "OVERDUE" || new Date(b.dueDate) < startOfToday)) {
         calculatedStatus = "overdue";
       }
 
@@ -197,7 +196,8 @@ export async function GET(request: Request) {
         name: b.name,
         category,
         amount: b.amount,
-        dueDate: b.dueDate.toISOString().split("T")[0],
+        isFlexible: b.isFlexible ?? false,
+        dueDate: b.dueDate ? b.dueDate.toISOString().split("T")[0] : "",
         status: calculatedStatus,
         payee,
         recurring,
@@ -237,6 +237,7 @@ export async function POST(request: Request) {
     const {
       name,
       amount,
+      isFlexible,
       dueDate,
       category,
       categoryId,
@@ -270,14 +271,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // Determine default status: if dueDate is in the past, assign OVERDUE, otherwise OPEN
-    const parsedDueDate = new Date(dueDate);
-    const status = parsedDueDate < new Date() ? "OVERDUE" : "OPEN";
+    // Determine default status and due date parsing based on isFlexible
+    let parsedDueDate: Date | null = null;
+    let status: "OPEN" | "OVERDUE" = "OPEN";
+
+    if (!isFlexible && dueDate) {
+      parsedDueDate = new Date(dueDate);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      if (parsedDueDate < startOfToday) {
+        status = "OVERDUE";
+      }
+    }
 
     const newBill = await prisma.bill.create({
       data: {
         name,
         amount,
+        isFlexible: isFlexible ?? false,
         dueDate: parsedDueDate,
         status,
         userId: session.user.id,
@@ -285,7 +296,7 @@ export async function POST(request: Request) {
         category: category || null,
         categoryId: categoryId || null,
         payee: payee || null,
-        recurring,
+        recurring: recurring ?? false,
         recurringInterval: recurringInterval || null,
         notes: notes || null,
         cardId: cardId || null,
