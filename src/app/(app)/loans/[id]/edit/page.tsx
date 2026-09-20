@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORY_OPTIONS, formatIDRInput } from "@/components/DebtLoan/Format";
 import { Hero } from "@/components/DebtLoan/Hero";
 import type { ObligationCategory } from "@/components/DebtLoan/types";
+import { PillSelector } from "@/components/Shared/PillSelector";
 import { motion } from "framer-motion";
 
 interface LoanData {
@@ -193,53 +194,13 @@ export default function EditLoanPage({
                 </div>
 
                 {/* Kategori Field */}
-                <div className="py-3.5">
-                  <p className="text-xs text-[var(--muted,#8A857D)] mb-2.5 px-4">
-                    Kategori
-                  </p>
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-opacity duration-300",
-                      loading && "pointer-events-none opacity-60",
-                    )}
-                    role="radiogroup"
-                    aria-label="Kategori piutang"
-                  >
-                    {CATEGORY_OPTIONS.map((c) => {
-                      const active = category === c.value;
-                      return (
-                        <button
-                          key={c.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={active}
-                          disabled={loading}
-                          onClick={() => setCategory(c.value)}
-                          className={cn(
-                            "flex-shrink-0 flex items-center gap-2 pl-3.5 pr-4 py-2 rounded-full text-sm font-medium border transition-colors",
-                            active && !loading
-                              ? "bg-[var(--accent-soft,#E7F1EC)] border-[var(--accent,#0E6E4E)]/30 text-[var(--accent,#0E6E4E)] dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900"
-                              : "bg-transparent text-neutral-500 dark:text-neutral-400 border-[var(--line,#E7E4DD)] dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700",
-                          )}
-                        >
-                          {active && !loading ? (
-                            <HugeiconsIcon
-                              icon={CheckmarkCircle02Icon}
-                              size={15}
-                            />
-                          ) : (
-                            <HugeiconsIcon
-                              icon={c.icon}
-                              size={15}
-                              className="text-neutral-400 dark:text-neutral-500"
-                            />
-                          )}
-                          {c.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <PillSelector
+                  label="Kategori"
+                  options={CATEGORY_OPTIONS}
+                  value={category}
+                  onChange={(val) => setCategory(val as ObligationCategory)}
+                  className={cn("py-3.5", loading && "pointer-events-none opacity-60")}
+                />
 
                 {/* Jatuh Tempo */}
                 {loading ? (
