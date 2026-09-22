@@ -4,10 +4,18 @@
 import { useState, useEffect, use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ArrowLeft02Icon, Calendar01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft02Icon,
+  Calendar01Icon,
+  CheckmarkCircle02Icon,
+} from "@hugeicons/core-free-icons";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -16,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { CATEGORY_OPTIONS, formatIDRInput } from "@/components/DebtLoan/Format";
 import { Hero } from "@/components/DebtLoan/Hero";
 import type { ObligationCategory } from "@/components/DebtLoan/types";
+import { PillSelector } from "@/components/Shared/PillSelector";
 import { motion } from "framer-motion";
 
 interface DebtData {
@@ -131,7 +140,11 @@ export default function EditDebtPage({
       </div>
 
       <div className="w-full max-w-lg mx-auto flex-1 flex flex-col pt-[64px]">
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1" noValidate>
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col flex-1"
+          noValidate
+        >
           <Hero
             amountRaw={amountRaw}
             onAmountChange={setAmountRaw}
@@ -156,7 +169,9 @@ export default function EditDebtPage({
               <div className="rounded-2xl border border-[var(--line,#E7E4DD)] dark:border-neutral-800 overflow-hidden divide-y divide-[var(--line,#E7E4DD)] dark:divide-neutral-800 bg-white dark:bg-neutral-900/40">
                 {/* Catatan Field */}
                 <div className="px-4 py-3.5">
-                  <p className="text-xs text-[var(--muted,#8A857D)] mb-1">Catatan</p>
+                  <p className="text-xs text-[var(--muted,#8A857D)] mb-1">
+                    Catatan
+                  </p>
                   {loading ? (
                     <Skeleton className="h-5 w-48 mt-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
                   ) : (
@@ -179,48 +194,13 @@ export default function EditDebtPage({
                 </div>
 
                 {/* Kategori Field */}
-                <div className="py-3.5">
-                  <p className="text-xs text-[var(--muted,#8A857D)] mb-2.5 px-4">Kategori</p>
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-opacity duration-300",
-                      loading && "pointer-events-none opacity-60"
-                    )}
-                    role="radiogroup"
-                    aria-label="Kategori piutang"
-                  >
-                    {CATEGORY_OPTIONS.map((c) => {
-                      const active = category === c.value;
-                      return (
-                        <button
-                          key={c.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={active}
-                          disabled={loading}
-                          onClick={() => setCategory(c.value)}
-                          className={cn(
-                            "flex-shrink-0 flex items-center gap-2 pl-3.5 pr-4 py-2 rounded-full text-sm font-medium border transition-colors",
-                            active && !loading
-                              ? "bg-[var(--accent-soft,#E7F1EC)] border-[var(--accent,#0E6E4E)]/30 text-[var(--accent,#0E6E4E)] dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900"
-                              : "bg-transparent text-neutral-500 dark:text-neutral-400 border-[var(--line,#E7E4DD)] dark:border-neutral-800 hover:border-neutral-300 dark:hover:border-neutral-700",
-                          )}
-                        >
-                          {active && !loading ? (
-                            <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
-                          ) : (
-                            <HugeiconsIcon
-                              icon={c.icon}
-                              size={15}
-                              className="text-neutral-400 dark:text-neutral-500"
-                            />
-                          )}
-                          {c.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+                <PillSelector
+                  label="Kategori"
+                  options={CATEGORY_OPTIONS}
+                  value={category}
+                  onChange={(val) => setCategory(val as ObligationCategory)}
+                  className={cn("py-3.5", loading && "pointer-events-none opacity-60")}
+                />
 
                 {/* Jatuh Tempo */}
                 {loading ? (
@@ -231,7 +211,9 @@ export default function EditDebtPage({
                       className="flex-shrink-0 text-amber-500"
                     />
                     <div className="flex-1">
-                      <p className="text-xs text-[var(--muted,#8A857D)]">Tanggal Jatuh Tempo</p>
+                      <p className="text-xs text-[var(--muted,#8A857D)]">
+                        Tanggal Jatuh Tempo
+                      </p>
                       <Skeleton className="h-5 w-32 mt-1 rounded-lg bg-neutral-200 dark:bg-neutral-800" />
                     </div>
                   </div>
@@ -250,22 +232,29 @@ export default function EditDebtPage({
                           className="flex-shrink-0 text-amber-500"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-[var(--muted,#8A857D)]">Tanggal Jatuh Tempo</p>
+                          <p className="text-xs text-[var(--muted,#8A857D)]">
+                            Tanggal Jatuh Tempo
+                          </p>
                           <p
                             className={cn(
                               "text-[15px] font-medium mt-0.5 animate-fade-in",
                               dueDate
                                 ? "text-neutral-900 dark:text-white"
-                                : "text-neutral-400"
+                                : "text-neutral-400",
                             )}
                           >
                             {dueDate
-                              ? format(new Date(dueDate), "d MMM yyyy", { locale: idLocale })
+                              ? format(new Date(dueDate), "d MMM yyyy", {
+                                  locale: idLocale,
+                                })
                               : "Pilih tanggal"}
                           </p>
                         </div>
                         {errors.dueDate && (
-                          <p role="alert" className="text-xs text-red-500 flex-shrink-0">
+                          <p
+                            role="alert"
+                            className="text-xs text-red-500 flex-shrink-0"
+                          >
                             {errors.dueDate}
                           </p>
                         )}
@@ -278,7 +267,9 @@ export default function EditDebtPage({
                       <Calendar
                         mode="single"
                         selected={dueDate ? new Date(dueDate) : undefined}
-                        onSelect={(date) => setDueDate(date ? format(date, "yyyy-MM-dd") : "")}
+                        onSelect={(date) =>
+                          setDueDate(date ? format(date, "yyyy-MM-dd") : "")
+                        }
                         locale={idLocale}
                       />
                     </PopoverContent>
@@ -291,7 +282,9 @@ export default function EditDebtPage({
           {/* BUTTON BAR - STICKY BOTTOM */}
           <div
             className="sticky bottom-0 left-0 right-0 px-4 pt-3 border-t border-[var(--line,#E7E4DD)] dark:border-neutral-800 bg-[var(--paper,#FAFAF8)]/85 dark:bg-neutral-950/85 backdrop-blur-md flex gap-3"
-            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+            style={{
+              paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
+            }}
           >
             <motion.button
               type="button"
@@ -309,7 +302,7 @@ export default function EditDebtPage({
                 "flex-1 h-13 sm:h-14 rounded-2xl font-semibold text-[15px] transition-colors flex items-center justify-center gap-2",
                 !saving
                   ? "bg-[var(--accent,#0E6E4E)] hover:bg-emerald-800 text-white"
-                  : "bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 cursor-not-allowed"
+                  : "bg-neutral-100 dark:bg-neutral-900 text-neutral-400 dark:text-neutral-600 cursor-not-allowed",
               )}
             >
               {saving && (
