@@ -46,36 +46,78 @@ type BillCategory =
   | "internet"
   | "other";
 
-const CATEGORY_META: Record<BillCategory, { label: string; icon: string; bg: string; text: string }> = {
-  utilities:    { label: "Utilitas",    icon: "⚡", bg: "bg-amber-100 dark:bg-amber-950/40",    text: "text-amber-600 dark:text-amber-400" },
-  subscription: { label: "Langganan",   icon: "📱", bg: "bg-purple-100 dark:bg-purple-950/40",  text: "text-purple-600 dark:text-purple-400" },
-  rent:         { label: "Sewa Rumah",  icon: "🏠", bg: "bg-blue-100 dark:bg-blue-950/40",      text: "text-blue-600 dark:text-blue-400" },
-  insurance:    { label: "Asuransi",   icon: "🛡️", bg: "bg-emerald-100 dark:bg-emerald-950/40",text: "text-emerald-600 dark:text-emerald-400" },
-  internet:     { label: "Internet",    icon: "🌐", bg: "bg-sky-100 dark:bg-sky-950/40",        text: "text-sky-600 dark:text-sky-400" },
-  other:        { label: "Lainnya",     icon: "📋", bg: "bg-slate-100 dark:bg-slate-950/40",    text: "text-slate-600 dark:text-slate-400" },
-};
-
-const CARD_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
-  BANK: {
-    bg: "bg-blue-50 dark:bg-blue-950/50",
-    text: "text-blue-600 dark:text-blue-400",
-    ring: "ring-blue-500 dark:ring-blue-400",
-  },
-  EWALLET: {
-    bg: "bg-emerald-50 dark:bg-emerald-950/50",
-    text: "text-emerald-600 dark:text-emerald-400",
-    ring: "ring-emerald-500 dark:ring-emerald-400",
-  },
-  EMONEY: {
-    bg: "bg-amber-50 dark:bg-amber-950/50",
+const CATEGORY_META: Record<
+  BillCategory,
+  { label: string; icon: string; bg: string; text: string }
+> = {
+  utilities: {
+    label: "Utilitas",
+    icon: "⚡",
+    bg: "bg-amber-100 dark:bg-amber-950/40",
     text: "text-amber-600 dark:text-amber-400",
-    ring: "ring-amber-500 dark:ring-amber-400",
+  },
+  subscription: {
+    label: "Langganan",
+    icon: "📱",
+    bg: "bg-purple-100 dark:bg-purple-950/40",
+    text: "text-purple-600 dark:text-purple-400",
+  },
+  rent: {
+    label: "Sewa Rumah",
+    icon: "🏠",
+    bg: "bg-blue-100 dark:bg-blue-950/40",
+    text: "text-blue-600 dark:text-blue-400",
+  },
+  insurance: {
+    label: "Asuransi",
+    icon: "🛡️",
+    bg: "bg-emerald-100 dark:bg-emerald-950/40",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  internet: {
+    label: "Internet",
+    icon: "🌐",
+    bg: "bg-sky-100 dark:bg-sky-950/40",
+    text: "text-sky-600 dark:text-sky-400",
+  },
+  other: {
+    label: "Lainnya",
+    icon: "📋",
+    bg: "bg-slate-100 dark:bg-slate-950/40",
+    text: "text-slate-600 dark:text-slate-400",
   },
 };
 
-function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+const CARD_COLORS: Record<string, { bg: string; text: string; ring: string }> =
+  {
+    BANK: {
+      bg: "bg-blue-50 dark:bg-blue-950/50",
+      text: "text-blue-600 dark:text-blue-400",
+      ring: "ring-blue-500 dark:ring-blue-400",
+    },
+    EWALLET: {
+      bg: "bg-emerald-50 dark:bg-emerald-950/50",
+      text: "text-emerald-600 dark:text-emerald-400",
+      ring: "ring-emerald-500 dark:ring-emerald-400",
+    },
+    EMONEY: {
+      bg: "bg-amber-50 dark:bg-amber-950/50",
+      text: "text-amber-600 dark:text-amber-400",
+      ring: "ring-amber-500 dark:ring-amber-400",
+    },
+  };
+
+function Section({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={`bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}>
+    <div
+      className={`bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}
+    >
       {children}
     </div>
   );
@@ -131,7 +173,7 @@ export default function EditBillPage() {
         const billRes = await fetch(`/api/bills/${billId}`);
         if (!billRes.ok) throw new Error("Gagal memuat detail tagihan");
         const billData = await billRes.json();
-        
+
         if (!live) return;
         const b = billData.bill;
         setName(b.name);
@@ -143,7 +185,6 @@ export default function EditBillPage() {
         setCreateExpense(b.createExpense ?? true);
         setNotes(b.notes || "");
         setCardId(b.cardId || "");
-
       } catch (e: any) {
         toast.show({
           title: "Gagal Membuka Halaman",
@@ -162,11 +203,12 @@ export default function EditBillPage() {
   }, [billId]);
 
   const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
-  const formatInput = (n: number) => (n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n));
+  const formatInput = (n: number) =>
+    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
 
   const handleUpdate = useCallback(async () => {
     setErrors({});
-    
+
     const formattedDueDate = dueDate ? format(dueDate, "yyyy-MM-dd") : "";
 
     const payload = {
@@ -211,7 +253,13 @@ export default function EditBillPage() {
           title: "Tagihan Diperbarui",
           description: "Detail tagihan baru berhasil disimpan.",
           variant: "success",
-          icon: <HugeiconsIcon icon={CheckmarkCircle02Icon} size={22} color="white" />,
+          icon: (
+            <HugeiconsIcon
+              icon={CheckmarkCircle02Icon}
+              size={22}
+              color="white"
+            />
+          ),
           iconBg: "bg-emerald-500",
         });
         setTimeout(() => router.push(`/bills/${billId}`), 600);
@@ -234,7 +282,9 @@ export default function EditBillPage() {
     return (
       <div className="h-screen flex flex-col justify-center items-center bg-neutral-100 dark:bg-neutral-950">
         <span className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">Memuat Data Tagihan...</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">
+          Memuat Data Tagihan...
+        </p>
       </div>
     );
   }
@@ -272,7 +322,9 @@ export default function EditBillPage() {
               "
             />
           </div>
-          {errors.amount && <p className="text-xs text-red-500 mt-2 px-1">{errors.amount}</p>}
+          {errors.amount && (
+            <p className="text-xs text-red-500 mt-2 px-1">{errors.amount}</p>
+          )}
         </div>
 
         {/* Bill Title & Payee */}
@@ -288,7 +340,9 @@ export default function EditBillPage() {
                 className="w-full bg-transparent text-[15px] font-medium outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
-            {errors.name && <p className="text-xs text-red-500 mt-1.5 px-1">{errors.name}</p>}
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1.5 px-1">{errors.name}</p>
+            )}
           </div>
 
           <div>
@@ -302,7 +356,9 @@ export default function EditBillPage() {
                 className="w-full bg-transparent text-[15px] font-medium outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
               />
             </div>
-            {errors.payee && <p className="text-xs text-red-500 mt-1.5 px-1">{errors.payee}</p>}
+            {errors.payee && (
+              <p className="text-xs text-red-500 mt-1.5 px-1">{errors.payee}</p>
+            )}
           </div>
         </div>
 
@@ -315,8 +371,12 @@ export default function EditBillPage() {
                 <HugeiconsIcon icon={Calendar02Icon} size={20} />
               </div>
               <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">Jatuh Tempo</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Tentukan tanggal pembayaran</p>
+                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
+                  Jatuh Tempo
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                  Tentukan tanggal pembayaran
+                </p>
               </div>
             </div>
 
@@ -326,10 +386,15 @@ export default function EditBillPage() {
                   type="button"
                   className="px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-neutral-800 text-[13px] font-semibold border border-gray-150 dark:border-neutral-700 text-gray-800 dark:text-gray-200"
                 >
-                  {dueDate ? format(dueDate, "dd MMMM yyyy", { locale: localeId }) : "Pilih Tanggal"}
+                  {dueDate
+                    ? format(dueDate, "dd MMMM yyyy", { locale: localeId })
+                    : "Pilih Tanggal"}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-50 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl" align="end">
+              <PopoverContent
+                className="w-auto p-0 z-50 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl"
+                align="end"
+              >
                 <Calendar
                   mode="single"
                   selected={dueDate}
@@ -347,8 +412,12 @@ export default function EditBillPage() {
                 <HugeiconsIcon icon={Tag01Icon} size={20} />
               </div>
               <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">Kategori Tagihan</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500">Sesuaikan jenis tagihan</p>
+                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
+                  Kategori Tagihan
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                  Sesuaikan jenis tagihan
+                </p>
               </div>
             </div>
 
@@ -371,7 +440,9 @@ export default function EditBillPage() {
                     `}
                   >
                     <span className="text-lg">{meta.icon}</span>
-                    <span className="text-[11px] font-semibold whitespace-nowrap">{meta.label}</span>
+                    <span className="text-[11px] font-semibold whitespace-nowrap">
+                      {meta.label}
+                    </span>
                   </button>
                 );
               })}
@@ -385,7 +456,11 @@ export default function EditBillPage() {
           <Section className="p-2">
             {cards.length === 0 ? (
               <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
-                <HugeiconsIcon icon={Wallet01Icon} size={18} className="text-gray-300" />
+                <HugeiconsIcon
+                  icon={Wallet01Icon}
+                  size={18}
+                  className="text-gray-300"
+                />
                 <span>Tidak ada kartu tersedia</span>
               </div>
             ) : (
@@ -418,13 +493,25 @@ export default function EditBillPage() {
                         active:scale-[0.97]
                       `}
                     >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? colors.bg : "bg-gray-50 dark:bg-neutral-800"}`}>
-                        <HugeiconsIcon icon={Wallet01Icon} size={15} className={selected ? colors.text : "text-gray-400"} />
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? colors.bg : "bg-gray-50 dark:bg-neutral-800"}`}
+                      >
+                        <HugeiconsIcon
+                          icon={Wallet01Icon}
+                          size={15}
+                          className={selected ? colors.text : "text-gray-400"}
+                        />
                       </div>
                       <div className="min-w-0">
-                        <p className={`text-[12px] font-semibold truncate ${selected ? colors.text : "text-gray-700 dark:text-gray-300"}`}>{card.name}</p>
+                        <p
+                          className={`text-[12px] font-semibold truncate ${selected ? colors.text : "text-gray-700 dark:text-gray-300"}`}
+                        >
+                          {card.name}
+                        </p>
                         {card.balance !== undefined && (
-                          <p className="text-[10px] text-gray-400 tabular-nums mt-0.5">{fmtFull(card.balance)}</p>
+                          <p className="text-[10px] text-gray-400 tabular-nums mt-0.5">
+                            {fmtFull(card.balance)}
+                          </p>
                         )}
                       </div>
                     </button>
@@ -443,8 +530,12 @@ export default function EditBillPage() {
                 <HugeiconsIcon icon={Settings01Icon} size={20} />
               </div>
               <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">Tagihan Rutin</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Ulangi secara berkala setiap bulan</p>
+                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
+                  Tagihan Rutin
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                  Ulangi secara berkala setiap bulan
+                </p>
               </div>
             </div>
             <button
@@ -455,7 +546,9 @@ export default function EditBillPage() {
                 ${recurring ? "bg-indigo-600" : "bg-gray-200 dark:bg-neutral-700"}
               `}
             >
-              <span className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${recurring ? "translate-x-6" : "translate-x-1"}`} />
+              <span
+                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${recurring ? "translate-x-6" : "translate-x-1"}`}
+              />
             </button>
           </div>
 
@@ -466,8 +559,12 @@ export default function EditBillPage() {
                 <HugeiconsIcon icon={Invoice01Icon} size={20} />
               </div>
               <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">Catat sebagai Pengeluaran</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Otomatis mencatat transaksi & memotong saldo saat dibayar</p>
+                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
+                  Catat sebagai Pengeluaran
+                </p>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
+                  Otomatis mencatat transaksi & memotong saldo saat dibayar
+                </p>
               </div>
             </div>
             <button
@@ -478,7 +575,9 @@ export default function EditBillPage() {
                 ${createExpense ? "bg-indigo-600" : "bg-gray-200 dark:bg-neutral-700"}
               `}
             >
-              <span className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${createExpense ? "translate-x-6" : "translate-x-1"}`} />
+              <span
+                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${createExpense ? "translate-x-6" : "translate-x-1"}`}
+              />
             </button>
           </div>
 
@@ -487,7 +586,9 @@ export default function EditBillPage() {
               <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950/40 flex items-center justify-center text-slate-500">
                 <HugeiconsIcon icon={Note01Icon} size={20} />
               </div>
-              <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">Catatan</p>
+              <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
+                Catatan
+              </p>
             </div>
             <textarea
               value={notes}
