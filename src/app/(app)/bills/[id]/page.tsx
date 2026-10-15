@@ -23,24 +23,23 @@ import {
   Clock01Icon,
   AlertCircleIcon,
   CheckmarkCircle01Icon,
+  Coins01Icon,
 } from "@hugeicons/core-free-icons";
+import {
+  getBillCategoryIcon,
+  getBillCategoryLabel,
+} from "@/lib/iconMapping";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Transaction {
-  id: string;
-  amount: number;
-  date: string;
-  name: string;
-}
 
 interface BillDetail {
   id: string;
   name: string;
   amount: number;
   dueDate: string;
+  isFlexible?: boolean;
   status: "OPEN" | "PAID" | "OVERDUE" | "paid" | "pending" | "overdue";
-  category: "utilities" | "subscription" | "rent" | "insurance" | "internet" | "other" | null;
+  category: string | null;
   payee: string | null;
   recurring: boolean;
   notes: string | null;
@@ -50,7 +49,17 @@ interface BillDetail {
     name: string;
     type: string;
   } | null;
-  transactions?: Transaction[];
+}
+
+interface HistoryItem {
+  id: string;
+  amount: number;
+  date: string;
+  periodLabel: string;
+  statusLabel: string;
+  periodsPaid?: number;
+  cardName: string | null;
+  name: string;
 }
 
 interface Card {
@@ -92,15 +101,6 @@ const STATUS_META: Record<
   },
 };
 
-const CATEGORY_MAP: Record<string, { label: string; icon: string }> = {
-  utilities:    { label: "Utilitas",    icon: "⚡" },
-  subscription: { label: "Langganan",   icon: "📱" },
-  rent:         { label: "Sewa Rumah",  icon: "🏠" },
-  insurance:    { label: "Asuransi",   icon: "🛡️" },
-  internet:     { label: "Internet",    icon: "🌐" },
-  other:        { label: "Lainnya",     icon: "📋" },
-};
-
 const CARD_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
   BANK: {
     bg: "bg-blue-50 dark:bg-blue-950/50",
@@ -134,6 +134,11 @@ const fmtFull = (n: number) =>
     minimumFractionDigits: 0,
   }).format(Math.round(n));
 
+function parseRawNumber(raw: string): number {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
+}
+
 export default function BillDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -144,9 +149,17 @@ export default function BillDetailPage() {
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modals status
+  // Payment History State
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Payment Modal State
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedCardId, setSelectedCardId] = useState("");
+  const [periodsPaid, setPeriodsPaid] = useState<number>(1);
+  const [customAmountRaw, setCustomAmountRaw] = useState<string>("");
   const [paying, setPaying] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -171,6 +184,33 @@ export default function BillDetailPage() {
     }
   };
 
+  const fetchHistory = useCallback(
+    async (pageNum: number = 1, append: boolean = false) => {
+      setLoadingHistory(true);
+      try {
+        const res = await fetch(
+          `/api/bills/${billId}/history?page=${pageNum}&limit=3`
+        );
+        if (!res.ok) throw new Error("Gagal memuat riwayat pembayaran");
+        const data = await res.json();
+        const newItems: HistoryItem[] = data.history || [];
+
+        if (append) {
+          setHistory((prev) => [...prev, ...newItems]);
+        } else {
+          setHistory(newItems);
+        }
+        setHasMoreHistory(data.pagination?.hasMore ?? false);
+        setHistoryPage(pageNum);
+      } catch (e) {
+        console.error("Failed to fetch bill history:", e);
+      } finally {
+        setLoadingHistory(false);
+      }
+    },
+    [billId]
+  );
+
   const fetchCards = async () => {
     try {
       const res = await fetch("/api/cards");
@@ -187,8 +227,16 @@ export default function BillDetailPage() {
 
   useEffect(() => {
     fetchBillDetail();
+    fetchHistory(1, false);
     fetchCards();
   }, [billId]);
+
+  // Reset pay modal fields whenever modal opens
+  const handleOpenPayModal = () => {
+    setPeriodsPaid(1);
+    setCustomAmountRaw(bill ? bill.amount.toString() : "");
+    setShowPayModal(true);
+  };
 
   // Compute status friendly key
   const getFriendlyStatus = (status?: string): BillStatus => {
@@ -207,23 +255,48 @@ export default function BillDetailPage() {
       toast.show({ title: "Pilih kartu pembayaran", variant: "warning" });
       return;
     }
+
     setPaying(true);
+
+    const parsedActualAmount = customAmountRaw
+      ? parseRawNumber(customAmountRaw)
+      : (bill ? bill.amount * periodsPaid : 0);
+
     try {
       const res = await fetch(`/api/bills/${billId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "paid", cardId: selectedCardId }),
+        body: JSON.stringify({
+          status: "paid",
+          cardId: selectedCardId,
+          actualAmount: parsedActualAmount,
+          periodsPaid: bill?.isFlexible ? 1 : periodsPaid,
+        }),
       });
+
       if (res.ok) {
+        const descMsg = bill?.isFlexible
+          ? "Pembayaran tagihan fleksibel berhasil dicatat."
+          : periodsPaid > 1
+          ? `${periodsPaid} bulan pembayaran berhasil dicatat. Jatuh tempo berikutnya diperbarui.`
+          : "Jatuh tempo otomatis diperbarui ke bulan berikutnya.";
+
         toast.show({
           title: "Tagihan Sukses Dibayar",
-          description: "Saldo berhasil didebit dan pengeluaran tercatat.",
+          description: descMsg,
           variant: "success",
-          icon: <HugeiconsIcon icon={CheckmarkCircle02Icon} size={22} color="white" />,
+          icon: (
+            <HugeiconsIcon
+              icon={CheckmarkCircle02Icon}
+              size={22}
+              color="white"
+            />
+          ),
           iconBg: "bg-emerald-500",
         });
         setShowPayModal(false);
-        fetchBillDetail(); // Refresh
+        await fetchBillDetail(); // Refresh bill details
+        await fetchHistory(1, false); // Reload history with newly recorded payment
       } else {
         const errorData = await res.json();
         toast.show({
@@ -240,7 +313,9 @@ export default function BillDetailPage() {
   };
 
   const handleDeleteBill = async () => {
-    const isConfirmed = window.confirm("Apakah Anda yakin ingin menghapus tagihan ini?");
+    const isConfirmed = window.confirm(
+      "Apakah Anda yakin ingin menghapus tagihan ini?"
+    );
     if (!isConfirmed) return;
 
     setDeleting(true);
@@ -267,14 +342,20 @@ export default function BillDetailPage() {
     return (
       <div className="h-screen flex flex-col justify-center items-center bg-neutral-100 dark:bg-neutral-950">
         <span className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">Memuat Detail Tagihan...</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">
+          Memuat Detail Tagihan...
+        </p>
       </div>
     );
   }
 
   if (!bill) return null;
 
-  const categoryInfo = bill.category ? CATEGORY_MAP[bill.category] : null;
+  const CategoryIcon = getBillCategoryIcon(bill.category);
+  const categoryLabel = getBillCategoryLabel(bill.category);
+
+  // Estimated expected total based on periodsPaid
+  const expectedTotal = bill.amount * periodsPaid;
 
   return (
     <div className="h-screen flex flex-col mb-20 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
@@ -288,13 +369,25 @@ export default function BillDetailPage() {
 
       <div className="flex-1 overflow-y-auto pt-[64px] pb-32 px-4 space-y-4">
         {/* Status card block */}
-        <div className={`p-5 rounded-[24px] border ${statusMeta.bg} flex items-start gap-4 mt-4`}>
+        <div
+          className={`p-5 rounded-[24px] border ${statusMeta.bg} flex items-start gap-4 mt-4`}
+        >
           <div className="w-10 h-10 rounded-full bg-white dark:bg-neutral-900 border border-gray-100 dark:border-neutral-800 flex items-center justify-center flex-shrink-0">
-            <HugeiconsIcon icon={statusMeta.icon} size={20} className={statusMeta.color} />
+            <HugeiconsIcon
+              icon={statusMeta.icon}
+              size={20}
+              className={statusMeta.color}
+            />
           </div>
           <div>
-            <h4 className={`text-base font-bold ${statusMeta.color}`}>{statusMeta.label}</h4>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">{statusMeta.desc}</p>
+            <h4 className={`text-base font-bold ${statusMeta.color}`}>
+              {bill.isFlexible ? "Fleksibel" : statusMeta.label}
+            </h4>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 leading-relaxed">
+              {bill.isFlexible
+                ? "Tagihan fleksibel tanpa tanggal jatuh tempo tetap. Dapat dibayar kapan saja."
+                : statusMeta.desc}
+            </p>
           </div>
         </div>
 
@@ -302,7 +395,7 @@ export default function BillDetailPage() {
         <Section className="p-6 flex flex-col gap-4">
           <div>
             <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-              Nominal Tagihan
+              Nominal Estimasi Tagihan
             </p>
             <h1 className="text-3xl font-bold font-mono text-gray-900 dark:text-gray-50">
               {fmtFull(bill.amount)}
@@ -326,41 +419,57 @@ export default function BillDetailPage() {
               <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-500">
                 <HugeiconsIcon icon={Calendar02Icon} size={18} />
               </div>
-              <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">Jatuh Tempo</p>
+              <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">
+                Jatuh Tempo
+              </p>
             </div>
             <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
-              {isValid(new Date(bill.dueDate))
-                ? format(new Date(bill.dueDate), "dd MMMM yyyy", { locale: localeId })
+              {bill.isFlexible
+                ? "Fleksibel (Tanpa Tanggal)"
+                : bill.dueDate && isValid(new Date(bill.dueDate))
+                ? format(new Date(bill.dueDate), "dd MMMM yyyy", {
+                    locale: localeId,
+                  })
                 : "—"}
             </p>
           </div>
 
           {/* Category detail row */}
-          {categoryInfo && (
-            <div className="flex items-center justify-between px-5 py-4">
-              <div className="flex items-center gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-500">
-                  <HugeiconsIcon icon={Tag01Icon} size={18} />
-                </div>
-                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">Kategori</p>
+          <div className="flex items-center justify-between px-5 py-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-500">
+                <HugeiconsIcon icon={Tag01Icon} size={18} />
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-base">{categoryInfo.icon}</span>
-                <span className="text-[13px] font-bold text-gray-900 dark:text-gray-100">{categoryInfo.label}</span>
-              </div>
+              <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">
+                Kategori
+              </p>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <HugeiconsIcon
+                icon={CategoryIcon}
+                size={16}
+                className="text-amber-600 dark:text-amber-400"
+              />
+              <span className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
+                {categoryLabel}
+              </span>
+            </div>
+          </div>
 
           {/* Payee info row */}
           {bill.payee && (
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-3.5">
                 <div className="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-950/40 flex items-center justify-center text-slate-500">
-                  <span className="text-[13px] font-medium leading-none">💰</span>
+                  <HugeiconsIcon icon={Wallet01Icon} size={18} />
                 </div>
-                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">Penerima (Payee)</p>
+                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">
+                  Penerima (Payee)
+                </p>
               </div>
-              <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100">{bill.payee}</p>
+              <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100">
+                {bill.payee}
+              </p>
             </div>
           )}
 
@@ -371,7 +480,9 @@ export default function BillDetailPage() {
                 <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-500">
                   <HugeiconsIcon icon={Wallet01Icon} size={18} />
                 </div>
-                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">Rekening Default</p>
+                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">
+                  Rekening Default
+                </p>
               </div>
               <p className="text-[13px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-3 py-1 rounded-full border border-blue-200/50 dark:border-blue-900/35">
                 {bill.card.name}
@@ -386,7 +497,9 @@ export default function BillDetailPage() {
                 <div className="w-9 h-9 rounded-xl bg-stone-50 dark:bg-stone-900/40 flex items-center justify-center text-stone-500">
                   <HugeiconsIcon icon={Note01Icon} size={18} />
                 </div>
-                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">Catatan</p>
+                <p className="text-[13px] font-semibold text-gray-700 dark:text-gray-300">
+                  Catatan
+                </p>
               </div>
               <p className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50/50 dark:bg-neutral-800/40 border border-gray-100 dark:border-neutral-800 p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap">
                 {bill.notes}
@@ -395,30 +508,69 @@ export default function BillDetailPage() {
           )}
         </Section>
 
-        {/* Show payment list if paid */}
-        {bill.status.toLowerCase() === "paid" && bill.transactions && bill.transactions.length > 0 && (
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500 mb-2 px-1">
-              Riwayat Pembayaran
+        {/* Payment History Section */}
+        <div className="space-y-2 pt-2">
+          <div className="flex items-center justify-between px-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted,#8A857D)]">
+              Payment History
             </p>
-            <Section className="p-4 space-y-3">
-              {bill.transactions.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-emerald-400 text-xs">✓</span>
-                    <div>
-                      <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{tx.name}</p>
-                      <p className="text-[10px] text-gray-400 tabular-nums">
-                        {isValid(new Date(tx.date)) ? format(new Date(tx.date), "dd MMM yyyy, HH:mm") : tx.date}
-                      </p>
-                    </div>
+            {history.length > 0 && (
+              <span className="text-xs text-neutral-400 font-medium">
+                {history.length} pembayaran
+              </span>
+            )}
+          </div>
+
+          {history.length === 0 ? (
+            <Section className="p-5 text-center">
+              <p className="text-xs text-gray-400">
+                Belum ada riwayat pembayaran
+              </p>
+            </Section>
+          ) : (
+            <Section className="divide-y divide-gray-100 dark:divide-neutral-800">
+              {history.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between px-5 py-4 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/30 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                      {item.periodLabel}
+                    </p>
+                    <p className="text-[15px] font-bold text-gray-900 dark:text-gray-100 font-mono mt-0.5">
+                      {fmtFull(item.amount)}
+                    </p>
+                    <p className="text-[12px] font-medium text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      {item.statusLabel}
+                    </p>
                   </div>
-                  <p className="text-[13px] font-bold text-gray-900 dark:text-gray-100 font-mono">-{fmtFull(tx.amount)}</p>
+                  {item.cardName && (
+                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-neutral-800 px-2.5 py-1 rounded-full flex-shrink-0">
+                      {item.cardName}
+                    </span>
+                  )}
                 </div>
               ))}
             </Section>
-          </div>
-        )}
+          )}
+
+          {/* Load More Button */}
+          {hasMoreHistory && (
+            <button
+              type="button"
+              onClick={() => fetchHistory(historyPage + 1, true)}
+              disabled={loadingHistory}
+              className="w-full py-3.5 rounded-2xl bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-800 text-[13px] font-bold text-gray-700 dark:text-gray-300 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+            >
+              {loadingHistory ? (
+                <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                "Load More"
+              )}
+            </button>
+          )}
+        </div>
 
         {/* Actions panel */}
         <div className="flex gap-3.5 pt-4">
@@ -442,21 +594,19 @@ export default function BillDetailPage() {
       </div>
 
       {/* Floating Action Payment Trigger */}
-      {currentStatusKey !== "paid" && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-neutral-100 via-neutral-100/90 to-transparent dark:from-neutral-950 dark:via-neutral-950/90 dark:to-transparent z-40">
-          <button
-            type="button"
-            onClick={() => setShowPayModal(true)}
-            className="
-              w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[15px]
-              shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2
-            "
-          >
-            <HugeiconsIcon icon={Wallet01Icon} size={18} />
-            Bayar Sekarang (Lunas)
-          </button>
-        </div>
-      )}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-neutral-100 via-neutral-100/90 to-transparent dark:from-neutral-950 dark:via-neutral-950/90 dark:to-transparent z-40">
+        <button
+          type="button"
+          onClick={handleOpenPayModal}
+          className="
+            w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[15px]
+            shadow-lg shadow-emerald-600/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2
+          "
+        >
+          <HugeiconsIcon icon={Wallet01Icon} size={18} />
+          Catat Pembayaran
+        </button>
+      </div>
 
       {/* Payment Selection Modal bottom sheet */}
       <AnimatePresence>
@@ -474,16 +624,99 @@ export default function BillDetailPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
-              className="fixed bottom-0 left-0 right-0 max-h-[85vh] bg-white dark:bg-neutral-900 rounded-t-[32px] border-t border-gray-150 dark:border-neutral-800 shadow-2xl p-6 z-55 pb-12 overflow-y-auto"
+              className="fixed bottom-0 left-0 right-0 max-h-[90vh] bg-white dark:bg-neutral-900 rounded-t-[32px] border-t border-gray-150 dark:border-neutral-800 shadow-2xl p-6 z-55 pb-12 overflow-y-auto"
             >
-              <div className="w-12 h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-6" />
+              <div className="w-12 h-1.5 bg-neutral-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
 
-              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">Pilih Rekening Pembayaran</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-5">
-                Pilih kartu/dompet yang digunakan untuk pemotongan saldo tagihan ini sebesar <strong>{fmtFull(bill.amount)}</strong>.
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                Catat Pembayaran Tagihan
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-5">
+                {bill.isFlexible
+                  ? "Masukkan nominal aktual yang dibayar untuk tagihan ini."
+                  : "Tentukan jumlah periode dan nominal aktual yang dibayar."}
               </p>
 
-              <div className="space-y-2.5 max-h-[40vh] overflow-y-auto pr-1 pb-4">
+              {/* Bulk Payment Period Selection (for scheduled bills) */}
+              {!bill.isFlexible && (
+                <div className="mb-5 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-gray-150 dark:border-neutral-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      Bayar untuk
+                    </p>
+                    <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                      {periodsPaid} Periode ({periodsPaid} Bulan)
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {[1, 2, 3, 6, 12].map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => {
+                          setPeriodsPaid(p);
+                          setCustomAmountRaw((bill.amount * p).toString());
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                          periodsPaid === p
+                            ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                            : "bg-white dark:bg-neutral-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-neutral-700"
+                        }`}
+                      >
+                        {p} Bulan
+                      </button>
+                    ))}
+                  </div>
+
+                  {expectedTotal > 0 && (
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-200/60 dark:border-neutral-700/60">
+                      <span>Estimasi Total ({periodsPaid}x {fmtFull(bill.amount)})</span>
+                      <span className="font-bold font-mono text-gray-800 dark:text-gray-200">
+                        {fmtFull(expectedTotal)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Flexible Actual Amount Input */}
+              <div className="mb-5 p-4 rounded-2xl bg-neutral-50 dark:bg-neutral-800/50 border border-gray-150 dark:border-neutral-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Nominal Aktual Dibayar
+                  </p>
+                  <span className="text-[10px] text-gray-400">
+                    Bisa disesuaikan
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-white dark:bg-neutral-900 px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-neutral-700 focus-within:ring-2 focus-within:ring-indigo-500/20">
+                  <span className="text-sm font-bold text-gray-400">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={
+                      customAmountRaw
+                        ? new Intl.NumberFormat("id-ID").format(
+                            parseRawNumber(customAmountRaw)
+                          )
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setCustomAmountRaw(parseRawNumber(e.target.value).toString())
+                    }
+                    placeholder={fmtFull(expectedTotal)}
+                    className="w-full bg-transparent text-lg font-bold font-mono text-gray-900 dark:text-gray-100 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Card Selection */}
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2.5">
+                Pilih Rekening Pembayaran
+              </p>
+              <div className="space-y-2.5 max-h-[30vh] overflow-y-auto pr-1 pb-4">
                 {cards.map((card) => {
                   const selected = card.id === selectedCardId;
                   const colors = CARD_COLORS[card.type] ?? CARD_COLORS.BANK;
@@ -494,23 +727,50 @@ export default function BillDetailPage() {
                       onClick={() => setSelectedCardId(card.id)}
                       className={`
                         w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-left border-2 transition-all
-                        ${selected ? `${colors.bg} ${colors.ring}` : "border-gray-100 dark:border-neutral-800 hover:border-gray-250 dark:hover:border-neutral-755 bg-transparent"}
+                        ${
+                          selected
+                            ? `${colors.bg} ${colors.ring}`
+                            : "border-gray-100 dark:border-neutral-800 hover:border-gray-250 dark:hover:border-neutral-755 bg-transparent"
+                        }
                       `}
                     >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? colors.bg : "bg-gray-50 dark:bg-neutral-850"}`}>
-                        <HugeiconsIcon icon={Wallet01Icon} size={16} className={selected ? colors.text : "text-gray-400"} />
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          selected ? colors.bg : "bg-gray-50 dark:bg-neutral-850"
+                        }`}
+                      >
+                        <HugeiconsIcon
+                          icon={Wallet01Icon}
+                          size={16}
+                          className={selected ? colors.text : "text-gray-400"}
+                        />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-[13px] font-bold truncate ${selected ? colors.text : "text-gray-800 dark:text-gray-200"}`}>
+                        <p
+                          className={`text-[13px] font-bold truncate ${
+                            selected
+                              ? colors.text
+                              : "text-gray-800 dark:text-gray-200"
+                          }`}
+                        >
                           {card.name}
                         </p>
                         {card.balance !== undefined && (
-                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">{fmtFull(card.balance)}</p>
+                          <p className="text-[11px] text-gray-400 font-mono mt-0.5">
+                            Saldo: {fmtFull(card.balance)}
+                          </p>
                         )}
                       </div>
                       {selected && (
-                        <div className={`w-5 h-5 rounded-full ${colors.text} border-2 ${colors.bg} flex items-center justify-center flex-shrink-0`}>
-                          <span className={`w-2 h-2 rounded-full ${colors.text.replace("text-", "bg-")}`} />
+                        <div
+                          className={`w-5 h-5 rounded-full ${colors.text} border-2 ${colors.bg} flex items-center justify-center flex-shrink-0`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${colors.text.replace(
+                              "text-",
+                              "bg-"
+                            )}`}
+                          />
                         </div>
                       )}
                     </button>
