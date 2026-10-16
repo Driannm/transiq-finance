@@ -43,27 +43,37 @@ import {
   CircleArrowUpDownIcon,
 } from "@hugeicons/core-free-icons";
 
-// ─── Helpers ────────────────────────────────────────────────
+import { formatIDR, getDaysUntilDue, formatDate } from "@/lib/format";
 
-function formatIDR(amount: number): string {
-  return new Intl.NumberFormat("id-ID").format(Math.round(amount));
-}
+// ─── Helpers ────────────────────────────────────────────────
 
 function urgencyColor(urgency: string) {
   if (urgency === "high")
     return {
-      text: "text-red-500",
+      text: "text-red-500 dark:text-red-400",
       badge: "bg-red-50 dark:bg-red-900/30 text-red-600",
+      iconBg: "bg-red-100 dark:bg-red-950/40",
+      iconText: "text-red-500 dark:text-red-400",
     };
   if (urgency === "medium")
     return {
-      text: "text-amber-500",
+      text: "text-amber-500 dark:text-amber-400",
       badge: "bg-amber-50 dark:bg-amber-900/30 text-amber-600",
+      iconBg: "bg-amber-100 dark:bg-amber-950/40",
+      iconText: "text-amber-500 dark:text-amber-400",
     };
   return {
-    text: "text-blue-500",
-    badge: "bg-blue-50 dark:bg-blue-900/30 text-blue-600",
+    text: "text-purple-500 dark:text-purple-400",
+    badge: "bg-purple-50 dark:bg-purple-900/30 text-purple-600",
+    iconBg: "bg-purple-50 dark:bg-purple-950/40",
+    iconText: "text-purple-500 dark:text-purple-400",
   };
+}
+
+function formatDueLabel(dueIn: number): string {
+  if (dueIn < 0) return `Lewat ${Math.abs(dueIn)} hari`;
+  if (dueIn === 0) return "Jatuh tempo hari ini";
+  return `${dueIn} hari lagi`;
 }
 
 // ─── Sub-Components ─────────────────────────────────────────
@@ -220,6 +230,7 @@ const CATEGORY_META = {
 export default function DashboardPage() {
   const router = useRouter();
   const confirm = useConfirm();
+  const [isMasked, setIsMasked] = useState(true);
 
   const { data, error, isLoading, mutate } = useRecentTransactions();
   const transactions = data?.transactions || [];
@@ -233,10 +244,7 @@ export default function DashboardPage() {
     return rawBills
       .filter((b: any) => b.status === "pending" || b.status === "overdue")
       .map((bill: any) => {
-        const dueIn = Math.ceil(
-          (new Date(bill.dueDate).getTime() - new Date().setHours(0, 0, 0, 0)) /
-            (1000 * 60 * 60 * 24),
-        );
+        const dueIn = getDaysUntilDue(bill.dueDate);
         const meta =
           CATEGORY_META[bill.category as keyof typeof CATEGORY_META] ||
           CATEGORY_META.other;
@@ -246,6 +254,7 @@ export default function DashboardPage() {
           icon: getCategoryIcon(bill.category),
           dueIn,
           amount: bill.amount,
+          date: bill.dueDate,
           urgency:
             bill.status === "overdue" || dueIn <= 3
               ? "high"
@@ -321,40 +330,15 @@ export default function DashboardPage() {
           amount={20499399}
           variant="yellow"
           isLoading={isLoading}
-          badges={[
-            /* Badge Hemat */
-            <div
-              key="saved"
-              className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-full"
-            >
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-red-200">
-                <HugeiconsIcon icon={AddMoneyCircleIcon} size={16} />
-              </span>
-              <span className="text-xs font-mono font-medium text-white">
-                230.000
-              </span>
-            </div>,
-            /* Badge Persentase */
-            <div
-              key="percent"
-              className="flex items-center gap-1 bg-green-500/20 backdrop-blur-md border border-green-500/30 px-3 py-1.5 rounded-full text-green-300"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                <polyline points="17 6 23 6 23 12" />
-              </svg>
-              <span className="text-xs font-semibold">12.5%</span>
-            </div>,
-          ]}
+          privacyToggle={{
+            isHidden: isMasked,
+            onToggle: () => setIsMasked((prev) => !prev),
+          }}
+          trend={{
+            value: "+12.5%",
+            isPositive: true,
+            label: "vs bulan lalu",
+          }}
         />
       </div>
 
@@ -366,12 +350,12 @@ export default function DashboardPage() {
       {/* ---- Upcoming Bills ---- */}
       <SectionBlock
         title="Upcoming Bills"
+        titleHref="/bills"
         badge={
           urgentBillsCount > 0
-            ? { label: `${urgentBillsCount} urgent`, variant: "red" }
+            ? { label: `${urgentBillsCount} Urgent`, variant: "red" }
             : undefined
         }
-        action={{ type: "link", label: "See All", href: "/bills" }}
       >
         <CardList
           items={upcomingBills}
@@ -390,7 +374,8 @@ export default function DashboardPage() {
               />
             ),
             title: "No upcoming bills",
-            description: "You're all caught up! No bills due soon.",
+            description:
+              "You're all caught up! No bills are due soon. Enjoy the peace of mind for now.",
           }}
           renderItem={(bill) => {
             const colors = urgencyColor(bill.urgency);
@@ -398,30 +383,38 @@ export default function DashboardPage() {
               left: (
                 <>
                   <div
-                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${bill.bg} dark:bg-opacity-20`}
+                    className={`w-9 h-9 rounded-lg flex items-center justify-center ${colors.iconBg}`}
                   >
                     <HugeiconsIcon
                       icon={bill.icon}
                       size={22}
-                      className="text-gray-700"
+                      className={colors.iconText}
                     />
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
                       {bill.name}
                     </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 font-mono">
-                      Due in {bill.dueIn} days
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      {formatDueLabel(bill.dueIn)}
                     </p>
                   </div>
                 </>
               ),
               right: (
-                <span
-                  className={`text-sm font-semibold font-mono ${colors.text}`}
-                >
-                  IDR {formatIDR(bill.amount)}
-                </span>
+                <div className="flex flex-col items-end justify-center">
+                  <div
+                    className={`text-sm font-semibold flex items-baseline gap-[3.5px] ${colors.text}`}
+                  >
+                    <span className="font-sans text-sm">IDR</span>
+                    <span className="font-mono text-sm tabular-nums tracking-tight">
+                      {formatIDR(bill.amount)}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 mt-0.5">
+                    {formatDate(bill.date)}
+                  </span>
+                </div>
               ),
             };
           }}
