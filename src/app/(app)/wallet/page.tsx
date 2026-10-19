@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
-import { CardList } from "@/components/Shared/CardList";
+// import { CardList } from "@/components/Shared/CardList";
 import { BankCard } from "@/components/Shared/BankCard";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { toast } from "sonner";
 import {
   Add01Icon,
@@ -18,9 +18,10 @@ import {
   Delete02Icon,
   CheckmarkCircle02Icon,
   InformationCircleIcon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon
+  ArrowDataTransferHorizontalIcon,
+  CreditCardIcon,
 } from "@hugeicons/core-free-icons";
+import { CreditCard } from "@/components/ui/credit-card/credit-card";
 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,11 @@ function formatIDR(amount: number): string {
   }).format(Math.abs(amount));
 }
 
-const getDeterministicCardTheme = (id: string, type: CardType, index: number) => {
+const getDeterministicCardTheme = (
+  id: string,
+  type: CardType,
+  index: number,
+) => {
   const themes = [
     { color: "#1A3FA8", colorEnd: "#0C1A5A" }, // Deep Blue (default BANK)
     { color: "#0F766E", colorEnd: "#115E59" }, // Emerald (default EMONEY)
@@ -71,7 +76,7 @@ const getDeterministicCardTheme = (id: string, type: CardType, index: number) =>
   if (type === "EMONEY") return themes[1];
   if (type === "EWALLET") return themes[2];
   if (type === "PAYLATER") return themes[3];
-  
+
   return themes[index % themes.length];
 };
 
@@ -79,13 +84,73 @@ const getLastFourDigits = (id: string) => {
   if (!id) return "0000";
   const numOnly = id.replace(/[^0-9]/g, "");
   if (numOnly.length >= 4) return numOnly.slice(-4);
-  
+
   // Deterministic fallback
   let sum = 0;
   for (let i = 0; i < id.length; i++) {
     sum += id.charCodeAt(i);
   }
   return String(sum).slice(-4).padEnd(4, "7");
+};
+
+// ─── HELPERS: CARD TYPE → CREDITCARD STYLE ────────────────────────────────────
+
+type CreditCardStyle =
+  | "brand-dark"
+  | "brand-light"
+  | "gray-dark"
+  | "gray-light"
+  | "transparent"
+  | "gradient-strip"
+  | "salmon-strip";
+
+const getCardStyle = (type: CardType): CreditCardStyle => {
+  if (type === "BANK") return "brand-dark";
+  if (type === "EMONEY") return "gray-dark";
+  if (type === "EWALLET") return "gradient-strip";
+  if (type === "PAYLATER") return "salmon-strip";
+  return "brand-dark";
+};
+
+const getCardTypeLabel = (type: CardType): string => {
+  if (type === "BANK") return "Debit";
+  if (type === "EMONEY") return "E-Money";
+  if (type === "EWALLET") return "E-Wallet";
+  if (type === "PAYLATER") return "Paylater";
+  return type;
+};
+
+const getDayLabel = (date: Date): string => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+  const diffDays = Math.round(
+    (today.getTime() - target.getTime()) / 86_400_000,
+  );
+
+  if (diffDays === 0) return "Hari ini";
+  if (diffDays === 1) return "Kemarin";
+  return date.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const groupTransfersByDay = (items: TransferHistoryItem[]) => {
+  const sorted = [...items].sort(
+    (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime(),
+  );
+  const groups: { label: string; items: TransferHistoryItem[] }[] = [];
+
+  for (const tr of sorted) {
+    const label = getDayLabel(new Date(tr.time));
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.items.push(tr);
+    else groups.push({ label, items: [tr] });
+  }
+  return groups;
 };
 
 // ─── CARD ITEM COMPONENT ──────────────────────────────────────────────────────
@@ -96,51 +161,92 @@ interface CardItemProps {
   onClick: () => void;
 }
 
-function CardItem({ card, index, onClick }: CardItemProps) {
-  const theme = getDeterministicCardTheme(card.id, card.type, index);
-  const lastFour = getLastFourDigits(card.id);
-  const cardLogoType = index % 2 === 0 ? "visa" : "mastercard";
+function CardItem({ card, onClick }: CardItemProps) {
+  const cardStyle = getCardStyle(card.type);
+  const typeLabel = getCardTypeLabel(card.type);
 
   return (
-    <div className="relative group cursor-pointer active:scale-[0.99] transition-transform duration-150" onClick={onClick}>
-      <BankCard
-        variant="custom"
-        style={{
-          background: `linear-gradient(135deg, ${theme.color}, ${theme.colorEnd})`,
-        }}
-        className="text-white shadow-lg relative border border-white/10"
-      >
-        <BankCard.Header>
-          <BankCard.Type className="text-white/80 uppercase font-mono tracking-wider text-[9px] bg-white/10 px-2 py-0.5 rounded-full">
-            {card.type === "BANK" && "Debit Card"}
-            {card.type === "EMONEY" && "E-Money"}
-            {card.type === "EWALLET" && "E-Wallet"}
-            {card.type === "PAYLATER" && "Paylater"}
-          </BankCard.Type>
-          <BankCard.Logo type={cardLogoType} />
-        </BankCard.Header>
-
-        <BankCard.Chip className="my-3 px-1" />
-
-        <BankCard.Number value={lastFour} obscure={true} className="text-white/95 tracking-[0.25em] font-semibold my-4 px-1" />
-
-        <BankCard.Footer className="mt-8">
-          <div>
-            <BankCard.Balance
-              amount={card.balance}
-              currency="IDR "
-              allowMasking={true}
-              className="text-white font-sans text-xl"
-            />
-            <BankCard.Holder name={card.name} className="mt-1 text-white/50 tracking-wider text-[10px] uppercase font-bold" />
-          </div>
-          <BankCard.Expiry date="12/29" />
-        </BankCard.Footer>
-      </BankCard>
-      
+    <div
+      className="relative group cursor-pointer active:scale-[0.99] transition-transform duration-150 flex justify-center"
+      onClick={onClick}
+    >
+      <CreditCard
+        company={card.name}
+        cardHolder={typeLabel}
+        cardExpiration="—"
+        type={cardStyle}
+        balance={card.balance}
+        balanceLabel="SALDO"
+        showBalance={true}
+        currency="IDR "
+        width={316}
+        className="shadow-2xl"
+      />
       {/* Edit Overlay Indicator */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 backdrop-blur-md p-1.5 rounded-full text-white/85">
+      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/30 backdrop-blur-md p-1.5 rounded-full text-white/85">
         <HugeiconsIcon icon={Settings01Icon} size={14} />
+      </div>
+    </div>
+  );
+}
+
+// ─── TRANSFER ROW COMPONENT ───────────────────────────────────────────────────
+
+interface TransferRowProps {
+  tr: TransferHistoryItem;
+  fromCard?: Card;
+  toCard?: Card;
+}
+
+function TransferRow({ tr, fromCard, toCard }: TransferRowProps) {
+  const isPaylater =
+    tr.fromCardType === "PAYLATER" || tr.toCardType === "PAYLATER";
+
+  const timeLabel = new Date(tr.time).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const fromName = fromCard?.name ?? "Kartu dihapus";
+  const toName =
+    toCard?.name ?? (tr.targetName || tr.bankName || "Kartu dihapus");
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3">
+      {/* Asal */}
+      <div className="min-w-0">
+        <p className="text-[13px] font-bold tabular-nums leading-tight text-rose-600 dark:text-rose-400 truncate">
+          − {formatIDR(tr.amount)}
+        </p>
+        <p className="text-[11px] mt-0.5 text-gray-500 dark:text-neutral-400 truncate">
+          {fromName}
+        </p>
+      </div>
+
+      {/* Tengah: ikon + jam */}
+      <div className="flex flex-col items-center gap-1">
+        <div
+          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            isPaylater
+              ? "bg-rose-50 text-rose-500 dark:bg-rose-950/30"
+              : "bg-blue-50 text-blue-500 dark:bg-blue-950/30"
+          }`}
+        >
+          <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} size={14} />
+        </div>
+        <span className="text-[10px] font-mono tabular-nums text-gray-400 dark:text-neutral-500">
+          {timeLabel}
+        </span>
+      </div>
+
+      {/* Tujuan */}
+      <div className="min-w-0 text-right">
+        <p className="text-[13px] font-bold tabular-nums leading-tight text-emerald-600 dark:text-emerald-400 truncate">
+          + {formatIDR(tr.amount)}
+        </p>
+        <p className="text-[11px] mt-0.5 text-gray-500 dark:text-neutral-400 truncate">
+          {toName}
+        </p>
       </div>
     </div>
   );
@@ -156,20 +262,27 @@ export default function WalletPage() {
   // Carousel Selection State
   // 0 = Total Balance Card, 1..N = Individual cards
   const [activeCardIndex, setActiveCardIndex] = useState(0);
-  
+
+  // Mencegah klik (buka modal edit) ikut terpicu saat user baru selesai swipe
+  const isDraggingRef = React.useRef(false);
+
   // Slide animation direction: "left" or "right"
-  const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
+  const [slideDirection, setSlideDirection] = useState<"left" | "right">(
+    "right",
+  );
 
   // Transfer Filter State: "all" (semua) vs "current" (dari kartu ini)
-  const [transferFilter, setTransferFilter] = useState<"all" | "current">("all");
+  const [transferFilter, setTransferFilter] = useState<"all" | "current">(
+    "all",
+  );
 
   // Modals visibility state
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  
+
   // Modal forms active data
   const [selectedCard, setSelectedCard] = useState<Card | null>(null); // null means "new card"
-  
+
   // Card Form State
   const [cardFormName, setCardFormName] = useState("");
   const [cardFormType, setCardFormType] = useState<CardType>("BANK");
@@ -184,7 +297,9 @@ export default function WalletPage() {
   const [transferToId, setTransferToId] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
   const [transferFee, setTransferFee] = useState("0");
-  const [transferDate, setTransferDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [transferDate, setTransferDate] = useState(
+    () => new Date().toISOString().split("T")[0],
+  );
 
   // Fetch initial data
   const loadData = useCallback(async () => {
@@ -198,7 +313,13 @@ export default function WalletPage() {
       if (cardsRes.ok && transfersRes.ok) {
         const cardsData = await cardsRes.json();
         const transfersData = await transfersRes.json();
-        setCards(cardsData.cards || []);
+        const sortedCards: Card[] = [...(cardsData.cards || [])].sort(
+          (a: Card, b: Card) => b.balance - a.balance,
+        );
+        setCards(sortedCards);
+        setActiveCardIndex((prev) =>
+          Math.min(prev, Math.max(sortedCards.length - 1, 0)),
+        );
         setTransfers(transfersData.transfers || []);
       } else {
         toast.error("Gagal memuat beberapa layanan finansial.");
@@ -215,41 +336,51 @@ export default function WalletPage() {
     loadData();
   }, [loadData]);
 
-  // Total balance sum calculations
-  const totalCashBalance = cards
-    .filter((c) => c.type !== "PAYLATER")
-    .reduce((sum, c) => sum + c.balance, 0);
-
-  const totalPaylaterLimit = cards
-    .filter((c) => c.type === "PAYLATER")
-    .reduce((sum, c) => sum + c.balance, 0);
-
   // Carousel navigation mechanics
-  const cardsCount = cards.length + 1; // +1 for the Total Card
+  const cardsCount = cards.length;
 
-  const handlePrevCard = () => {
-    setSlideDirection("left");
-    setActiveCardIndex((prev) => (prev > 0 ? prev - 1 : cardsCount - 1));
+  const goToCard = (next: number) => {
+    if (next < 0 || next >= cardsCount || next === activeCardIndex) return;
+    setSlideDirection(next > activeCardIndex ? "right" : "left");
+    setActiveCardIndex(next);
   };
 
-  const handleNextCard = () => {
-    setSlideDirection("right");
-    setActiveCardIndex((prev) => (prev < cardsCount - 1 ? prev + 1 : 0));
+  // Swipe handler: geser kiri = kartu berikutnya, geser kanan = sebelumnya
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    const SWIPE_DISTANCE = 60;
+    const SWIPE_VELOCITY = 500;
+
+    if (info.offset.x < -SWIPE_DISTANCE || info.velocity.x < -SWIPE_VELOCITY) {
+      goToCard(activeCardIndex + 1);
+    } else if (
+      info.offset.x > SWIPE_DISTANCE ||
+      info.velocity.x > SWIPE_VELOCITY
+    ) {
+      goToCard(activeCardIndex - 1);
+    }
+
+    // Beri jeda singkat agar onClick tidak terpicu setelah drag
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 50);
   };
 
   // Get active item details
-  const isTotalCardActive = activeCardIndex === 0;
-  const activeCardObject = isTotalCardActive ? null : cards[activeCardIndex - 1];
+  const activeCardObject = cards[activeCardIndex] ?? null;
 
   // Filtering Transfers history based on active card + selected tab
   const filteredTransfers = transfers.filter((tr) => {
-    if (transferFilter === "all" || isTotalCardActive || !activeCardObject) {
+    if (transferFilter === "all" || !activeCardObject) {
       return true;
     }
     // Filter specifically involving the currently selected active card
     const targetCardId = activeCardObject.id;
     return tr.fromCardId === targetCardId || tr.toCardId === targetCardId;
   });
+
+  // Lookup kartu by id untuk menampilkan nama asal & tujuan di riwayat transfer
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+  const groupedTransfers = groupTransfersByDay(filteredTransfers);
 
   // Open Add Card modal
   const openNewCardModal = () => {
@@ -311,7 +442,11 @@ export default function WalletPage() {
       }
 
       if (response.ok) {
-        toast.success(selectedCard ? "Kartu berhasil diperbarui" : "Kartu baru berhasil ditambahkan");
+        toast.success(
+          selectedCard
+            ? "Kartu berhasil diperbarui"
+            : "Kartu baru berhasil ditambahkan",
+        );
         setIsCardModalOpen(false);
         loadData();
       } else {
@@ -327,7 +462,12 @@ export default function WalletPage() {
   // Handle Card Delete
   const handleCardDelete = async () => {
     if (!selectedCard) return;
-    if (!confirm("Kartu ini akan dihapus secara soft-delete. Transaksi terkait tidak akan dihapus. Lanjutkan?")) return;
+    if (
+      !confirm(
+        "Kartu ini akan dihapus secara soft-delete. Transaksi terkait tidak akan dihapus. Lanjutkan?",
+      )
+    )
+      return;
 
     try {
       const response = await fetch(`/api/cards/${selectedCard.id}`, {
@@ -404,18 +544,18 @@ export default function WalletPage() {
     enter: (direction: "left" | "right") => ({
       x: direction === "right" ? 150 : -150,
       opacity: 0,
-      scale: 0.96
+      scale: 0.96,
     }),
     center: {
       x: 0,
       opacity: 1,
-      scale: 1
+      scale: 1,
     },
     exit: (direction: "left" | "right") => ({
       x: direction === "right" ? -150 : 150,
       opacity: 0,
-      scale: 0.96
-    })
+      scale: 0.96,
+    }),
   };
 
   return (
@@ -433,114 +573,84 @@ export default function WalletPage() {
       />
 
       <div className="max-w-md mx-auto px-4 pt-4 space-y-6">
-        
-        {/* CAROUSEL SECTION */}
+        {/* CAROUSEL KARTU (SWIPE) */}
         <section className="relative flex flex-col items-center">
           <div className="w-full flex items-center justify-between px-2 mb-2">
             <h3 className="text-xs font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
-              {isTotalCardActive ? "Ringkasan Saldo" : "Rincian Kartu"}
+              Rincian Kartu
             </h3>
-            
+
             {/* Card Counter indicator */}
-            <span className="text-[10px] bg-white/60 dark:bg-neutral-900/60 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono text-neutral-400">
-              {activeCardIndex + 1} / {cardsCount}
-            </span>
+            {cardsCount > 0 && (
+              <span className="text-[10px] bg-white/60 dark:bg-neutral-900/60 backdrop-blur-md px-2.5 py-0.5 rounded-full font-mono text-neutral-400">
+                {activeCardIndex + 1} / {cardsCount}
+              </span>
+            )}
           </div>
 
-          <div className="relative w-full flex items-center justify-center gap-1 min-h-[220px]">
-            {/* Left navigation arrow */}
-            <button
-              onClick={handlePrevCard}
-              className="absolute left-[-10px] z-10 w-9 h-9 flex items-center justify-center bg-white/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/50 backdrop-blur-md text-neutral-600 dark:text-neutral-300 rounded-full hover:scale-105 active:scale-95 transition-all shadow-md"
-              aria-label="Previous card"
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
-            </button>
-
+          <div className="relative w-full flex items-center justify-center min-h-[220px]">
             {/* Carousel Active Content Frame */}
-            <div className="w-full overflow-visible relative flex justify-center">
-              <AnimatePresence mode="wait" custom={slideDirection}>
-                <motion.div
-                  key={activeCardIndex}
-                  custom={slideDirection}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{
-                    x: { type: "spring", stiffness: 220, damping: 20 },
-                    opacity: { duration: 0.2 }
-                  }}
-                  className="w-full"
-                >
-                  {isTotalCardActive ? (
-                    /* TOTAL BALANCE CARD (Index 0) */
-                    <div 
-                      className="cursor-default select-none transition-transform duration-100"
-                      onClick={() => toast.info("Kartu total akumulasi cash seluruh rekening Anda.")}
-                    >
-                      <BankCard
-                        variant="custom"
-                        style={{
-                          background: "linear-gradient(135deg, #111827 0%, #374151 50%, #1f2937 100%)",
-                          boxShadow: "inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 24px rgba(0,0,0,0.3)"
-                        }}
-                        className="text-white relative border border-white/10"
-                      >
-                        <BankCard.Header>
-                          <BankCard.Type className="text-white/80 uppercase font-mono tracking-widest text-[9px] bg-blue-500/20 text-blue-400 px-2.5 py-0.5 rounded-full border border-blue-500/10">
-                            Total Accounts
-                          </BankCard.Type>
-                          <BankCard.Logo type="mastercard" />
-                        </BankCard.Header>
-
-                        <BankCard.Chip className="my-2.5 px-1" />
-
-                        <BankCard.Number value="8888" obscure={true} className="text-white/70 tracking-[0.2em] font-semibold my-4 px-1" />
-
-                        <BankCard.Footer className="mt-8">
-                          <div>
-                            <BankCard.Balance
-                              amount={totalCashBalance}
-                              currency="IDR "
-                              allowMasking={false}
-                              className="text-white font-sans text-2xl font-bold font-mono"
-                            />
-                            <BankCard.Holder name="ALL ACTIVE CASH WALLETS" className="mt-1 text-white/50 tracking-wider text-[9px] uppercase font-bold" />
-                          </div>
-                          
-                          <div className="flex flex-col items-end opacity-90">
-                            <span className="text-[8px] uppercase tracking-widest text-neutral-450 leading-none">Paylater limit</span>
-                            <span className="text-xs font-mono font-bold text-rose-400 mt-1">
-                              IDR {formatIDR(totalPaylaterLimit)}
-                            </span>
-                          </div>
-                        </BankCard.Footer>
-                      </BankCard>
-                    </div>
-                  ) : (
-                    /* INDIVIDUAL CARD CARD (Index 1..N) */
-                    activeCardObject && (
-                      <CardItem
-                        card={activeCardObject}
-                        index={activeCardIndex}
-                        onClick={() => openEditCardModal(activeCardObject)}
-                      />
-                    )
-                  )}
-                </motion.div>
-              </AnimatePresence>
+            <div className="w-full overflow-hidden relative flex justify-center">
+              {loading ? (
+                <div className="w-[316px] h-[200px] rounded-2xl bg-neutral-200 dark:bg-neutral-900 animate-pulse" />
+              ) : activeCardObject ? (
+                <AnimatePresence mode="wait" custom={slideDirection}>
+                  <motion.div
+                    key={activeCardObject.id}
+                    custom={slideDirection}
+                    variants={slideVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      x: { type: "spring", stiffness: 220, damping: 20 },
+                      opacity: { duration: 0.2 },
+                    }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.25}
+                    onDragStart={() => {
+                      isDraggingRef.current = true;
+                    }}
+                    onDragEnd={handleDragEnd}
+                    style={{ touchAction: "pan-y" }}
+                    className="w-full cursor-grab active:cursor-grabbing"
+                  >
+                    <CardItem
+                      card={activeCardObject}
+                      index={activeCardIndex}
+                      onClick={() => {
+                        if (isDraggingRef.current) return;
+                        openEditCardModal(activeCardObject);
+                      }}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              ) : (
+                <div className="w-[316px] h-[200px] rounded-2xl border border-dashed border-gray-300 dark:border-neutral-800 flex items-center justify-center text-xs text-gray-400 dark:text-neutral-600">
+                  Belum ada kartu
+                </div>
+              )}
             </div>
-
-            {/* Right navigation arrow */}
-            <button
-              onClick={handleNextCard}
-              className="absolute right-[-10px] z-10 w-9 h-9 flex items-center justify-center bg-white/70 dark:bg-neutral-900/70 border border-neutral-200/50 dark:border-neutral-800/50 backdrop-blur-md text-neutral-600 dark:text-neutral-300 rounded-full hover:scale-105 active:scale-95 transition-all shadow-md"
-              aria-label="Next card"
-            >
-              <HugeiconsIcon icon={ArrowRight01Icon} size={16} />
-            </button>
           </div>
+
+          {/* Dot indicator */}
+          {cardsCount > 1 && (
+            <div className="flex items-center gap-1.5 mt-3">
+              {cards.map((c, i) => (
+                <button
+                  key={c.id}
+                  onClick={() => goToCard(i)}
+                  aria-label={`Kartu ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === activeCardIndex
+                      ? "w-5 bg-neutral-800 dark:bg-white"
+                      : "w-1.5 bg-neutral-300 dark:bg-neutral-700"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Action Controls */}
@@ -552,7 +662,7 @@ export default function WalletPage() {
             <HugeiconsIcon icon={Add01Icon} size={15} />
             Tambah Kartu
           </button>
-          
+
           <button
             onClick={openTransferModal}
             className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 py-3.5 rounded-2xl text-xs font-bold text-white shadow-md active:scale-95 transition-all"
@@ -568,9 +678,9 @@ export default function WalletPage() {
             <h3 className="text-xs font-bold text-gray-400 dark:text-neutral-500 uppercase tracking-widest">
               Transfer History
             </h3>
-            
+
             {/* Filter Tabs / Controls */}
-            {!isTotalCardActive && activeCardObject && (
+            {activeCardObject && (
               <div className="flex bg-neutral-200 dark:bg-neutral-900 border border-neutral-300/30 dark:border-neutral-800 p-0.5 rounded-full text-[10px] w-fit self-end font-semibold">
                 <button
                   onClick={() => setTransferFilter("all")}
@@ -598,56 +708,29 @@ export default function WalletPage() {
 
           {loading ? (
             <div className="space-y-2">
-              <div className="w-full h-12 rounded-xl bg-neutral-200 dark:bg-neutral-900 animate-pulse border border-gray-200/50 dark:border-white/5" />
-              <div className="w-full h-12 rounded-xl bg-neutral-200 dark:bg-neutral-900 animate-pulse border border-gray-200/50 dark:border-white/5" />
+              <div className="w-full h-[84px] rounded-2xl bg-neutral-200 dark:bg-neutral-900 animate-pulse border border-gray-200/50 dark:border-white/5" />
+              <div className="w-full h-[84px] rounded-2xl bg-neutral-200 dark:bg-neutral-900 animate-pulse border border-gray-200/50 dark:border-white/5" />
             </div>
           ) : filteredTransfers.length > 0 ? (
-            <CardList
-              items={filteredTransfers}
-              keyExtractor={(tr) => tr.id}
-              renderItem={(tr) => {
-                const isPaylater = tr.fromCardType === "PAYLATER" || tr.toCardType === "PAYLATER";
-                const bgType = isPaylater
-                  ? "bg-rose-100 dark:bg-rose-950/20"
-                  : "bg-blue-100 dark:bg-blue-950/20";
-                
-                const iconColor = isPaylater ? "text-rose-600" : "text-blue-600";
-                const relativeDate = new Date(tr.time).toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-
-                return {
-                  left: (
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bgType}`}>
-                        <HugeiconsIcon icon={isPaylater ? Invoice02Icon : BankIcon} size={16} className={iconColor} />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-bold leading-tight">
-                          {tr.targetName}
-                        </p>
-                        <p className="text-[10px] text-gray-400 dark:text-neutral-500 mt-1">
-                          {tr.bankName} • {relativeDate}
-                        </p>
-                      </div>
-                    </div>
-                  ),
-                  right: (
-                    <div className="text-right">
-                      <p className="text-[13px] font-bold text-gray-900 dark:text-white">
-                        IDR {formatIDR(tr.amount)}
-                      </p>
-                      <p className="text-[9px] text-gray-400 dark:text-neutral-500 mt-0.5 uppercase font-medium">
-                        Outgoing
-                      </p>
-                    </div>
-                  ),
-                };
-              }}
-            />
+            <div className="space-y-5">
+              {groupedTransfers.map((group) => (
+                <div key={group.label} className="space-y-2">
+                  <h4 className="px-1 text-[11px] font-semibold text-gray-400 dark:text-neutral-500">
+                    {group.label}
+                  </h4>
+                  <div className="bg-white dark:bg-neutral-900 border border-gray-200/70 dark:border-neutral-800 rounded-2xl divide-y divide-gray-100 dark:divide-neutral-800 overflow-hidden">
+                    {group.items.map((tr) => (
+                      <TransferRow
+                        key={tr.id}
+                        tr={tr}
+                        fromCard={cardById.get(tr.fromCardId)}
+                        toCard={cardById.get(tr.toCardId)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className="text-center py-8 border border-dashed border-gray-200 dark:border-neutral-800 rounded-2xl">
               <p className="text-xs text-gray-400 dark:text-neutral-600">
@@ -685,20 +768,30 @@ export default function WalletPage() {
 
               {/* Dynamic Design Preview Card inside forms */}
               <div className="px-6 pt-5 pb-2">
-                <div className="text-[10px] text-neutral-400 dark:text-neutral-500 uppercase tracking-widest font-bold mb-2">Desain Pratinjau</div>
+                <div className="text-[10px] text-neutral-400 dark:text-neutral-500 uppercase tracking-widest font-bold mb-2">
+                  Desain Pratinjau
+                </div>
                 <div className="scale-95 origin-top transition-all duration-300">
                   {/* Pratinjau */}
                   <BankCard
                     variant="custom"
                     style={{
                       background: `linear-gradient(135deg, ${
-                        cardFormType === "BANK" ? "#1A3FA8" :
-                        cardFormType === "EMONEY" ? "#0F766E" :
-                        cardFormType === "EWALLET" ? "#4F46E5" : "#E11D48" // PAYLATER
+                        cardFormType === "BANK"
+                          ? "#1A3FA8"
+                          : cardFormType === "EMONEY"
+                            ? "#0F766E"
+                            : cardFormType === "EWALLET"
+                              ? "#4F46E5"
+                              : "#E11D48" // PAYLATER
                       }, ${
-                        cardFormType === "BANK" ? "#0C1A5A" :
-                        cardFormType === "EMONEY" ? "#115E59" :
-                        cardFormType === "EWALLET" ? "#3730A3" : "#9F1239" // PAYLATER
+                        cardFormType === "BANK"
+                          ? "#0C1A5A"
+                          : cardFormType === "EMONEY"
+                            ? "#115E59"
+                            : cardFormType === "EWALLET"
+                              ? "#3730A3"
+                              : "#9F1239" // PAYLATER
                       })`,
                     }}
                     className="text-white border border-white/10"
@@ -715,17 +808,28 @@ export default function WalletPage() {
 
                     <BankCard.Chip className="my-3 px-1" />
 
-                    <BankCard.Number value="7890" obscure={true} className="text-white/95 font-semibold my-4 px-1" />
+                    <BankCard.Number
+                      value="7890"
+                      obscure={true}
+                      className="text-white/95 font-semibold my-4 px-1"
+                    />
 
                     <BankCard.Footer className="mt-6">
                       <div>
                         <BankCard.Balance
-                          amount={cardFormBalance === "" ? 0 : parseFloat(cardFormBalance)}
+                          amount={
+                            cardFormBalance === ""
+                              ? 0
+                              : parseFloat(cardFormBalance)
+                          }
                           currency="IDR "
                           allowMasking={false}
                           className="text-white font-sans text-[18px]"
                         />
-                        <BankCard.Holder name={cardFormName || "Nama Pemilik"} className="mt-1 text-white/50 tracking-wider text-[9px] uppercase font-bold" />
+                        <BankCard.Holder
+                          name={cardFormName || "Nama Pemilik"}
+                          className="mt-1 text-white/50 tracking-wider text-[9px] uppercase font-bold"
+                        />
                       </div>
                       <BankCard.Expiry date="12/29" />
                     </BankCard.Footer>
@@ -755,7 +859,9 @@ export default function WalletPage() {
                     </label>
                     <select
                       value={cardFormType}
-                      onChange={(e) => setCardFormType(e.target.value as CardType)}
+                      onChange={(e) =>
+                        setCardFormType(e.target.value as CardType)
+                      }
                       className="w-full bg-neutral-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500"
                     >
                       <option value="BANK">Bank (Debit)</option>
@@ -786,7 +892,7 @@ export default function WalletPage() {
                       <HugeiconsIcon icon={InformationCircleIcon} size={13} />
                       Aturan Billing Paylater
                     </p>
-                    
+
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="block text-[9px] font-bold text-rose-450 dark:text-rose-350 tracking-wide uppercase mb-1">
@@ -842,7 +948,7 @@ export default function WalletPage() {
                       <HugeiconsIcon icon={Delete02Icon} size={16} />
                     </button>
                   )}
-                  
+
                   <button
                     type="submit"
                     className="flex-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 border border-transparent font-bold text-xs py-3 rounded-xl hover:bg-neutral-850 dark:hover:bg-neutral-100 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
@@ -963,7 +1069,10 @@ export default function WalletPage() {
                   type="submit"
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-3 rounded-xl active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 mt-2"
                 >
-                  <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={15} />
+                  <HugeiconsIcon
+                    icon={ArrowDataTransferDiagonalIcon}
+                    size={15}
+                  />
                   Kirim Transfer Sekarang
                 </button>
               </form>
