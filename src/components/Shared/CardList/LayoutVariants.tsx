@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function amountColor(
-  type?: "expense" | "income" | "transfer" | "debts" | "loans" | "bills"
+  type?: "expense" | "income" | "transfer" | "debts" | "loans" | "bills",
 ): string {
   if (type === "debts") return "text-rose-600 dark:text-rose-400";
   if (type === "loans") return "text-emerald-600 dark:text-emerald-400";
@@ -123,7 +123,7 @@ function LoanCard({ result }: { result: CardItemRenderResult }) {
   return (
     <div
       className={cn(
-        "bg-white dark:bg-neutral-900 border border-gray-150/70 dark:border-neutral-800 rounded-3xl p-5 shadow-xs transition-all hover:shadow-sm cursor-pointer",
+        "bg-white dark:bg-neutral-900 rounded-3xl p-5 shadow-xs transition-all hover:shadow-sm cursor-pointer",
         isPaid ? "space-y-0" : "space-y-4",
       )}
     >
@@ -271,7 +271,9 @@ export const LayoutRenderers: Record<
   dashboard: ({ left, right, meta }) => (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="flex items-center gap-3 min-w-0 flex-1">{left}</div>
-      <div className={`flex-shrink-0 text-right flex items-center justify-end ${amountColor(meta?.type)}`}>
+      <div
+        className={`flex-shrink-0 text-right flex items-center justify-end ${amountColor(meta?.type)}`}
+      >
         {right}
       </div>
     </div>

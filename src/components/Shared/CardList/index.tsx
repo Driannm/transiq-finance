@@ -48,7 +48,7 @@ function LoadMoreButton({
 const CARD_BASE = `
   bg-white dark:bg-neutral-900
   rounded-2xl
-  border border-gray-100 dark:border-neutral-800
+  
 `;
 
 /** Loan variant renders each item as its own standalone card, not rows inside a shared box */
@@ -105,10 +105,7 @@ export function CardList<T = any>({
 
       const content = (
         <div
-          className={[
-            "w-full hover:bg-gray-50 dark:hover:bg-neutral-800/50 transition-colors",
-            extraClass,
-          ]
+          className={["w-full transition-colors", extraClass]
             .filter(Boolean)
             .join(" ")}
           onClick={() => onItemPress?.(item)}
