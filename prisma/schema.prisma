@@ -20,6 +20,12 @@ enum CardType {
   PAYLATER
 }
 
+enum CardScope {
+  PERSONAL // Pribadi
+  FAMILY   // Keluarga
+  BUSINESS // Bisnis
+}
+
 enum BillingRuleType {
   MONTHLY_CUTOFF_OFFSET_DUE
   MONTHLY_CUTOFF_DAYS_DUE
@@ -109,11 +115,16 @@ model Card {
   // Selalu hitung ulang dari aggregate transaksi untuk validasi.
   // Gunakan lastReconciledAt untuk tahu kapan terakhir diverifikasi.
   lastReconciledAt DateTime?
+  scope       CardScope @default(PERSONAL)
+  stakeholder String? // atas nama siapa kartu ini
 
   userId   String
   user     User    @relation(fields: [userId], references: [id])
   familyId String?
   family   Family? @relation(fields: [familyId], references: [id])
+
+  style String?
+  logo  String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -131,6 +142,7 @@ model Card {
   bills            Bill[]
   expenseTemplates ExpenseTemplate[]
 
+  @@index([scope])
   @@index([userId])
   @@index([familyId])
   @@map("cards")
@@ -157,8 +169,9 @@ model Transaction {
   loan     Loan?
 
   // Relasi ke/dari Bill
-  billId String?
-  bill   Bill?   @relation(fields: [billId], references: [id])
+  billId      String?
+  bill        Bill?   @relation(fields: [billId], references: [id])
+  periodsPaid Int     @default(1)
 
   // [FEATURE] Group Transaction
   groups TransactionGroupItem[]
@@ -421,11 +434,12 @@ model Saving {
 }
 
 model Bill {
-  id      String     @id @default(cuid())
-  name    String
-  amount  Float
-  dueDate DateTime
-  status  BillStatus @default(OPEN)
+  id         String     @id @default(cuid())
+  name       String
+  amount     Float
+  dueDate    DateTime?
+  isFlexible Boolean    @default(false)
+  status     BillStatus @default(OPEN)
 
   // Relasi ke User/Family pemilik
   userId   String
@@ -441,6 +455,7 @@ model Bill {
   recurring         Boolean            @default(false)
   recurringInterval RecurringInterval?
   notes             String?
+  createExpense     Boolean            @default(true)
   deletedAt         DateTime? // Soft delete
 
   // Snapshots dan Relasi Paylater
