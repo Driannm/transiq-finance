@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { BottomNav, BottomNavItem } from "@/components/Layout/BottomNavbar";
 import { PullToRefresh } from "@/components/Providers/PullToRefresh";
 import { ConfirmDialog } from "@/components/Shared/ConfirmDialog";
@@ -16,7 +17,12 @@ const navItems: BottomNavItem[] = [
   { path: "/wallet",    label: "Wallet",    icon: Wallet02Icon    },
 ];
 
+const showNavbarRoutes = ["/dashboard", "/wallet", "/analytics"];
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const showNavbar = showNavbarRoutes.includes(pathname);
+
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950">
       <PullToRefresh>
@@ -24,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
           <ConfirmDialog />
           <ToastContainer />
+          {showNavbar && <BottomNav items={navItems} />}
         </main>
       </PullToRefresh>
     </div>
