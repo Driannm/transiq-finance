@@ -12,7 +12,7 @@ import {
   Money02Icon,
 } from "@hugeicons/core-free-icons";
 import { useCallback, useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,6 +74,10 @@ const QUICK_ACTIONS = [
 
 const RADIUS = 88; // px — jarak tombol dari FAB
 
+// Kaca gelap ala iOS: tanpa border, highlight tipis di tepi atas dan bawah
+const glass =
+  "bg-neutral-900/85 supports-[backdrop-filter]:bg-neutral-900/55 backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.05)]";
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function angleToXY(angleDeg: number, radius: number) {
@@ -90,6 +94,14 @@ export function BottomNav({ items }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  const reduceMotion = useReducedMotion();
+  const pillTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 500, damping: 36, mass: 0.8 };
+  const iconTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 520, damping: 26 };
 
   const handlePress = useCallback(
     (path: string) => router.push(path),
@@ -138,51 +150,67 @@ export function BottomNav({ items }: BottomNavProps) {
       {/* ── BOTTOM NAVBAR ── */}
       <div
         data-bottom-nav
-        className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] left-0 right-0 z-50 flex items-center justify-center gap-2 pointer-events-none px-4"
+        className="fixed bottom-[max(0.25rem,calc(env(safe-area-inset-bottom,0px)-0.75rem))] left-0 right-0 z-50 flex items-center justify-center gap-2 pointer-events-none px-4"
       >
         <nav
           role="tablist"
-          className="
-            pointer-events-auto
-            flex items-center gap-0.5 p-1.5
-            rounded-[32px]
-            backdrop-blur-sm bg-neutral-900/80
-            border border-white/10
-            shadow-[0_8px_32px_rgba(0,0,0,0.4)]
-          "
+          className={`
+              pointer-events-auto
+              flex items-center gap-0.5 p-1.5
+              rounded-[32px]
+              ${glass}
+            `}
         >
           {items.map((item) => {
             const active = isActive(item.path);
             return (
-              <button
+              <motion.button
                 key={item.path}
                 role="tab"
                 aria-selected={active}
                 onClick={() => handlePress(item.path)}
-                className={`
-                  relative flex flex-col items-center justify-center
-                  min-w-[56px] h-11 rounded-[24px]
-                  transition-all duration-300 active:scale-95
-                  ${active ? "bg-white/10" : "bg-transparent"}
-                `}
+                whileTap={reduceMotion ? undefined : { scale: 0.92 }}
+                className="relative flex h-11 min-w-[56px] flex-col items-center justify-center rounded-[24px]"
               >
-                <HugeiconsIcon
-                  icon={item.icon}
-                  size={18}
-                  className={`transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
-                />
-                <span
-                  className={`text-[9px] mt-0.5 font-medium leading-none transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
+                {/* Pil aktif: meluncur dari tab ke tab */}
+                {active && (
+                  <motion.span
+                    layoutId="bottom-nav-active"
+                    aria-hidden
+                    transition={pillTransition}
+                    className="absolute inset-0 rounded-[24px] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+                  />
+                )}
+
+                {/* Ikon: membesar dan naik sedikit saat aktif */}
+                <motion.span
+                  animate={{ scale: active ? 1.12 : 1, y: active ? -1 : 0 }}
+                  transition={iconTransition}
+                  className="relative z-10 flex"
+                >
+                  <HugeiconsIcon
+                    icon={item.icon}
+                    size={18}
+                    className={`transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
+                  />
+                </motion.span>
+
+                {/* Label: lebih terang saat aktif */}
+                <motion.span
+                  animate={{ opacity: active ? 1 : 0.75 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                  className={`relative z-10 mt-0.5 text-[9px] font-medium leading-none transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
                 >
                   {item.label}
-                </span>
+                </motion.span>
+
                 {item.badge != null && item.badge > 0 && (
                   <>
-                    <span className="absolute top-2 right-3 w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="absolute right-3 top-2 z-10 h-1.5 w-1.5 rounded-full bg-blue-500" />
                     <span className="sr-only">Ada pemberitahuan</span>
                   </>
                 )}
-              </button>
+              </motion.button>
             );
           })}
         </nav>
@@ -227,11 +255,12 @@ export function BottomNav({ items }: BottomNavProps) {
                         exit={{ opacity: 0 }}
                         transition={{ delay: i * 0.04 + 0.08, duration: 0.15 }}
                         className="
-                        text-[10px] font-semibold text-white
-                        bg-neutral-900/80 backdrop-blur-sm
-                        px-2 py-0.5 rounded-full border border-white/10
-                        whitespace-nowrap
-                      "
+                          text-[10px] font-semibold text-white
+                          bg-neutral-900/60 backdrop-blur-md backdrop-saturate-150
+                          px-2 py-0.5 rounded-full
+                          shadow-[0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.15)]
+                          whitespace-nowrap
+                        "
                       >
                         {action.label}
                       </motion.span>
@@ -239,12 +268,12 @@ export function BottomNav({ items }: BottomNavProps) {
                       {/* Icon button */}
                       <div
                         className={`
-                        w-11 h-11 rounded-full flex items-center justify-center
-                        ${action.color}
-                        shadow-lg active:scale-95
-                        transition-transform duration-150
-                        ring-2 ring-white/20
-                      `}
+                          w-11 h-11 rounded-full flex items-center justify-center
+                          ${action.color}
+                                                    shadow-[0_6px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35)]
+                          active:scale-95
+                          transition-transform duration-150
+                        `}
                       >
                         <HugeiconsIcon
                           icon={action.icon}
@@ -266,13 +295,11 @@ export function BottomNav({ items }: BottomNavProps) {
             aria-label="Menu Aksi Cepat"
             aria-haspopup="true"
             aria-expanded={open}
-            className="
-              w-12 h-12 rounded-full
-              flex items-center justify-center
-              backdrop-blur-2xl bg-neutral-900/80
-              border border-white/10
-              shadow-[0_8px_32px_rgba(0,0,0,0.4)]
-            "
+            className={`
+                w-12 h-12 rounded-full
+                flex items-center justify-center
+                ${glass}
+              `}
           >
             <motion.div
               animate={{ rotate: open ? 45 : 0 }}
