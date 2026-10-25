@@ -1,152 +1,51 @@
 "use client";
 
 import { useMemo } from "react";
-import { cx, sortCx } from "@/lib/utils/cx";
-import { MastercardIcon, MastercardIconWhite, PaypassIcon } from "./icons";
+import { cx } from "@/lib/utils/cx";
+import {
+  MastercardIcon,
+  MastercardIconWhite,
+  PaypassIcon,
+  JagoIcon,
+  VisaIcon,
+  BCAIcon,
+} from "./icons";
+import {
+  CARD_STYLES,
+  GLASS_BLOBS,
+  hasLightLogoBg,
+  isStripType,
+  isVerticalStripType,
+  usesColorLogo,
+  type CardLogo,
+  type CreditCardType,
+} from "./styles";
 
-const styles = sortCx({
-  // Normal
-  transparent: {
-    root: "bg-black/10 bg-linear-to-br from-white/30 to-transparent backdrop-blur-[6px] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "transparent-gradient": {
-    root: "bg-black/10 bg-linear-to-br from-white/30 to-transparent backdrop-blur-[6px] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "brand-dark": {
-    root: "bg-linear-to-tr from-brand-900 to-brand-700 before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "brand-light": {
-    root: "bg-brand-100 before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-black/10 before:ring-inset",
-    company: "text-neutral-700",
-    footerText: "text-neutral-700",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white",
-  },
-  "gray-dark": {
-    root: "bg-linear-to-tr from-neutral-900 to-neutral-700 before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "gray-light": {
-    root: "bg-neutral-100 before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-black/10 before:ring-inset",
-    company: "text-neutral-700",
-    footerText: "text-neutral-700",
-    paypassIcon: "text-neutral-400",
-    cardTypeRoot: "bg-white",
-  },
+// Re-export supaya import lama (`from ".../credit-card"`) tetap jalan
+export type { CardLogo, CreditCardType };
 
-  // Strip
-  "transparent-strip": {
-    root: "bg-linear-to-br from-white/30 to-transparent backdrop-blur-[6px] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "gray-strip": {
-    root: "bg-neutral-100 before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-neutral-700",
-    footerText: "text-white",
-    paypassIcon: "text-neutral-400",
-    cardTypeRoot: "bg-white/10",
-  },
-  "gradient-strip": {
-    root: "bg-linear-to-b from-[#A5C0EE] to-[#FBC5EC] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "salmon-strip": {
-    root: "bg-[#F4D9D0] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-neutral-700",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
+export const CARD_BASE_WIDTH = 316;
+export const CARD_BASE_HEIGHT = 190;
 
-  // Vertical strip
-  "gray-strip-vertical": {
-    root: "bg-linear-to-br from-white/30 to-transparent before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-neutral-400",
-    cardTypeRoot: "bg-white/10",
-  },
-  "gradient-strip-vertical": {
-    root: "bg-linear-to-b from-[#FBC2EB] to-[#A18CD1] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-  "salmon-strip-vertical": {
-    root: "bg-[#F4D9D0] before:pointer-events-none before:absolute before:inset-0 before:z-1 before:rounded-[inherit] before:mask-linear-135 before:mask-linear-to-white/20 before:ring-1 before:ring-white/30 before:ring-inset",
-    company: "text-white",
-    footerText: "text-white",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white/10",
-  },
-});
-
-const _NORMAL_TYPES = [
-  "transparent",
-  "transparent-gradient",
-  "brand-dark",
-  "brand-light",
-  "gray-dark",
-  "gray-light",
-] as const;
-const STRIP_TYPES = [
-  "transparent-strip",
-  "gray-strip",
-  "gradient-strip",
-  "salmon-strip",
-] as const;
-const VERTICAL_STRIP_TYPES = [
-  "gray-strip-vertical",
-  "gradient-strip-vertical",
-  "salmon-strip-vertical",
-] as const;
-
-const CARD_WITH_COLOR_LOGO = [
-  "brand-dark",
-  "brand-light",
-  "gray-dark",
-  "gray-light",
-] as const;
-
-type CreditCardType =
-  | (typeof _NORMAL_TYPES)[number]
-  | (typeof STRIP_TYPES)[number]
-  | (typeof VERTICAL_STRIP_TYPES)[number];
+// Tinggi kartu untuk lebar tertentu (dipakai juga oleh skeleton)
+export const getCardHeight = (width: number) =>
+  Math.round((width * CARD_BASE_HEIGHT) / CARD_BASE_WIDTH);
 
 interface CreditCardProps {
   company?: string;
+  stakeholder?: string | null; // atas nama siapa kartu ini
+  cardType?: string; // label jenis kartu (Debit, E-Wallet, dst.)
+  type?: CreditCardType;
   cardNumber?: string;
   cardHolder?: string;
   cardExpiration?: string;
-  type?: CreditCardType;
   balance?: number | string;
   currency?: string;
   showBalance?: boolean;
   balanceLabel?: string;
   className?: string;
   width?: number;
+  logo?: CardLogo; // default "mastercard"
 }
 
 const formatCardBalance = (amount?: number | string, currency = "Rp ") => {
@@ -162,35 +61,35 @@ const calculateScale = (
   originalWidth: number,
   originalHeight: number,
 ) => {
-  // Calculate the scale factor
   const scale = desiredWidth / originalWidth;
-
-  // Calculate the new dimensions
-  const scaledWidth = originalWidth * scale;
-  const scaledHeight = originalHeight * scale;
-
   return {
-    scale: scale.toFixed(4), // Scale rounded to 4 decimal places
-    scaledWidth: scaledWidth.toFixed(2), // Width rounded to 2 decimal places
-    scaledHeight: scaledHeight.toFixed(2), // Height rounded to 2 decimal places
+    scale: scale.toFixed(4),
+    scaledWidth: (originalWidth * scale).toFixed(2),
+    scaledHeight: (originalHeight * scale).toFixed(2),
   };
+};
+
+const formatStakeholder = (name?: string | null) => {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[1].charAt(0)}.`;
 };
 
 export const CreditCard = ({
   company = "Untitled.",
-  cardNumber = "1234 1234 1234 1234",
-  cardHolder = "OLIVIA RHYE",
-  cardExpiration = "06/28",
+  stakeholder,
+  cardType,
   type = "brand-dark",
   balance,
   currency = "IDR ",
   showBalance = true,
-  balanceLabel = "SALDO",
   className,
   width,
+  logo,
 }: CreditCardProps) => {
-  const originalWidth = 316;
-  const originalHeight = 190;
+  const originalWidth = CARD_BASE_WIDTH;
+  const originalHeight = CARD_BASE_HEIGHT;
 
   const { scale, scaledWidth, scaledHeight } = useMemo(() => {
     if (!width)
@@ -203,12 +102,43 @@ export const CreditCard = ({
     return calculateScale(width, originalWidth, originalHeight);
   }, [width]);
 
+  const theme = CARD_STYLES[type];
+  const blobs = GLASS_BLOBS[type];
+  const resolvedLogo: CardLogo = logo ?? "mastercard";
+
+  const logoBoxClass =
+    resolvedLogo === "bca"
+      ? "bg-white"
+      : resolvedLogo === "jago"
+        ? "bg-neutral-900"
+        : theme.cardTypeRoot;
+
+  const renderLogo = () => {
+    switch (resolvedLogo) {
+      case "visa":
+        return (
+          <VisaIcon
+            className="size-10 shrink-0"
+            fill={hasLightLogoBg(type) ? "#1A1F71" : "#FFFFFF"}
+          />
+        );
+      case "jago":
+        return <JagoIcon className="size-7 shrink-0" />;
+      case "bca":
+        return <BCAIcon className="h-auto w-9 shrink-0" />;
+      case "mastercard":
+      default:
+        return usesColorLogo(type) ? (
+          <MastercardIcon />
+        ) : (
+          <MastercardIconWhite />
+        );
+    }
+  };
+
   return (
     <div
-      style={{
-        width: `${scaledWidth}px`,
-        height: `${scaledHeight}px`,
-      }}
+      style={{ width: `${scaledWidth}px`, height: `${scaledHeight}px` }}
       className={cx("relative flex", className)}
     >
       <div
@@ -219,26 +149,26 @@ export const CreditCard = ({
         }}
         className={cx(
           "absolute top-0 left-0 flex origin-top-left flex-col justify-between overflow-hidden rounded-2xl p-4",
-          styles[type].root,
+          theme.root,
         )}
       >
-        {/* Horizontal strip */}
-        {STRIP_TYPES.includes(type as (typeof STRIP_TYPES)[number]) && (
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-1/2 bg-neutral-800"></div>
+        {/* Strip horizontal */}
+        {isStripType(type) && (
+          <div className="pointer-events-none absolute inset-x-0 -bottom-4 z-0 h-1/2 bg-neutral-900" />
         )}
-        {/* Vertical stripe */}
-        {VERTICAL_STRIP_TYPES.includes(
-          type as (typeof VERTICAL_STRIP_TYPES)[number],
-        ) && (
-          <div className="pointer-events-none absolute inset-y-0 right-22 left-0 z-0 bg-neutral-800"></div>
+
+        {/* Strip vertical */}
+        {isVerticalStripType(type) && (
+          <div className="pointer-events-none absolute inset-y-0 right-22 left-0 z-0 bg-neutral-800" />
         )}
-        {/* Gradient diffusor */}
-        {type === "transparent-gradient" && (
-          <div className="absolute -top-4 -left-4 grid grid-cols-2 blur-3xl">
-            <div className="size-20 rounded-tl-full bg-pink-500 opacity-30 mix-blend-normal" />
-            <div className="size-20 rounded-tr-full bg-orange-500 opacity-50 mix-blend-normal" />
-            <div className="size-20 rounded-bl-full bg-blue-500 opacity-30 mix-blend-normal" />
-            <div className="bg-green-500 size-20 rounded-br-full opacity-30 mix-blend-normal" />
+
+        {/* Gradient blob (transparent gradient) */}
+        {blobs && (
+          <div className="pointer-events-none absolute -top-8 -left-8 grid grid-cols-2 opacity-70 blur-3xl">
+            <div className={`size-32 rounded-tl-full ${blobs[0]}`} />
+            <div className={`size-32 rounded-tr-full ${blobs[1]}`} />
+            <div className={`size-32 rounded-bl-full ${blobs[2]}`} />
+            <div className={`size-32 rounded-br-full ${blobs[3]}`} />
           </div>
         )}
 
@@ -246,22 +176,21 @@ export const CreditCard = ({
           <div
             className={cx(
               "text-md leading-[normal] font-semibold",
-              styles[type].company,
+              theme.company,
             )}
           >
             {company}
           </div>
-
-          <PaypassIcon className={styles[type].paypassIcon} />
+          <PaypassIcon className={theme.paypassIcon} />
         </div>
 
-        {/* Balance Display Block */}
+        {/* Balance */}
         {showBalance && balance !== undefined && (
-          <div className="relative flex flex-col px-1 -my-1">
+          <div className="relative -my-1 flex flex-col px-1">
             <span
               className={cx(
-                "text-2xl font-semibold tracking-tight leading-tight",
-                styles[type].company,
+                "text-2xl leading-tight font-semibold tracking-tight",
+                theme.company,
               )}
             >
               {formatCardBalance(balance, currency)}
@@ -270,57 +199,50 @@ export const CreditCard = ({
         )}
 
         <div className="relative flex items-end justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-2">
+          {/* Kolom kiri: stakeholder + jenis kartu, lalu satu baris kosong */}
+          <div className="flex min-w-0 flex-1 flex-col gap-2 pr-10">
             <div className="flex items-end gap-1">
-              <p
-                style={{
-                  wordBreak: "break-word",
-                }}
-                className={cx(
-                  "text-xs leading-snug font-semibold tracking-[0.6px] uppercase",
-                  styles[type].footerText,
-                )}
-              >
-                {cardHolder}
-              </p>
-              <p
-                className={cx(
-                  "ml-auto text-right text-xs leading-[normal] font-semibold tracking-[0.6px] tabular-nums",
-                  styles[type].footerText,
-                )}
-              >
-                {cardExpiration}
-              </p>
+              {stakeholder?.trim() && (
+                <p
+                  className={cx(
+                    "truncate text-xs leading-snug font-semibold tracking-[0.6px] uppercase",
+                    theme.footerText,
+                  )}
+                >
+                  {formatStakeholder(stakeholder)}
+                </p>
+              )}
+              {cardType && (
+                <p
+                  className={cx(
+                    "ml-auto text-right text-xs leading-[normal] font-semibold tracking-[3px]",
+                    theme.footerText,
+                  )}
+                >
+                  {cardType}
+                </p>
+              )}
             </div>
+
+            {/* Pengganti baris nomor kartu: kosong, tapi tingginya dipertahankan */}
+            <div
+              aria-hidden
+              className="invisible text-md leading-[normal] font-semibold tracking-[1px]"
+            >
+              0
+            </div>
+          </div>
+
+          {resolvedLogo !== "none" && (
             <div
               className={cx(
-                "text-md leading-[normal] font-semibold tracking-[1px] tabular-nums",
-                styles[type].footerText,
+                "flex h-8 w-11.5 shrink-0 items-center justify-center rounded",
+                logoBoxClass,
               )}
             >
-              {cardNumber}
-
-              {/* This is just a placeholder to always keep the space for card number even if there's no card number yet. */}
-              <span className="pointer-events-none invisible inline-block w-0 max-w-0 opacity-0">
-                1
-              </span>
+              {renderLogo()}
             </div>
-          </div>
-
-          <div
-            className={cx(
-              "flex h-8 w-11.5 shrink-0 items-center justify-center rounded",
-              styles[type].cardTypeRoot,
-            )}
-          >
-            {CARD_WITH_COLOR_LOGO.includes(
-              type as (typeof CARD_WITH_COLOR_LOGO)[number],
-            ) ? (
-              <MastercardIcon />
-            ) : (
-              <MastercardIconWhite />
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
