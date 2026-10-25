@@ -90,7 +90,7 @@ const groupTransfersByDay = (items: TransferHistoryItem[]) => {
 
 // ─── CARD ITEM COMPONENT ──────────────────────────────────────────────────────
 
-const CARD_WIDTH = 370;
+const CARD_WIDTH = 350;
 const CARD_HEIGHT = getCardHeight(CARD_WIDTH); // 210
 
 interface CardItemProps {
