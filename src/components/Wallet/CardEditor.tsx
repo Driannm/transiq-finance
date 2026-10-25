@@ -347,7 +347,7 @@ export function CardEditor({
                       balanceLabel="SALDO"
                       showBalance={true}
                       currency="IDR "
-                      width={350}
+                      width={340}
                       className="shadow-2xl"
                     />
                   </motion.div>
