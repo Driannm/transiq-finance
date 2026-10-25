@@ -21,8 +21,18 @@ export interface IslandNavbarProps {
 }
 
 // Shared class – mendukung dark mode + smooth theme transition
-const island =
-  "relative overflow-hidden bg-white dark:bg-neutral-950 border border-black/[0.07] dark:border-white/[0.1] rounded-full shadow-[0_6px_20px_rgba(0,0,0,0.03)] dark:shadow-[0_6px_24px_rgba(0,0,0,0.45)] transition-[background-color,border-color,box-shadow] duration-300 ease-out";
+const island = [
+  "relative overflow-hidden rounded-full",
+  // Latar: cadangan solid, lalu semi-transparan kalau blur didukung
+  "bg-white/90 dark:bg-neutral-900/90",
+  "supports-[backdrop-filter]:bg-white/55 dark:supports-[backdrop-filter]:bg-neutral-900/45",
+  // Efek kaca: blur + warna di belakangnya dibuat lebih pekat
+  "backdrop-blur-xl backdrop-saturate-150",
+  // Tanpa border: bayangan jatuh + highlight tipis di tepi atas dan bawah
+  "shadow-[0_8px_32px_rgba(0,0,0,0.08),inset_0_1px_0_rgba(255,255,255,0.75),inset_0_-1px_0_rgba(255,255,255,0.25)]",
+  "dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(255,255,255,0.04)]",
+  "transition-[background-color,box-shadow] duration-300 ease-out",
+].join(" ");
 
 // Animation variants
 const containerVariants = {
@@ -71,7 +81,7 @@ export function IslandNavbar({
 
   return (
     <motion.div
-      className="flex items-center gap-2 px-4 py-2.5"
+      className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2.5"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -80,7 +90,7 @@ export function IslandNavbar({
       <motion.button
         variants={itemVariants}
         onClick={handleAvatarClick}
-        className={`${island} w-11 h-11 flex items-center justify-center shrink-0 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-900 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-[background-color,border-color,color] duration-300`}
+        className={`${island} w-11 h-11 flex items-center justify-center shrink-0 text-gray-600 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/10 active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-[background-color,color] duration-300`}
         aria-label="Go to profile"
         whileTap={{ scale: 0.9 }}
       >
@@ -107,7 +117,7 @@ export function IslandNavbar({
             key={i}
             onClick={action.onPress}
             aria-label={action.label}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95 transition-[background-color,color] duration-300 shrink-0"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-[background-color,color] duration-300 shrink-0"
           >
             {action.icon}
           </button>
