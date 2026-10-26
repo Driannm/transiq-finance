@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { HugeiconsIcon, IconSvgElement } from "@hugeicons/react";
 import {
   Add01Icon,
-  Cancel01Icon,
   MoneyReceive02Icon,
   MoneySend02Icon,
   ArrowDataTransferHorizontalIcon,
@@ -74,9 +73,15 @@ const QUICK_ACTIONS = [
 
 const RADIUS = 88; // px — jarak tombol dari FAB
 
-// Kaca gelap ala iOS: tanpa border, highlight tipis di tepi atas dan bawah
-const glass =
-  "bg-neutral-900/85 supports-[backdrop-filter]:bg-neutral-900/55 backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.05)]";
+// Kaca ala iOS: terang di light mode, gelap di dark mode.
+// Tanpa border; tepi dibentuk highlight tipis di atas dan bawah.
+const glass = [
+  "bg-white/70 supports-[backdrop-filter]:bg-white/50",
+  "dark:bg-neutral-900/85 dark:supports-[backdrop-filter]:bg-neutral-900/55",
+  "backdrop-blur-xl backdrop-saturate-150",
+  "shadow-[0_8px_32px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(255,255,255,0.45)]",
+  "dark:shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.18),inset_0_-1px_0_rgba(255,255,255,0.05)]",
+].join(" ");
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -95,21 +100,29 @@ export function BottomNav({ items }: BottomNavProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
+  // Tab yang baru ditekan: dipakai supaya animasi langsung jalan tanpa
+  // menunggu halaman tujuan selesai dimuat (pathname baru berubah belakangan).
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
   const reduceMotion = useReducedMotion();
-  const pillTransition = reduceMotion
+
+  // Satu spring untuk semua perubahan ukuran dan posisi: tab melebar,
+  // tab lain menyempit, dan seluruh navbar menyesuaikan lebarnya.
+  const layoutSpring = reduceMotion
     ? { duration: 0 }
-    : { type: "spring" as const, stiffness: 500, damping: 36, mass: 0.8 };
-  const iconTransition = reduceMotion
-    ? { duration: 0 }
-    : { type: "spring" as const, stiffness: 520, damping: 26 };
+    : { type: "spring" as const, stiffness: 420, damping: 34, mass: 0.8 };
 
   const handlePress = useCallback(
-    (path: string) => router.push(path),
+    (path: string) => {
+      setPendingPath(path);
+      router.push(path);
+    },
     [router],
   );
 
-  // Tutup saat back/navigate
+  // Halaman sudah berganti: pakai pathname sebagai sumber kebenaran
   useEffect(() => {
+    setPendingPath(null);
     setOpen(false);
   }, [pathname]);
 
@@ -128,7 +141,8 @@ export function BottomNav({ items }: BottomNavProps) {
     };
   }, [open]);
 
-  const isActive = (path: string) => pathname === path;
+  const currentPath = pendingPath ?? pathname;
+  const isActive = (path: string) => currentPath === path;
 
   return (
     <>
@@ -150,16 +164,14 @@ export function BottomNav({ items }: BottomNavProps) {
       {/* ── BOTTOM NAVBAR ── */}
       <div
         data-bottom-nav
-        className="fixed bottom-[max(0.25rem,calc(env(safe-area-inset-bottom,0px)-0.75rem))] left-0 right-0 z-50 flex items-center justify-center gap-2 pointer-events-none px-4"
+        className="pointer-events-none fixed bottom-[max(0.25rem,calc(env(safe-area-inset-bottom,0px)-0.75rem))] left-0 right-0 z-50 flex items-center justify-center gap-2 px-4"
       >
-        <nav
+        <motion.nav
           role="tablist"
-          className={`
-              pointer-events-auto
-              flex items-center gap-0.5 p-1.5
-              rounded-[32px]
-              ${glass}
-            `}
+          layout
+          transition={{ layout: layoutSpring }}
+          style={{ borderRadius: 9999 }}
+          className={`pointer-events-auto flex items-center gap-0.5 p-1.5 ${glass}`}
         >
           {items.map((item) => {
             const active = isActive(item.path);
@@ -168,55 +180,78 @@ export function BottomNav({ items }: BottomNavProps) {
                 key={item.path}
                 role="tab"
                 aria-selected={active}
+                aria-label={item.label}
                 onClick={() => handlePress(item.path)}
-                whileTap={reduceMotion ? undefined : { scale: 0.92 }}
-                className="relative flex h-11 min-w-[56px] flex-col items-center justify-center rounded-[24px]"
+                // `layout`: lebar tab dianimasikan lewat transform, bukan
+                // mengubah ukuran tiap frame, jadi tetap mulus
+                layout
+                transition={{ layout: layoutSpring }}
+                whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+                style={{ borderRadius: 9999 }}
+                className={`relative flex h-11 items-center justify-center transition-[background-color,box-shadow] duration-300 ${
+                  active
+                    ? "gap-2 bg-white px-4 shadow-[0_2px_10px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,1)] dark:bg-white/15 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]"
+                    : "w-11 bg-transparent"
+                }`}
               >
-                {/* Pil aktif: meluncur dari tab ke tab */}
-                {active && (
-                  <motion.span
-                    layoutId="bottom-nav-active"
-                    aria-hidden
-                    transition={pillTransition}
-                    className="absolute inset-0 rounded-[24px] bg-white/15 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
-                  />
-                )}
-
-                {/* Ikon: membesar dan naik sedikit saat aktif */}
-                <motion.span
-                  animate={{ scale: active ? 1.12 : 1, y: active ? -1 : 0 }}
-                  transition={iconTransition}
-                  className="relative z-10 flex"
-                >
+                {/* Ikon */}
+                <motion.span layout="position" className="flex">
                   <HugeiconsIcon
                     icon={item.icon}
-                    size={18}
-                    className={`transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
+                    size={20}
+                    className={`transition-colors duration-300 ${
+                      active
+                        ? "text-neutral-900 dark:text-white"
+                        : "text-neutral-500 dark:text-neutral-400"
+                    }`}
                   />
                 </motion.span>
 
-                {/* Label: lebih terang saat aktif */}
-                <motion.span
-                  animate={{ opacity: active ? 1 : 0.75 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className={`relative z-10 mt-0.5 text-[9px] font-medium leading-none transition-colors duration-300 ${active ? "text-white" : "text-neutral-500"}`}
-                >
-                  {item.label}
-                </motion.span>
+                {/* Label: hanya di tab aktif, di sisi kanan ikon */}
+                <AnimatePresence initial={false}>
+                  {active && (
+                    <motion.span
+                      key="label"
+                      layout="position"
+                      initial={reduceMotion ? false : { opacity: 0, x: -6 }}
+                      animate={{
+                        opacity: 1,
+                        x: 0,
+                        transition: {
+                          duration: reduceMotion ? 0 : 0.2,
+                          delay: reduceMotion ? 0 : 0.06,
+                          ease: "easeOut",
+                        },
+                      }}
+                      exit={{
+                        opacity: 0,
+                        transition: { duration: reduceMotion ? 0 : 0.08 },
+                      }}
+                      className="whitespace-nowrap text-[13px] font-semibold leading-none text-neutral-900 dark:text-white"
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
 
                 {item.badge != null && item.badge > 0 && (
                   <>
-                    <span className="absolute right-3 top-2 z-10 h-1.5 w-1.5 rounded-full bg-blue-500" />
+                    <span className="absolute right-2 top-2 z-10 h-1.5 w-1.5 rounded-full bg-blue-500" />
                     <span className="sr-only">Ada pemberitahuan</span>
                   </>
                 )}
               </motion.button>
             );
           })}
-        </nav>
+        </motion.nav>
 
         {/* ── FAB + Radial Menu ── */}
-        <div className="pointer-events-auto relative" data-bottom-nav>
+        <motion.div
+          layout="position"
+          transition={{ layout: layoutSpring }}
+          className="pointer-events-auto relative"
+          data-bottom-nav
+        >
           {/* Radial action buttons */}
           <AnimatePresence>
             {open &&
@@ -246,7 +281,7 @@ export function BottomNav({ items }: BottomNavProps) {
                         setOpen(false);
                         router.push(action.path);
                       }}
-                      className="flex flex-col items-center gap-1.5 group"
+                      className="group flex flex-col items-center gap-1.5"
                     >
                       {/* Label */}
                       <motion.span
@@ -255,11 +290,10 @@ export function BottomNav({ items }: BottomNavProps) {
                         exit={{ opacity: 0 }}
                         transition={{ delay: i * 0.04 + 0.08, duration: 0.15 }}
                         className="
-                          text-[10px] font-semibold text-white
-                          bg-neutral-900/60 backdrop-blur-md backdrop-saturate-150
-                          px-2 py-0.5 rounded-full
+                          whitespace-nowrap rounded-full
+                          bg-neutral-900/60 px-2 py-0.5 text-[10px] font-semibold text-white
                           shadow-[0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.15)]
-                          whitespace-nowrap
+                          backdrop-blur-md backdrop-saturate-150
                         "
                       >
                         {action.label}
@@ -268,11 +302,10 @@ export function BottomNav({ items }: BottomNavProps) {
                       {/* Icon button */}
                       <div
                         className={`
-                          w-11 h-11 rounded-full flex items-center justify-center
+                          flex h-11 w-11 items-center justify-center rounded-full
                           ${action.color}
-                                                    shadow-[0_6px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35)]
-                          active:scale-95
-                          transition-transform duration-150
+                          shadow-[0_6px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35)]
+                          transition-transform duration-150 active:scale-95
                         `}
                       >
                         <HugeiconsIcon
@@ -295,11 +328,7 @@ export function BottomNav({ items }: BottomNavProps) {
             aria-label="Menu Aksi Cepat"
             aria-haspopup="true"
             aria-expanded={open}
-            className={`
-                w-12 h-12 rounded-full
-                flex items-center justify-center
-                ${glass}
-              `}
+            className={`flex h-[56px] w-[56px] items-center justify-center rounded-full ${glass}`}
           >
             <motion.div
               animate={{ rotate: open ? 45 : 0 }}
@@ -307,12 +336,12 @@ export function BottomNav({ items }: BottomNavProps) {
             >
               <HugeiconsIcon
                 icon={Add01Icon}
-                size={20}
-                className="text-white"
+                size={22}
+                className="text-neutral-900 dark:text-white"
               />
             </motion.div>
           </motion.button>
-        </div>
+        </motion.div>
       </div>
     </>
   );
