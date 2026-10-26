@@ -99,7 +99,7 @@ export default function IncomePage() {
 
       try {
         const res = await fetch(
-          `/api/income?month=${month}&page=${isLoadMore ? page + 1 : 1}&limit=20`,
+          `/api/incomes?month=${month}&page=${isLoadMore ? page + 1 : 1}&limit=20`,
         );
         const data = await res.json();
         const newIncomes = Array.isArray(data.incomes) ? data.incomes : [];
@@ -153,7 +153,7 @@ export default function IncomePage() {
 
   const handleDelete = useCallback(async (id: string | number) => {
     try {
-      await fetch(`/api/income/${id}`, { method: "DELETE" });
+      await fetch(`/api/incomes/${id}`, { method: "DELETE" });
       setIncomes((prev) => prev.filter((i) => i.id !== id));
     } catch (error) {
       console.error("Failed to delete income:", error);
@@ -167,8 +167,8 @@ export default function IncomePage() {
   const isFlat = isSearchActive || isSortChanged;
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
-      <div className="sticky top-0 z-50 bg-neutral-100 dark:bg-neutral-950">
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
+      <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Income"
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
@@ -187,7 +187,7 @@ export default function IncomePage() {
         />
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
+      <div className="px-4 pt-4 space-y-5 pt-[64px] bg-neutral-100 dark:bg-neutral-950">
         {/* ── Summary Card ── */}
         <BalanceHeader
           label="Total Pemasukan"
