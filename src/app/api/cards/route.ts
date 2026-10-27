@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 
-import { createCardSchema } from "./utils/validation";
+import { createCardSchema, normalizeAppearance } from "./utils/validation";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -32,6 +32,13 @@ export async function GET() {
         name: true,
         type: true,
         balance: true,
+        scope: true,
+        stakeholder: true,
+        cutoffDay: true,
+        dueDay: true,
+        dueOffset: true,
+        style: true,
+        logo: true,
         userId: true,
         user: {
           select: {
@@ -61,16 +68,37 @@ export async function POST(request: Request) {
     const body = await request.json();
     const parsed = createCardSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Validasi gagal", details: parsed.error.issues }, { status: 400 });
+      return NextResponse.json(
+        { error: "Validasi gagal", details: parsed.error.issues },
+        { status: 400 },
+      );
     }
 
-    const { name, type, balance, cutoffDay, dueDay, dueOffset } = parsed.data;
+    const {
+      name,
+      type,
+      balance,
+      cutoffDay,
+      dueDay,
+      dueOffset,
+      scope,
+      stakeholder,
+    } = parsed.data;
+    const { style, logo } = normalizeAppearance(
+      type,
+      parsed.data.style,
+      parsed.data.logo,
+    );
 
     const newCard = await prisma.card.create({
       data: {
         name,
         type,
         balance,
+        style,
+        logo,
+        scope,
+        stakeholder: stakeholder || null,
         userId: session.user.id,
         familyId: session.user.familyId || null,
         ...(type === "PAYLATER" && {
@@ -85,6 +113,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, card: newCard }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/cards]", error);
-    return NextResponse.json({ error: "Gagal membuat kartu baru" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Gagal membuat kartu baru" },
+      { status: 500 },
+    );
   }
 }
