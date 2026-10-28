@@ -4,11 +4,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { motion, AnimatePresence, type PanInfo } from "framer-motion";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import {
-  ArrowLeft01Icon,
+  ArrowLeft02Icon,
   CheckmarkCircle02Icon,
   Delete02Icon,
-  InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
 import {
   CreditCard,
@@ -48,12 +49,53 @@ const STEPS = [
 ];
 const LAST_STEP = STEPS.length - 1;
 
-const labelCls =
-  "block text-xs font-bold text-gray-500 dark:text-neutral-400 tracking-wide uppercase mb-1.5";
-const inputCls =
-  "w-full bg-neutral-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-blue-500/20 focus:border-blue-500";
-const sectionCls =
-  "bg-white dark:bg-neutral-900 border border-gray-200/70 dark:border-neutral-800 rounded-2xl p-4";
+// ─── KOMPONEN KECIL (gaya sama dengan halaman Transfer) ───────────────────────
+
+// Grup baris ala iOS: judul kecil di luar, isi putih tanpa border,
+// antar-baris dipisah garis tipis
+function Group({
+  title,
+  children,
+}: {
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      {title && (
+        <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+          {title}
+        </p>
+      )}
+      <div className="divide-y divide-neutral-200 overflow-hidden rounded-2xl bg-white dark:divide-neutral-800 dark:bg-neutral-900">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-4 px-4 py-3.5">
+      <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+// 16px: di bawah itu Safari iOS otomatis zoom saat kolom difokus
+const rowInputCls =
+  "min-w-0 flex-1 bg-transparent text-right text-[16px] font-semibold text-neutral-900 placeholder:text-neutral-300 focus:outline-none dark:text-white dark:placeholder:text-neutral-600 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+
+// ─── KOMPONEN UTAMA ───────────────────────────────────────────────────────────
 
 interface CardEditorProps {
   card: Card | null; // null = kartu baru
@@ -62,14 +104,10 @@ interface CardEditorProps {
   onDeleted: () => void;
 }
 
-export function CardEditor({
-  card,
-  onBack,
-  onSaved,
-  onDeleted,
-}: CardEditorProps) {
+export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
   const isEdit = !!card;
   const initialType: CardType = card?.type ?? "BANK";
+  const router = useRouter();
 
   // Step hanya dipakai saat menambah kartu baru
   const [step, setStep] = useState(0);
@@ -228,83 +266,46 @@ export function CardEditor({
   const isLastStep = isEdit || step === LAST_STEP;
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans text-gray-900 dark:text-gray-100 pb-28 overflow-x-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-neutral-100/80 dark:bg-neutral-950/80 backdrop-blur-md border-b border-gray-200/60 dark:border-neutral-900">
-        <div className="max-w-md mx-auto flex items-center gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Kembali"
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 active:scale-95 transition-all"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
-          </button>
-          <h1 className="text-sm font-bold tracking-wide uppercase text-neutral-500">
-            {isEdit ? "Edit Kartu" : "Tambah Kartu"}
-          </h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-neutral-100 pb-10 font-sans text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
+      <div className="fixed left-0 right-0 top-0 z-50">
+        <IslandNavbar
+          title={isEdit ? "Edit Kartu" : "Kartu Baru"}
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+          onAvatarPress={() => router.back()}
+          actions={[]}
+        />
+      </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="max-w-md mx-auto px-4 pt-5 space-y-6">
-          {/* Progress steps (kartu baru saja) */}
+        <div className="mx-auto max-w-md space-y-6 px-4 pt-[84px]">
+          {/* Progress: tiga garis tipis (kartu baru saja) */}
           {!isEdit && (
             <div>
-              <ol className="flex items-start px-1">
-                {STEPS.map((s, i) => {
-                  const done = i < step;
-                  const active = i === step;
-                  return (
-                    <React.Fragment key={s.label}>
-                      <li className="flex flex-col items-center gap-1.5">
-                        <button
-                          type="button"
-                          disabled={i > step}
-                          onClick={() => setStep(i)}
-                          aria-label={`Langkah ${i + 1}: ${s.label}`}
-                          aria-current={active ? "step" : undefined}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                            done
-                              ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
-                              : active
-                                ? "bg-blue-600 text-white ring-4 ring-blue-600/20"
-                                : "bg-neutral-200 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500"
-                          }`}
-                        >
-                          {done ? (
-                            <HugeiconsIcon
-                              icon={CheckmarkCircle02Icon}
-                              size={16}
-                            />
-                          ) : (
-                            i + 1
-                          )}
-                        </button>
-                        <span
-                          className={`text-[10px] font-bold uppercase tracking-wider ${
-                            active
-                              ? "text-neutral-800 dark:text-white"
-                              : "text-neutral-400 dark:text-neutral-500"
-                          }`}
-                        >
-                          {s.label}
-                        </span>
-                      </li>
-                      {i < STEPS.length - 1 && (
-                        <div
-                          className={`h-0.5 flex-1 mx-2 mt-[15px] rounded-full transition-colors ${
-                            i < step
-                              ? "bg-neutral-900 dark:bg-white"
-                              : "bg-neutral-200 dark:bg-neutral-800"
-                          }`}
-                        />
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </ol>
-              <p className="mt-4 text-center text-sm font-bold text-neutral-700 dark:text-neutral-200">
+              <div className="flex gap-1.5">
+                {STEPS.map((s, i) => (
+                  <button
+                    key={s.label}
+                    type="button"
+                    disabled={i > step}
+                    onClick={() => setStep(i)}
+                    aria-label={`Langkah ${i + 1}: ${s.label}`}
+                    aria-current={i === step ? "step" : undefined}
+                    className="flex h-5 flex-1 items-center disabled:cursor-default"
+                  >
+                    <span
+                      className={`h-1 w-full rounded-full transition-colors duration-300 ${
+                        i <= step
+                          ? "bg-neutral-900 dark:bg-white"
+                          : "bg-neutral-300 dark:bg-neutral-700"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-center text-xs text-neutral-400 dark:text-neutral-500">
+                Langkah {step + 1} dari {STEPS.length}
+              </p>
+              <p className="text-center text-base font-bold text-neutral-800 dark:text-neutral-100">
                 {STEPS[step].title}
               </p>
             </div>
@@ -312,8 +313,8 @@ export function CardEditor({
 
           {/* Preview kartu (selalu tampil; bisa di-slide saat langkah Tampilan) */}
           <section className="flex flex-col items-center">
-            <div className="relative w-full flex items-center justify-center min-h-[220px]">
-              <div className="w-full overflow-hidden relative flex justify-center">
+            <div className="relative flex min-h-[220px] w-full items-center justify-center">
+              <div className="relative flex w-full justify-center overflow-hidden">
                 <AnimatePresence mode="wait" custom={slideDirection}>
                   <motion.div
                     key={`${type}-${currentStyle.value}`}
@@ -322,9 +323,11 @@ export function CardEditor({
                     initial="enter"
                     animate="center"
                     exit="exit"
+                    // Spring cepat: kartu berikutnya tidak lama menunggu
                     transition={{
-                      x: { type: "spring", stiffness: 220, damping: 20 },
-                      opacity: { duration: 0.2 },
+                      x: { type: "spring", stiffness: 520, damping: 40 },
+                      opacity: { duration: 0.12 },
+                      scale: { duration: 0.15 },
                     }}
                     drag={canSwipe ? "x" : false}
                     dragConstraints={{ left: 0, right: 0 }}
@@ -334,7 +337,7 @@ export function CardEditor({
                     }}
                     onDragEnd={handleDragEnd}
                     style={{ touchAction: "pan-y" }}
-                    className={`w-full flex justify-center ${
+                    className={`flex w-full justify-center ${
                       canSwipe ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
@@ -359,7 +362,7 @@ export function CardEditor({
             {canSwipe && (
               <div className="flex flex-col items-center">
                 {options.length > 1 && (
-                  <div className="flex items-center gap-1.5 mt-1">
+                  <div className="mt-1 flex items-center gap-1.5">
                     {options.map((o, i) => (
                       <button
                         key={o.value}
@@ -379,10 +382,10 @@ export function CardEditor({
                   {currentStyle.label}
                   <span className="font-normal text-neutral-400 dark:text-neutral-500">
                     {" "}
-                    · {config.familyLabel} · {safeIndex + 1}/{options.length}
+                    · {config.familyLabel}
                   </span>
                 </p>
-                <p className="text-[10px] text-neutral-400 dark:text-neutral-500">
+                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
                   Geser kartu ke kiri atau kanan untuk ganti warna
                 </p>
               </div>
@@ -401,49 +404,53 @@ export function CardEditor({
             >
               {/* Langkah 1: jenis kartu */}
               {showStep(0) && (
-                <section className={sectionCls}>
-                  <label className={labelCls}>Jenis Kartu</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {CARD_TYPE_ORDER.map((t) => {
-                      const selected = t === type;
-                      return (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => handleTypeChange(t)}
-                          className={`text-left rounded-xl border-2 px-3 py-2.5 active:scale-95 transition-all ${
-                            selected
-                              ? "border-neutral-900 dark:border-white bg-neutral-50 dark:bg-neutral-950"
-                              : "border-gray-200 dark:border-neutral-800"
-                          }`}
-                        >
-                          <p className="text-xs font-bold">
+                <Group title="Jenis Kartu">
+                  {CARD_TYPE_ORDER.map((t) => {
+                    const selected = t === type;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => handleTypeChange(t)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-neutral-50 dark:active:bg-neutral-800/60"
+                      >
+                        <span>
+                          <span className="block text-[15px] font-semibold">
                             {CARD_TYPE_CONFIG[t].label}
-                          </p>
-                          <p className="text-[10px] text-neutral-400 dark:text-neutral-500 mt-0.5">
+                          </span>
+                          <span className="mt-0.5 block text-xs text-neutral-400 dark:text-neutral-500">
                             {CARD_TYPE_CONFIG[t].familyLabel}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
+                          </span>
+                        </span>
+                        {selected && (
+                          <HugeiconsIcon
+                            icon={CheckmarkCircle02Icon}
+                            size={22}
+                            className="shrink-0 text-blue-600"
+                          />
+                        )}
+                      </button>
+                    );
+                  })}
+                </Group>
               )}
 
               {/* Langkah 2: jaringan pembayaran (hanya Debit/Bank) */}
               {showStep(1) && config.supportsNetwork && (
-                <section className={sectionCls}>
-                  <label className={labelCls}>Jaringan Pembayaran</label>
-                  <div className="flex flex-wrap gap-2">
+                <section>
+                  <p className="px-4 pb-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400 dark:text-neutral-500">
+                    Jaringan Pembayaran
+                  </p>
+                  <div className="flex flex-wrap gap-2 rounded-2xl bg-white p-4 dark:bg-neutral-900">
                     {NETWORK_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => setLogo(opt.value)}
-                        className={`px-3.5 py-2 rounded-full text-[11px] font-bold border active:scale-95 transition-all ${
+                        className={`rounded-full px-3.5 py-2 text-xs font-bold transition-all active:scale-95 ${
                           logo === opt.value
-                            ? "bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-white"
-                            : "bg-neutral-50 dark:bg-neutral-950 text-neutral-500 border-gray-200 dark:border-neutral-800"
+                            ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                            : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
                         }`}
                       >
                         {opt.label}
@@ -455,7 +462,7 @@ export function CardEditor({
 
               {/* Langkah 2: info untuk jenis tanpa pilihan jaringan */}
               {!isEdit && step === 1 && !config.supportsNetwork && (
-                <p className="text-center text-[11px] text-neutral-400 dark:text-neutral-500 px-6">
+                <p className="px-6 text-center text-xs text-neutral-400 dark:text-neutral-500">
                   Kartu {config.label} memakai gaya {config.familyLabel}. Cukup
                   pilih warna dengan menggeser kartu.
                 </p>
@@ -463,121 +470,115 @@ export function CardEditor({
 
               {/* Langkah 3: detail kartu */}
               {showStep(2) && (
-                <section className={`${sectionCls} space-y-4`}>
-                  <div>
-                    <label className={labelCls}>Nama Dompet / Kartu</label>
-                    <input
-                      type="text"
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Contoh: BCA Spending, GoPay"
-                      className={inputCls}
-                    />
-                  </div>
-
-                  <div>
-                    <label className={labelCls}>Saldo / Limit Awal</label>
-                    <input
-                      type="number"
-                      required
-                      value={balance}
-                      onChange={(e) => setBalance(e.target.value)}
-                      placeholder="0"
-                      className={`${inputCls} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                    />
-                  </div>
+                <>
+                  <Group title="Detail">
+                    <Row label="Nama">
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="BCA Spending, GoPay"
+                        className={rowInputCls}
+                      />
+                    </Row>
+                    <Row label={type === "PAYLATER" ? "Limit" : "Saldo"}>
+                      <span className="flex min-w-0 flex-1 items-baseline justify-end gap-1.5">
+                        <span className="text-sm text-neutral-400">IDR</span>
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          required
+                          value={balance}
+                          onChange={(e) => setBalance(e.target.value)}
+                          placeholder="0"
+                          className={rowInputCls}
+                        />
+                      </span>
+                    </Row>
+                  </Group>
 
                   {type === "PAYLATER" && (
-                    <div className="bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/30 rounded-2xl p-4 space-y-3">
-                      <p className="text-[10px] text-rose-500 dark:text-rose-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
-                        <HugeiconsIcon icon={InformationCircleIcon} size={13} />
-                        Aturan Billing Paylater
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <label className="block text-[9px] font-bold text-rose-500 tracking-wide uppercase mb-1">
-                            Cutoff Tanggal
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="28"
-                            value={cutoff}
-                            onChange={(e) => setCutoff(e.target.value)}
-                            className="w-full bg-neutral-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] font-bold text-rose-500 tracking-wide uppercase mb-1">
-                            DueDate Offset
-                          </label>
-                          <select
-                            value={dueOffset}
-                            onChange={(e) => setDueOffset(e.target.value)}
-                            className="w-full bg-neutral-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl px-2 py-1.5 text-xs font-bold focus:outline-none"
-                          >
-                            <option value="0">Bulan Sama</option>
-                            <option value="1">Bulan (+1)</option>
-                            <option value="2">Bulan (+2)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[9px] font-bold text-rose-500 tracking-wide uppercase mb-1">
-                            Jatuh Tempo (Tgl)
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="28"
-                            value={dueDay}
-                            onChange={(e) => setDueDay(e.target.value)}
-                            className="w-full bg-neutral-50 dark:bg-neutral-950 border border-gray-200 dark:border-neutral-800 rounded-xl px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <Group title="Aturan Billing Paylater">
+                      <Row label="Tanggal cutoff">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          max="28"
+                          value={cutoff}
+                          onChange={(e) => setCutoff(e.target.value)}
+                          className={rowInputCls}
+                        />
+                      </Row>
+                      <Row label="Jatuh tempo (tgl)">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="1"
+                          max="28"
+                          value={dueDay}
+                          onChange={(e) => setDueDay(e.target.value)}
+                          className={rowInputCls}
+                        />
+                      </Row>
+                      <Row label="Bulan jatuh tempo">
+                        <select
+                          value={dueOffset}
+                          onChange={(e) => setDueOffset(e.target.value)}
+                          className={`${rowInputCls} cursor-pointer appearance-none`}
+                        >
+                          <option value="0">Bulan sama</option>
+                          <option value="1">Bulan berikutnya</option>
+                          <option value="2">2 bulan berikutnya</option>
+                        </select>
+                      </Row>
+                    </Group>
                   )}
-                </section>
+                </>
               )}
             </motion.div>
           </AnimatePresence>
-        </div>
 
-        {/* Action bar */}
-        <div className="fixed bottom-0 inset-x-0 z-20 bg-neutral-100/90 dark:bg-neutral-950/90 backdrop-blur-md border-t border-gray-200/60 dark:border-neutral-900">
-          <div className="max-w-md mx-auto flex gap-3 px-4 py-3">
+          {/* Tombol aksi (ikut alur halaman, tidak menempel di bawah layar) */}
+          <div className="space-y-2 pt-2">
+            <div className="flex gap-3">
+              {!isEdit && step > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setStep((s) => s - 1)}
+                  className="rounded-xl bg-white px-5 py-3.5 text-xs font-bold text-neutral-700 transition-all active:scale-95 dark:bg-neutral-900 dark:text-neutral-200"
+                >
+                  Kembali
+                </button>
+              )}
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-60"
+              >
+                {isLastStep && (
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
+                )}
+                {saving
+                  ? "Menyimpan..."
+                  : isLastStep
+                    ? "Simpan Kartu"
+                    : "Lanjut"}
+              </button>
+            </div>
+
             {isEdit && (
               <button
                 type="button"
                 onClick={handleDelete}
-                aria-label="Hapus kartu"
-                className="flex items-center justify-center p-3 rounded-xl bg-red-50 dark:bg-red-950/20 text-red-600 hover:bg-red-100 dark:hover:bg-red-950/30 active:scale-95 transition-all"
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl py-3 text-xs font-bold text-red-500 transition-all active:scale-95"
               >
-                <HugeiconsIcon icon={Delete02Icon} size={16} />
+                <HugeiconsIcon icon={Delete02Icon} size={15} />
+                Hapus Kartu
               </button>
             )}
-
-            {!isEdit && step > 0 && (
-              <button
-                type="button"
-                onClick={() => setStep((s) => s - 1)}
-                className="px-5 py-3 rounded-xl text-xs font-bold bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-gray-200 active:scale-95 transition-all"
-              >
-                Kembali
-              </button>
-            )}
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 font-bold text-xs py-3 rounded-xl active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-60"
-            >
-              {isLastStep && (
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} size={15} />
-              )}
-              {saving ? "Menyimpan..." : isLastStep ? "Simpan Kartu" : "Lanjut"}
-            </button>
           </div>
         </div>
       </form>

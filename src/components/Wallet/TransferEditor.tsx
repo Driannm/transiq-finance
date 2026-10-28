@@ -2,11 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
+import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import {
-  ArrowLeft01Icon,
+  canSendTransfer,
+  canReceiveTransfer,
+  validateTransferTypes,
+} from "@/lib/transferRules";
+import {
   ArrowDown01Icon,
+  ArrowLeft02Icon,
   ArrowDataTransferVerticalIcon,
   ArrowDataTransferDiagonalIcon,
   Calendar03Icon,
@@ -70,6 +77,13 @@ const typeIcon = (type: string) => {
 const balanceText = (c: Card) =>
   `${c.type === "PAYLATER" ? "Limit " : ""}IDR ${fmt(c.balance)}`;
 
+// Pilihan biaya admin
+const FEE_OPTIONS = [
+  { value: 0, label: "Gratis" },
+  { value: 2500, label: "IDR 2.500" },
+  { value: 6500, label: "IDR 6.500" },
+];
+
 // ─── PILL KARTU ───────────────────────────────────────────────────────────────
 
 function CardPill({
@@ -86,9 +100,10 @@ function CardPill({
       type="button"
       onClick={onClick}
       whileTap={reduce ? undefined : { scale: 0.97 }}
-      className="inline-flex max-w-[78%] items-center gap-2 rounded-full border border-gray-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 py-1.5 pl-1.5 pr-3 text-left"
+      className="-ml-1 inline-flex min-w-0 max-w-full items-center gap-2 rounded-xl py-1 pl-1 pr-2 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5"
     >
-      <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
+      {/* Ikon kartu */}
+      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-emerald-50 dark:bg-emerald-950/40">
         <AnimatePresence initial={false}>
           <motion.span
             key={card?.id ?? "none"}
@@ -111,7 +126,8 @@ function CardPill({
         </AnimatePresence>
       </span>
 
-      <span className="relative min-w-0 overflow-hidden">
+      {/* Nama kartu */}
+      <span className="relative h-[22px] min-w-0 overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
             key={card?.id ?? "none"}
@@ -119,23 +135,12 @@ function CardPill({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: reduce ? 0 : 0.18, ease: "easeOut" }}
-            className="block min-w-0"
+            className="block truncate text-[15px] font-medium leading-[22px] text-gray-600 dark:text-gray-300"
           >
-            <span className="block truncate text-[13px] font-semibold leading-tight text-gray-900 dark:text-white">
-              {card?.name ?? "Pilih kartu"}
-            </span>
-            <span className="block truncate text-[10px] leading-tight text-gray-500 dark:text-gray-400">
-              {card ? balanceText(card) : "-"}
-            </span>
+            {card?.name ?? "Pilih kartu"}
           </motion.span>
         </AnimatePresence>
       </span>
-
-      <HugeiconsIcon
-        icon={ArrowDown01Icon}
-        size={12}
-        className="shrink-0 text-gray-400"
-      />
     </motion.button>
   );
 }
@@ -286,20 +291,27 @@ interface TransferEditorProps {
 export function TransferEditor({
   cards,
   initialFromId,
-  onBack,
   onSuccess,
 }: TransferEditorProps) {
+  const router = useRouter();
   const reduce = useReducedMotion();
 
+  const senderCards = cards.filter((c) => canSendTransfer(c.type));
+  const receiverCards = cards.filter((c) => canReceiveTransfer(c.type));
+
   const [fromId, setFromId] = useState(
-    () => cards.find((c) => c.id === initialFromId)?.id ?? cards[0]?.id ?? "",
+    () =>
+      senderCards.find((c) => c.id === initialFromId)?.id ??
+      senderCards[0]?.id ??
+      "",
   );
   const [toId, setToId] = useState(() => {
-    const from = cards.find((c) => c.id === initialFromId) ?? cards[0];
-    return cards.find((c) => c.id !== from?.id)?.id ?? "";
+    const from =
+      senderCards.find((c) => c.id === initialFromId) ?? senderCards[0];
+    return receiverCards.find((c) => c.id !== from?.id)?.id ?? "";
   });
   const [amount, setAmount] = useState(""); // digit saja
-  const [fee, setFee] = useState("");
+  const [fee, setFee] = useState(""); // "" = gratis, selain itu "2500" / "6500"
   const [date, setDate] = useState(() => isoFromDate(new Date()));
   const [saving, setSaving] = useState(false);
   const [picker, setPicker] = useState<"from" | "to" | null>(null);
@@ -312,22 +324,30 @@ export function TransferEditor({
   const feeNum = Number(fee || 0);
   const total = amountNum + feeNum;
 
-  // Paylater memakai limit, jadi tidak dibandingkan dengan saldo
-  const insufficient =
-    !!fromCard && fromCard.type !== "PAYLATER" && total > fromCard.balance;
+  // Paylater tidak bisa mengirim transfer, jadi semua pengirim memakai saldo
+  const insufficient = !!fromCard && total > fromCard.balance;
+
+  const typeError =
+    fromCard && toCard
+      ? validateTransferTypes(fromCard.type, toCard.type)
+      : null;
+
+  // Tukar hanya boleh kalau kartu tujuan juga boleh mengirim
+  const canSwap = !!toCard && canSendTransfer(toCard.type);
 
   const canSubmit =
-    !saving && amountNum > 0 && !!fromId && !!toId && fromId !== toId;
+    !saving &&
+    amountNum > 0 &&
+    !!fromId &&
+    !!toId &&
+    fromId !== toId &&
+    !insufficient &&
+    !typeError;
 
   const swapCards = () => {
     setFromId(toId);
     setToId(fromId);
     setSwapTurns((t) => t + 1);
-  };
-
-  const setMax = () => {
-    if (!fromCard) return;
-    setAmount(String(Math.max(0, Math.floor(fromCard.balance - feeNum))));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -338,6 +358,15 @@ export function TransferEditor({
     }
     if (fromId === toId) {
       toast.error("Kartu asal dan tujuan tidak boleh sama");
+      return;
+    }
+    if (typeError) {
+      toast.error(typeError);
+      return;
+    }
+    // Penjaga tambahan: form juga bisa terkirim lewat tombol Enter
+    if (insufficient) {
+      toast.error("Saldo tidak cukup untuk jumlah dan biaya admin");
       return;
     }
 
@@ -383,73 +412,43 @@ export function TransferEditor({
 
   const pickerCards =
     picker === "from"
-      ? cards.filter((c) => c.id !== toId)
-      : cards.filter((c) => c.id !== fromId);
+      ? senderCards.filter((c) => c.id !== toId)
+      : receiverCards.filter((c) => c.id !== fromId);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-neutral-100 pb-32 font-sans text-gray-900 dark:bg-neutral-950 dark:text-gray-100">
-      {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-gray-200/60 bg-neutral-100/80 backdrop-blur-md dark:border-neutral-900 dark:bg-neutral-950/80">
-        <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Kembali"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white transition-all active:scale-95 dark:border-neutral-800 dark:bg-neutral-900"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} size={16} />
-          </button>
-          <h1 className="text-sm font-bold uppercase tracking-wide text-neutral-500">
-            Transfer Internal
-          </h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-neutral-100 pb-28 font-sans dark:bg-neutral-950">
+      <div className="fixed left-0 right-0 top-0 z-50">
+        <IslandNavbar
+          title="Transfers Baru"
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+          onAvatarPress={() => router.back()}
+          actions={[]}
+        />
+      </div>
 
       <form onSubmit={handleSubmit}>
-        <div className="mx-auto max-w-md space-y-4 px-4 pt-5">
-          {/* Dua panel + tombol tukar */}
-          <div className="relative space-y-1.5">
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px]">
+          {/* Dua baris + tombol tukar */}
+          <div className="relative space-y-2">
             {/* DARI */}
-            <section className="rounded-3xl border border-gray-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-              <div className="flex items-center justify-between gap-2">
-                <CardPill
-                  card={fromCard}
-                  onClick={() => setPicker("from")}
-                  reduce={reduce}
-                />
-                {fromCard && fromCard.type !== "PAYLATER" && (
-                  <button
-                    type="button"
-                    onClick={setMax}
-                    className="rounded-full bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-600 transition-all active:scale-95 dark:bg-emerald-950/40 dark:text-emerald-400"
-                  >
-                    Max
-                  </button>
-                )}
+            <section className="rounded-2xl bg-white px-4 py-3 dark:bg-neutral-900">
+              <div className="flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-500">
+                <span>Dari</span>
+                <span>{fromCard?.type === "PAYLATER" ? "Limit" : "Saldo"}</span>
               </div>
 
-              <div className="flex items-baseline justify-center gap-2 px-2 py-7">
-                <span className="text-xl font-semibold text-neutral-400">
-                  IDR
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <CardPill
+                    card={fromCard}
+                    onClick={() => setPicker("from")}
+                    reduce={reduce}
+                  />
+                </div>
+                <span className="text-md shrink-0 font-bold tabular-nums text-gray-900 dark:text-white">
+                  IDR {fromCard ? fmt(fromCard.balance) : "0"}
                 </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoFocus
-                  aria-label="Jumlah transfer"
-                  value={display}
-                  onChange={(e) => setAmount(toDigits(e.target.value))}
-                  placeholder="0"
-                  style={{ width: `${Math.max(display.length, 1) + 0.6}ch` }}
-                  className={`min-w-[1ch] max-w-full bg-transparent text-center font-semibold tabular-nums leading-none text-gray-900 placeholder:text-neutral-300 focus:outline-none dark:text-white dark:placeholder:text-neutral-700 ${amountSize}`}
-                />
               </div>
-
-              <p className="text-center text-[11px] text-neutral-400 dark:text-neutral-500">
-                {fromCard
-                  ? `${fromCard.type === "PAYLATER" ? "Limit" : "Saldo"}: IDR ${fmt(fromCard.balance)}`
-                  : "-"}
-              </p>
             </section>
 
             {/* Tombol tukar */}
@@ -457,66 +456,130 @@ export function TransferEditor({
               <motion.button
                 type="button"
                 onClick={swapCards}
+                disabled={!canSwap}
                 aria-label="Tukar kartu asal dan tujuan"
                 animate={{ rotate: reduce ? 0 : swapTurns * 180 }}
                 transition={{ type: "spring", stiffness: 260, damping: 20 }}
                 whileTap={reduce ? undefined : { scale: 0.9 }}
-                className="flex h-10 w-10 items-center justify-center rounded-full border-4 border-neutral-100 bg-white text-neutral-600 shadow-sm dark:border-neutral-950 dark:bg-neutral-800 dark:text-neutral-200"
+                className="flex h-9 w-9 items-center justify-center rounded-full border-4 border-neutral-100 bg-white text-neutral-500 shadow-sm dark:border-neutral-950 dark:bg-neutral-800 dark:text-neutral-300"
               >
-                <HugeiconsIcon icon={ArrowDataTransferVerticalIcon} size={16} />
+                <HugeiconsIcon icon={ArrowDataTransferVerticalIcon} size={14} />
               </motion.button>
             </div>
 
             {/* KE */}
-            <section className="rounded-3xl border border-gray-200/70 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-              <div className="flex items-center justify-between gap-2">
-                <CardPill
-                  card={toCard}
-                  onClick={() => setPicker("to")}
-                  reduce={reduce}
-                />
-                <span className="rounded-full bg-neutral-100 px-3 py-1.5 text-[11px] font-bold text-neutral-400 dark:bg-neutral-800">
-                  Diterima
-                </span>
+            <section className="rounded-2xl bg-white px-4 py-3 dark:bg-neutral-900">
+              <div className="flex items-center justify-between text-xs text-neutral-400 dark:text-neutral-500">
+                <span>Ke</span>
+                <span>Diterima</span>
               </div>
 
-              <div className="flex items-baseline justify-center gap-2 px-2 py-7">
-                <span className="text-xl font-semibold text-neutral-400">
-                  IDR
-                </span>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <CardPill
+                    card={toCard}
+                    onClick={() => setPicker("to")}
+                    reduce={reduce}
+                  />
+                </div>
                 <span
-                  className={`font-semibold tabular-nums leading-none ${amountSize} ${
+                  className={`text-md shrink-0 font-bold tabular-nums ${
                     amountNum
                       ? "text-gray-900 dark:text-white"
                       : "text-neutral-300 dark:text-neutral-700"
                   }`}
                 >
-                  {display || "0"}
+                  IDR {fmt(amountNum)}
                 </span>
               </div>
-
-              <p className="text-center text-[11px] text-neutral-400 dark:text-neutral-500">
-                {toCard
-                  ? `${toCard.type === "PAYLATER" ? "Limit" : "Saldo"}: IDR ${fmt(toCard.balance)}`
-                  : "-"}
-              </p>
             </section>
           </div>
 
-          {/* Tanggal */}
-          <div className="flex items-center gap-2 px-1">
-            <label className="relative inline-flex cursor-pointer items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-700 transition-all active:scale-95 dark:border-neutral-800 dark:bg-neutral-900 dark:text-gray-200">
-              <HugeiconsIcon icon={Calendar03Icon} size={15} />
-              {dateLabel(date)}
+          {/* Angka besar: jumlah transfer + total */}
+          <div className="flex flex-col items-center px-2 pb-1 pt-8">
+            <div className="flex max-w-full items-baseline justify-center">
+              <span className="text-2xl font-semibold text-neutral-400">
+                IDR
+              </span>
               <input
-                type="date"
-                required
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                aria-label="Tanggal transfer"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                type="text"
+                inputMode="numeric"
+                autoFocus
+                aria-label="Jumlah transfer"
+                value={display}
+                onChange={(e) => setAmount(toDigits(e.target.value))}
+                placeholder="0"
+                style={{ width: `${Math.max(display.length, 1) + 0.6}ch` }}
+                className={`min-w-[1ch] max-w-full bg-transparent text-center font-bold tabular-nums leading-none text-gray-900 placeholder:text-neutral-300 focus:outline-none dark:text-white dark:placeholder:text-neutral-700 ${amountSize}`}
               />
-            </label>
+            </div>
+
+            <p
+              className={`mt-3 text-sm ${
+                insufficient
+                  ? "font-semibold text-red-500"
+                  : "text-neutral-400 dark:text-neutral-500"
+              }`}
+            >
+              Total keluar: IDR {fmt(total)}
+            </p>
+
+            {/* Tanggal + biaya admin: satu baris, keduanya bisa dipilih */}
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              {/* Tanggal */}
+              <label className="relative inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-white pl-3.5 pr-3 text-xs font-bold text-gray-700 transition-all active:scale-95 dark:bg-neutral-900 dark:text-gray-200">
+                <HugeiconsIcon icon={Calendar03Icon} size={15} />
+                {dateLabel(date)}
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  size={12}
+                  className="text-neutral-400"
+                />
+                <input
+                  type="date"
+                  required
+                  value={date}
+                  max={isoFromDate(new Date())}
+                  onChange={(e) => setDate(e.target.value)}
+                  // Di desktop, klik di mana saja langsung membuka kalender
+                  onClick={(e) => {
+                    try {
+                      e.currentTarget.showPicker();
+                    } catch {
+                      /* browser tanpa showPicker: pakai perilaku bawaan */
+                    }
+                  }}
+                  aria-label="Tanggal transfer"
+                  className="absolute inset-0 h-full w-full cursor-pointer text-[16px] opacity-0"
+                />
+              </label>
+
+              {/* Biaya admin */}
+              <label className="relative inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-white pl-3.5 pr-3 text-xs font-bold text-gray-700 transition-all active:scale-95 dark:bg-neutral-900 dark:text-gray-200">
+                <span className="font-medium text-neutral-400">Admin</span>
+                {FEE_OPTIONS.find((o) => o.value === feeNum)?.label ??
+                  `IDR ${fmt(feeNum)}`}
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  size={12}
+                  className="text-neutral-400"
+                />
+                <select
+                  value={String(feeNum)}
+                  onChange={(e) =>
+                    setFee(e.target.value === "0" ? "" : e.target.value)
+                  }
+                  aria-label="Biaya admin"
+                  className="absolute inset-0 h-full w-full cursor-pointer appearance-none text-[16px] opacity-0"
+                >
+                  {FEE_OPTIONS.map((o) => (
+                    <option key={o.value} value={String(o.value)}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
           {/* Peringatan saldo */}
@@ -536,78 +599,26 @@ export function TransferEditor({
                   />
                   <p className="text-xs font-medium text-red-600 dark:text-red-400">
                     Total (jumlah + biaya admin) melebihi saldo {fromCard?.name}
-                    .
+                    . Transfer tidak bisa diproses.
                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Ringkasan */}
-          <section className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white dark:divide-neutral-700 dark:border-neutral-700 dark:bg-neutral-900">
-            <div className="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-              <span className="text-gray-500 dark:text-neutral-400">Dari</span>
-              <span className="truncate font-semibold">
-                {fromCard?.name ?? "-"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-              <span className="text-gray-500 dark:text-neutral-400">Ke</span>
-              <span className="truncate font-semibold">
-                {toCard?.name ?? "-"}
-              </span>
-            </div>
-            <label className="flex items-center justify-between gap-4 px-4 py-2.5 text-xs">
-              <span className="text-gray-500 dark:text-neutral-400">
-                Biaya admin
-              </span>
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[11px] text-neutral-400">IDR</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={showDigits(fee)}
-                  onChange={(e) => setFee(toDigits(e.target.value))}
-                  placeholder="0"
-                  className="w-24 rounded-lg bg-neutral-50 px-2 py-1.5 text-right text-xs font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-blue-500/30 dark:bg-neutral-950"
-                />
-              </span>
-            </label>
-            <div className="flex items-center justify-between gap-4 px-4 py-3 text-xs">
-              <span className="text-gray-500 dark:text-neutral-400">
-                Diterima kartu tujuan
-              </span>
-              <span className="font-semibold tabular-nums">
-                IDR {fmt(amountNum)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-4 bg-neutral-50 px-4 py-3 text-xs dark:bg-neutral-800/60">
-              <span className="font-semibold">
-                Total keluar dari kartu asal
-              </span>
-              <span
-                className={`text-sm font-bold tabular-nums ${
-                  insufficient ? "text-red-500" : ""
-                }`}
-              >
-                IDR {fmt(total)}
-              </span>
-            </div>
-          </section>
-        </div>
-
-        {/* Action bar */}
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200/60 bg-neutral-100/90 backdrop-blur-md dark:border-neutral-900 dark:bg-neutral-950/90">
-          <div className="mx-auto max-w-md px-4 py-3">
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-blue-600 py-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-50"
-            >
-              <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={15} />
-              {saving ? "Memproses..." : "Kirim Transfer Sekarang"}
-            </button>
-          </div>
+          {/* Tombol kirim */}
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="flex w-full items-center justify-center gap-1.5 rounded-full bg-blue-600 py-3.5 text-xs font-bold text-white shadow-md transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-50"
+          >
+            <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={15} />
+            {saving
+              ? "Memproses..."
+              : insufficient
+                ? "Saldo tidak cukup"
+                : "Kirim Transfer Sekarang"}
+          </button>
         </div>
       </form>
 

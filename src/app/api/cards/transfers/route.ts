@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-
+import { validateTransferTypes } from "@/lib/transferRules";
 import { transferSchema } from "../utils/validation";
 
 export async function GET() {
@@ -137,6 +137,18 @@ export async function POST(request: Request) {
         { error: "Kartu asal atau tujuan tidak ditemukan" },
         { status: 404 },
       );
+    }
+
+    if (!fromCard || !toCard) {
+      return NextResponse.json(
+        { error: "Kartu tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    const typeError = validateTransferTypes(fromCard.type, toCard.type);
+    if (typeError) {
+      return NextResponse.json({ error: typeError }, { status: 400 });
     }
 
     // Lakukan atomic transaction untuk mencatat transfer & update cache balance

@@ -5,6 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { CardEditor, type Card } from "@/components/Wallet/CardEditor";
 import { TransferEditor } from "@/components/Wallet/TransferEditor";
+import { canSendTransfer, canReceiveTransfer } from "@/lib/transferRules";
 import {
   CARD_TYPE_CONFIG,
   resolveCardLogo,
@@ -20,7 +21,7 @@ import {
 } from "framer-motion";
 import { toast } from "sonner";
 import {
-  Add01Icon,
+  CreditCardAddIcon,
   ArrowDataTransferDiagonalIcon,
   ArrowDataTransferHorizontalIcon,
   Settings01Icon,
@@ -346,8 +347,14 @@ export default function WalletPage() {
   const closeEditor = () => setEditorState({ open: false, card: null });
 
   const openTransferPage = () => {
-    if (cards.length < 2) {
-      toast.error("Buat minimal 2 kartu untuk melakukan transfer.");
+    const senders = cards.filter((c) => canSendTransfer(c.type));
+    const receivers = cards.filter((c) => canReceiveTransfer(c.type));
+    const hasPair = senders.some((s) => receivers.some((r) => r.id !== s.id));
+
+    if (!hasPair) {
+      toast.error(
+        "Transfer butuh satu kartu Bank/E-Wallet sebagai pengirim dan satu kartu lain sebagai penerima.",
+      );
       return;
     }
     setIsTransferOpen(true);
@@ -386,20 +393,31 @@ export default function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24 text-gray-900 dark:text-gray-100 overflow-x-hidden">
-      {/* Header */}
-      <IslandNavbar
-        title="Wallet"
-        actions={[
-          {
-            icon: <HugeiconsIcon icon={Add01Icon} size={18} />,
-            label: "Add Card",
-            onPress: openNewCardEditor,
-          },
-        ]}
-      />
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <IslandNavbar
+          title="Wallet"
+          actions={[
+            {
+              icon: (
+                <HugeiconsIcon
+                  icon={ArrowDataTransferHorizontalIcon}
+                  size={18}
+                />
+              ),
+              label: "Add Card",
+              onPress: openTransferPage,
+            },
+            {
+              icon: <HugeiconsIcon icon={CreditCardAddIcon} size={18} />,
+              label: "Add Card",
+              onPress: openNewCardEditor,
+            },
+          ]}
+        />
+      </div>
 
-      <div className="max-w-md mx-auto px-4 pt-4 space-y-6">
+      <div className="px-4 pt-4 space-y-5 pt-[64px]">
         {/* CAROUSEL KARTU (SWIPE) */}
         <section className="relative flex flex-col items-center">
           <div className="relative w-full">
@@ -480,7 +498,7 @@ export default function WalletPage() {
             onClick={openNewCardEditor}
             className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-800 py-3.5 rounded-2xl text-xs font-bold shadow-sm active:scale-95 transition-all text-gray-600 dark:text-gray-200"
           >
-            <HugeiconsIcon icon={Add01Icon} size={15} />
+            <HugeiconsIcon icon={CreditCardAddIcon} size={15} />
             Tambah Kartu
           </button>
 
