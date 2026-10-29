@@ -98,16 +98,51 @@ const rowInputCls =
 // ─── KOMPONEN UTAMA ───────────────────────────────────────────────────────────
 
 interface CardEditorProps {
-  card: Card | null; // null = kartu baru
-  onBack: () => void;
-  onSaved: () => void;
-  onDeleted: () => void;
+  card?: Card | null; // null = kartu baru
+  cardId?: string;
+  onBack?: () => void;
+  onSaved?: () => void;
+  onDeleted?: () => void;
 }
 
-export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
-  const isEdit = !!card;
-  const initialType: CardType = card?.type ?? "BANK";
+export function CardEditor({
+  card: propCard,
+  cardId,
+  onBack,
+  onSaved,
+  onDeleted,
+}: CardEditorProps) {
   const router = useRouter();
+  const [card, setCard] = useState<Card | null>(propCard ?? null);
+  const [loadingCard, setLoadingCard] = useState(!propCard && !!cardId);
+
+  useEffect(() => {
+    if (propCard !== undefined) {
+      setCard(propCard);
+      return;
+    }
+    if (!cardId) return;
+
+    let active = true;
+    setLoadingCard(true);
+    fetch(`/api/cards/${cardId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.card) {
+          setCard(data.card);
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (active) setLoadingCard(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [propCard, cardId]);
+
+  const isEdit = !!card || !!cardId;
+  const initialType: CardType = card?.type ?? "BANK";
 
   // Step hanya dipakai saat menambah kartu baru
   const [step, setStep] = useState(0);
@@ -135,6 +170,21 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
   const [dueDay, setDueDay] = useState(String(card?.dueDay || 5));
   const [dueOffset, setDueOffset] = useState(String(card?.dueOffset || 1));
 
+  // Sinkronkan form saat data card selesai di-fetch
+  useEffect(() => {
+    if (!card) return;
+    setName(card.name ?? "");
+    setType(card.type ?? "BANK");
+    setBalance(card.balance !== undefined ? String(card.balance) : "");
+    setStyleIndex(getStyleIndex(card.type ?? "BANK", card.style));
+    if (card.type === "BANK") {
+      setLogo(card.logo ?? "mastercard");
+    }
+    setCutoff(String(card.cutoffDay || 20));
+    setDueDay(String(card.dueDay || 5));
+    setDueOffset(String(card.dueOffset || 1));
+  }, [card]);
+
   const [saving, setSaving] = useState(false);
 
   const config = CARD_TYPE_CONFIG[type];
@@ -148,7 +198,11 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
   const canSwipe = showStep(1);
 
   const handleBack = () => {
-    router.push("/wallet");
+    if (onBack) {
+      onBack();
+    } else {
+      router.push("/wallet");
+    }
   };
 
   useEffect(() => {
@@ -204,10 +258,11 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
 
     setSaving(true);
     try {
+      const targetId = card?.id || cardId;
       const response = await fetch(
-        isEdit ? `/api/cards/${card!.id}` : "/api/cards",
+        isEdit && targetId ? `/api/cards/${targetId}` : "/api/cards",
         {
-          method: isEdit ? "PATCH" : "POST",
+          method: isEdit && targetId ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         },
@@ -219,7 +274,11 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
             ? "Kartu berhasil diperbarui"
             : "Kartu baru berhasil ditambahkan",
         );
-        onSaved();
+        if (onSaved) {
+          onSaved();
+        } else {
+          router.push("/wallet");
+        }
       } else {
         const errorData = await response.json();
         toast.error(errorData.error || "Gagal mengolah info kartu");
@@ -243,7 +302,8 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
   };
 
   const handleDelete = async () => {
-    if (!card) return;
+    const targetId = card?.id || cardId;
+    if (!targetId) return;
     if (
       !confirm(
         "Kartu ini akan dihapus secara soft-delete. Transaksi terkait tidak akan dihapus. Lanjutkan?",
@@ -252,12 +312,16 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
       return;
 
     try {
-      const response = await fetch(`/api/cards/${card.id}`, {
+      const response = await fetch(`/api/cards/${targetId}`, {
         method: "DELETE",
       });
       if (response.ok) {
         toast.success("Kartu dihapus");
-        onDeleted();
+        if (onDeleted) {
+          onDeleted();
+        } else {
+          router.push("/wallet");
+        }
       } else {
         toast.error("Gagal menghapus kartu.");
       }
@@ -280,8 +344,14 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
         />
       </div>
 
-      <form onSubmit={handleSubmit}>
+      {loadingCard ? (
         <div className="mx-auto max-w-md space-y-6 px-4 pt-[84px]">
+          <div className="h-[210px] w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
+          <div className="h-32 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="mx-auto max-w-md space-y-6 px-4 pt-[84px]">
           {/* Progress: tiga garis tipis (kartu baru saja) */}
           {!isEdit && (
             <div>
@@ -579,6 +649,7 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
           </div>
         </div>
       </form>
+      )}
     </div>
   );
 }

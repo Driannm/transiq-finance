@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
-import { CardEditor, type Card } from "@/components/Wallet/CardEditor";
-import { TransferEditor } from "@/components/Wallet/TransferEditor";
+import { type Card } from "@/components/Wallet/CardEditor";
 import { canSendTransfer, canReceiveTransfer } from "@/lib/transferRules";
 import {
   CARD_TYPE_CONFIG,
@@ -24,8 +24,6 @@ import {
   CreditCardAddIcon,
   ArrowDataTransferDiagonalIcon,
   ArrowDataTransferHorizontalIcon,
-  Settings01Icon,
-  Cancel01Icon,
 } from "@hugeicons/core-free-icons";
 import {
   CreditCard,
@@ -37,9 +35,11 @@ import {
 interface TransferHistoryItem {
   id: string;
   targetName: string;
+  fromCardName?: string;
   bankName: string;
   time: string;
   amount: number;
+  fee: number;
   type: "send" | "receive";
   fromCardType: CardType;
   toCardType: CardType;
@@ -134,39 +134,35 @@ interface TransferRowProps {
 }
 
 function TransferRow({ tr, fromCard, toCard }: TransferRowProps) {
-  const isPaylater =
-    tr.fromCardType === "PAYLATER" || tr.toCardType === "PAYLATER";
-
   const timeLabel = new Date(tr.time).toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-  const fromName = fromCard?.name ?? "Kartu dihapus";
-  const toName =
-    toCard?.name ?? (tr.targetName || tr.bankName || "Kartu dihapus");
+  const fromName = fromCard?.name ?? tr.fromCardName ?? "Kartu dihapus";
+  const toName = toCard?.name ?? tr.targetName ?? "Kartu dihapus";
+  const totalDeducted = tr.amount + (tr.fee || 0);
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3">
       {/* Asal */}
       <div className="min-w-0">
         <p className="text-[13px] font-bold tabular-nums leading-tight text-rose-600 dark:text-rose-400 truncate">
-          − {formatIDR(tr.amount)}
+          − {formatIDR(totalDeducted)}
         </p>
         <p className="text-[11px] mt-0.5 text-gray-500 dark:text-neutral-400 truncate">
           {fromName}
         </p>
+        {tr.fee > 0 && (
+          <p className="text-[9px] text-gray-400 dark:text-neutral-500 truncate">
+            Termasuk admin {formatIDR(tr.fee)}
+          </p>
+        )}
       </div>
 
       {/* Tengah: ikon + jam */}
       <div className="flex flex-col items-center gap-1">
-        <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center ${
-            isPaylater
-              ? "bg-rose-50 text-rose-500 dark:bg-rose-950/30"
-              : "bg-blue-50 text-blue-500 dark:bg-blue-950/30"
-          }`}
-        >
+        <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-50 text-blue-500 dark:bg-blue-950/30">
           <HugeiconsIcon icon={ArrowDataTransferHorizontalIcon} size={14} />
         </div>
         <span className="text-[10px] font-mono tabular-nums text-gray-400 dark:text-neutral-500">
@@ -190,11 +186,13 @@ function TransferRow({ tr, fromCard, toCard }: TransferRowProps) {
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export default function WalletPage() {
+  const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
   const [transfers, setTransfers] = useState<TransferHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Carousel: index 0 = kartu dengan saldo terbesar (default)
+  // Lacak kartu aktif berdasarkan ID agar tidak melompat ketika saldo & urutan array berubah
+  const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [activeCardIndex, setActiveCardIndex] = useState(0);
 
   // Mencegah klik (buka editor) ikut terpicu saat user baru selesai swipe
@@ -208,7 +206,7 @@ export default function WalletPage() {
   const releaseVelocityRef = useRef(0);
   const observerRef = useRef<ResizeObserver | null>(null);
 
-  // Ukur lebar bingkai carousel (callback ref, aman saat editor dibuka/ditutup)
+  // Ukur lebar bingkai carousel (callback ref)
   const frameRef = useCallback((node: HTMLDivElement | null) => {
     observerRef.current?.disconnect();
     observerRef.current = null;
@@ -240,14 +238,6 @@ export default function WalletPage() {
     "all",
   );
 
-  const [isTransferOpen, setIsTransferOpen] = useState(false);
-
-  // Halaman add/edit kartu (card = null berarti kartu baru)
-  const [editorState, setEditorState] = useState<{
-    open: boolean;
-    card: Card | null;
-  }>({ open: false, card: null });
-
   // Fetch data
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -264,9 +254,20 @@ export default function WalletPage() {
           (a: Card, b: Card) => b.balance - a.balance,
         );
         setCards(sortedCards);
-        setActiveCardIndex((prev) =>
-          Math.min(prev, Math.max(sortedCards.length - 1, 0)),
-        );
+
+        // Pertahankan kartu aktif berdasarkan id jika memungkinkan
+        setActiveCardId((currentActiveId) => {
+          if (currentActiveId) {
+            const idx = sortedCards.findIndex((c) => c.id === currentActiveId);
+            if (idx !== -1) {
+              setActiveCardIndex(idx);
+              return currentActiveId;
+            }
+          }
+          setActiveCardIndex(0);
+          return sortedCards[0]?.id ?? null;
+        });
+
         setTransfers(transfersData.transfers || []);
       } else {
         toast.error("Gagal memuat beberapa layanan finansial.");
@@ -289,6 +290,7 @@ export default function WalletPage() {
   const goToCard = (next: number) => {
     if (next < 0 || next >= cardsCount || next === activeCardIndex) return;
     setActiveCardIndex(next);
+    setActiveCardId(cards[next]?.id ?? null);
   };
 
   // Lepas jari: tentukan kartu tujuan dari jarak dan kecepatan geser
@@ -319,6 +321,7 @@ export default function WalletPage() {
       releaseVelocityRef.current = 0;
     } else {
       setActiveCardIndex(next);
+      setActiveCardId(cards[next]?.id ?? null);
     }
 
     // Jeda singkat agar onClick tidak terpicu setelah drag
@@ -340,11 +343,10 @@ export default function WalletPage() {
   const cardById = new Map(cards.map((c) => [c.id, c]));
   const groupedTransfers = groupTransfersByDay(filteredTransfers);
 
-  // Editor handlers
-  const openNewCardEditor = () => setEditorState({ open: true, card: null });
+  // Navigasi ke URL mandiri
+  const openNewCardEditor = () => router.push("/wallet/cards/add");
   const openEditCardEditor = (card: Card) =>
-    setEditorState({ open: true, card });
-  const closeEditor = () => setEditorState({ open: false, card: null });
+    router.push(`/wallet/cards/${card.id}/edit`);
 
   const openTransferPage = () => {
     const senders = cards.filter((c) => canSendTransfer(c.type));
@@ -357,40 +359,9 @@ export default function WalletPage() {
       );
       return;
     }
-    setIsTransferOpen(true);
+    const query = activeCardObject ? `?fromCardId=${activeCardObject.id}` : "";
+    router.push(`/wallet/transfer${query}`);
   };
-
-  // Halaman editor kartu (semua hook sudah dipanggil di atas, jadi aman)
-  if (editorState.open) {
-    return (
-      <CardEditor
-        card={editorState.card}
-        onBack={closeEditor}
-        onSaved={() => {
-          closeEditor();
-          loadData();
-        }}
-        onDeleted={() => {
-          closeEditor();
-          setActiveCardIndex(0);
-          loadData();
-        }}
-      />
-    );
-  }
-  if (isTransferOpen) {
-    return (
-      <TransferEditor
-        cards={cards}
-        initialFromId={activeCardObject?.id}
-        onBack={() => setIsTransferOpen(false)}
-        onSuccess={() => {
-          setIsTransferOpen(false);
-          loadData();
-        }}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
@@ -405,7 +376,7 @@ export default function WalletPage() {
                   size={18}
                 />
               ),
-              label: "Add Card",
+              label: "Transfer",
               onPress: openTransferPage,
             },
             {
@@ -417,7 +388,7 @@ export default function WalletPage() {
         />
       </div>
 
-      <div className="px-4 pt-4 space-y-5 pt-[64px]">
+      <div className="px-4 space-y-5 pt-[64px]">
         {/* CAROUSEL KARTU (SWIPE) */}
         <section className="relative flex flex-col items-center">
           <div className="relative w-full">
@@ -491,25 +462,6 @@ export default function WalletPage() {
             </div>
           )}
         </section>
-
-        {/* Action Controls */}
-        <div className="flex gap-4">
-          <button
-            onClick={openNewCardEditor}
-            className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-neutral-900 hover:bg-gray-50 dark:hover:bg-neutral-800 border border-gray-200 dark:border-neutral-800 py-3.5 rounded-2xl text-xs font-bold shadow-sm active:scale-95 transition-all text-gray-600 dark:text-gray-200"
-          >
-            <HugeiconsIcon icon={CreditCardAddIcon} size={15} />
-            Tambah Kartu
-          </button>
-
-          <button
-            onClick={openTransferPage}
-            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 py-3.5 rounded-2xl text-xs font-bold text-white shadow-md active:scale-95 transition-all"
-          >
-            <HugeiconsIcon icon={ArrowDataTransferDiagonalIcon} size={15} />
-            Kirim Transfer
-          </button>
-        </div>
 
         {/* Transfer History */}
         <section className="space-y-4 pt-2">

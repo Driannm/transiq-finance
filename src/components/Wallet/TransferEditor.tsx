@@ -282,34 +282,72 @@ function CardPickerSheet({
 // ─── HALAMAN TRANSFER ─────────────────────────────────────────────────────────
 
 interface TransferEditorProps {
-  cards: Card[];
+  cards?: Card[];
   initialFromId?: string;
-  onBack: () => void;
-  onSuccess: () => void;
+  onBack?: () => void;
+  onSuccess?: () => void;
 }
 
 export function TransferEditor({
-  cards,
+  cards: propCards,
   initialFromId,
+  onBack,
   onSuccess,
 }: TransferEditorProps) {
   const router = useRouter();
   const reduce = useReducedMotion();
 
+  const [cards, setCards] = useState<Card[]>(propCards || []);
+  const [loadingCards, setLoadingCards] = useState(!propCards || propCards.length === 0);
+
+  useEffect(() => {
+    if (propCards && propCards.length > 0) {
+      setCards(propCards);
+      setLoadingCards(false);
+      return;
+    }
+    let active = true;
+    setLoadingCards(true);
+    fetch("/api/cards")
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.cards) {
+          setCards(data.cards);
+        }
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (active) setLoadingCards(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [propCards]);
+
   const senderCards = cards.filter((c) => canSendTransfer(c.type));
   const receiverCards = cards.filter((c) => canReceiveTransfer(c.type));
 
-  const [fromId, setFromId] = useState(
-    () =>
-      senderCards.find((c) => c.id === initialFromId)?.id ??
-      senderCards[0]?.id ??
-      "",
-  );
-  const [toId, setToId] = useState(() => {
-    const from =
-      senderCards.find((c) => c.id === initialFromId) ?? senderCards[0];
-    return receiverCards.find((c) => c.id !== from?.id)?.id ?? "";
-  });
+  const [fromId, setFromId] = useState("");
+  const [toId, setToId] = useState("");
+
+  // Sinkronkan fromId dan toId saat cards dimuat
+  useEffect(() => {
+    if (cards.length === 0) return;
+    const senders = cards.filter((c) => canSendTransfer(c.type));
+    const receivers = cards.filter((c) => canReceiveTransfer(c.type));
+
+    setFromId((current) => {
+      if (current && senders.some((c) => c.id === current)) return current;
+      return senders.find((c) => c.id === initialFromId)?.id ?? senders[0]?.id ?? "";
+    });
+
+    setToId((current) => {
+      const activeFrom = senders.find((c) => c.id === initialFromId)?.id ?? senders[0]?.id;
+      if (current && receivers.some((c) => c.id === current) && current !== activeFrom) return current;
+      return receivers.find((c) => c.id !== activeFrom)?.id ?? "";
+    });
+  }, [cards, initialFromId]);
+
   const [amount, setAmount] = useState(""); // digit saja
   const [fee, setFee] = useState(""); // "" = gratis, selain itu "2500" / "6500"
   const [date, setDate] = useState(() => isoFromDate(new Date()));
@@ -370,12 +408,22 @@ export function TransferEditor({
       return;
     }
 
+    const now = new Date();
+    let datePayload = date;
+    if (date === isoFromDate(now)) {
+      datePayload = now.toISOString();
+    } else {
+      const [y, m, d] = date.split("-").map(Number);
+      const customDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+      datePayload = customDate.toISOString();
+    }
+
     const payload = {
       fromCardId: fromId,
       toCardId: toId,
       amount: amountNum,
       fee: feeNum,
-      date,
+      date: datePayload,
     };
 
     setSaving(true);
@@ -388,7 +436,11 @@ export function TransferEditor({
 
       if (res.ok) {
         toast.success("Transfer berhasil diproses");
-        onSuccess();
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push("/wallet");
+        }
       } else {
         const errorData = await res.json();
         toast.error(errorData.error || "Gagal memproses transfer");
@@ -398,6 +450,14 @@ export function TransferEditor({
       toast.error("Kesalahan jaringan.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      router.push("/wallet");
     }
   };
 
@@ -421,13 +481,38 @@ export function TransferEditor({
         <IslandNavbar
           title="Transfers Baru"
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
-          onAvatarPress={() => router.back()}
+          onAvatarPress={handleBack}
           actions={[]}
         />
       </div>
 
-      <form onSubmit={handleSubmit}>
+      {loadingCards ? (
         <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px]">
+          <div className="h-24 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
+          <div className="h-24 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
+          <div className="h-32 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
+        </div>
+      ) : senderCards.length === 0 || receiverCards.length === 0 ? (
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px] text-center">
+          <div className="rounded-2xl border border-dashed border-gray-300 dark:border-neutral-800 p-8">
+            <p className="text-sm font-semibold text-gray-700 dark:text-neutral-300">
+              Kartu belum memenuhi syarat transfer
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-neutral-500">
+              Transfer membutuhkan minimal satu kartu Bank / E-Wallet dan satu kartu tujuan.
+            </p>
+            <button
+              type="button"
+              onClick={handleBack}
+              className="mt-4 inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-blue-700"
+            >
+              Kembali ke Wallet
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit}>
+          <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px]">
           {/* Dua baris + tombol tukar */}
           <div className="relative space-y-2">
             {/* DARI */}
@@ -621,6 +706,7 @@ export function TransferEditor({
           </button>
         </div>
       </form>
+      )}
 
       <CardPickerSheet
         open={picker !== null}
