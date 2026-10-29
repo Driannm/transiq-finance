@@ -64,7 +64,12 @@ function BottomSheet({ open, onClose, title, children }: SheetProps) {
   );
 }
 
-export function SortSheet({ config, value, onChange, isActive }: SortSheetProps) {
+export function SortSheet({
+  config,
+  value,
+  onChange,
+  isActive,
+}: SortSheetProps) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<SortState>(value);
   const showDirection = config.showDirection !== false;
@@ -89,8 +94,14 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
     setOpen(false);
   }, [config, onChange]);
 
+  const activeSortLabel =
+    config.fields.find((field) => field.value === value.field)?.label ?? "Sort";
+
   const toggleDirection = useCallback(() => {
-    setPending((p) => ({ ...p, direction: p.direction === "asc" ? "desc" : "asc" }));
+    setPending((p) => ({
+      ...p,
+      direction: p.direction === "asc" ? "desc" : "asc",
+    }));
   }, []);
 
   return (
@@ -99,18 +110,28 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
       <button
         onClick={handleOpen}
         className={cn(
-          "flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border text-[13px] font-semibold transition-all",
+          "flex items-center gap-2 px-3.5 py-3 rounded-2xl text-[13px] font-semibold transition-colors",
           isActive
-            ? "bg-white dark:bg-indigo-500 border-indigo-800 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900"
-            : "bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:border-slate-300 dark:hover:border-neutral-600"
+            ? "bg-orange-500 text-white shadow-md"
+            : "bg-white dark:bg-neutral-900 text-slate-600 dark:text-neutral-300",
         )}
       >
         <HugeiconsIcon icon={Sorting01Icon} size={15} />
-        {isActive && (
-          <span className="text-[13px]">
-            {config.fields.find((f) => f.value === value.field)?.label?.split(" ")[0]}
-          </span>
-        )}
+
+        <div className="relative grid overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.span
+              key={isActive ? activeSortLabel : "sort"}
+              initial={{ opacity: 0, y: 6, filter: "blur(3px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, y: -6, filter: "blur(3px)" }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="col-start-1 row-start-1 whitespace-nowrap"
+            >
+              {isActive ? activeSortLabel : "Sort"}
+            </motion.span>
+          </AnimatePresence>
+        </div>
       </button>
 
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Sort by">
@@ -120,10 +141,10 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
             <button
               onClick={() => setPending((p) => ({ ...p, direction: "asc" }))}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-semibold border transition-all",
+                "flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-semibold transition-all",
                 pending.direction === "asc"
-                  ? "bg-[#6366F1] border-[#6366F1] text-white"
-                  : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-750"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white dark:bg-neutral-800 text-slate-500 dark:text-neutral-400",
               )}
             >
               <HugeiconsIcon icon={ArrowUpZAIcon} size={14} />
@@ -132,60 +153,124 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
             <button
               onClick={() => setPending((p) => ({ ...p, direction: "desc" }))}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-semibold border transition-all",
+                "flex-1 flex items-center justify-center gap-2 h-10 rounded-xl text-[13px] font-semibold transition-all",
                 pending.direction === "desc"
-                  ? "bg-[#6366F1] border-[#6366F1] text-white"
-                  : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-500 dark:text-neutral-400 hover:bg-slate-50 dark:hover:bg-neutral-750"
+                  ? "bg-orange-500 text-white"
+                  : "bg-white dark:bg-neutral-800 text-slate-500 dark:text-neutral-400",
               )}
             >
-              <HugeiconsIcon icon={ArrowDownAZIcon} size={14} /> 
+              <HugeiconsIcon icon={ArrowDownAZIcon} size={14} />
               Descending
             </button>
           </div>
         )}
 
         {/* Field list */}
-        <div className="space-y-1 mb-6 max-h-72 overflow-y-auto">
-          {config.fields.map((field) => (
-            <button
-              key={field.value}
-              onClick={() => setPending((p) => ({ ...p, field: field.value }))}
-              className={cn(
-                "w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all",
-                pending.field === field.value
-                  ? "border-[#6366F1] bg-[#6366F1]/5 dark:bg-[#6366F1]/10"
-                  : "border-transparent hover:bg-slate-50 dark:hover:bg-neutral-800"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                {field.icon && (
-                  <HugeiconsIcon
-                    icon={field.icon}
-                    size={16}
-                    className={pending.field === field.value ? "text-[#6366F1]" : "text-slate-400 dark:text-neutral-500"}
-                  />
-                )}
-                <div className="text-left">
-                  <p className={cn(
-                    "text-[14px] font-semibold",
-                    pending.field === field.value ? "text-[#6366F1]" : "text-slate-800 dark:text-neutral-200"
-                  )}>
-                    {field.label}
-                  </p>
-                  {field.description && (
-                    <p className="text-[11px] text-slate-400 dark:text-neutral-500 mt-0.5">{field.description}</p>
+        <div className="mb-6 max-h-72 overflow-y-auto">
+          <div className="divide-y divide-slate-200/80 dark:divide-neutral-800">
+            {config.fields.map((field) => {
+              const selected = pending.field === field.value;
+
+              return (
+                <button
+                  key={field.value}
+                  onClick={() =>
+                    setPending((p) => ({
+                      ...p,
+                      field: field.value,
+                    }))
+                  }
+                  className={cn(
+                    "relative w-full flex items-center justify-between gap-3 px-4 py-3.5",
+                    "transition-colors duration-200",
+                    "rounded rounded-2xl",
+                    selected
+                      ? "bg-orange-500/5 dark:bg-orange-500/10"
+                      : "hover:bg-slate-50 dark:hover:bg-neutral-800/70",
                   )}
-                </div>
-              </div>
-              {pending.field === field.value && (
-                <div className="w-5 h-5 rounded-full bg-[#6366F1] flex items-center justify-center flex-shrink-0">
-                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                    <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              )}
-            </button>
-          ))}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {field.icon && (
+                      <HugeiconsIcon
+                        icon={field.icon}
+                        size={16}
+                        className={cn(
+                          "shrink-0 transition-colors duration-200",
+                          selected
+                            ? "text-orange-500"
+                            : "text-slate-400 dark:text-neutral-500",
+                        )}
+                      />
+                    )}
+
+                    <div className="min-w-0 text-left">
+                      <p
+                        className={cn(
+                          "text-[14px] font-semibold transition-colors duration-200",
+                          selected
+                            ? "text-orange-500"
+                            : "text-slate-800 dark:text-neutral-200",
+                        )}
+                      >
+                        {field.label}
+                      </p>
+
+                      {field.description && (
+                        <p className="mt-0.5 text-[11px] text-slate-400 dark:text-neutral-500">
+                          {field.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+                    <AnimatePresence initial={false} mode="wait">
+                      {selected && (
+                        <motion.div
+                          key="selected-check"
+                          initial={{
+                            opacity: 0,
+                            scale: 0.5,
+                            rotate: -25,
+                          }}
+                          animate={{
+                            opacity: 1,
+                            scale: 1,
+                            rotate: 0,
+                          }}
+                          exit={{
+                            opacity: 0,
+                            scale: 0.5,
+                            rotate: 25,
+                          }}
+                          transition={{
+                            duration: 0.18,
+                            ease: "easeOut",
+                          }}
+                          className="absolute inset-0 flex items-center justify-center rounded-full bg-orange-500"
+                        >
+                          <svg
+                            width="10"
+                            height="8"
+                            viewBox="0 0 10 8"
+                            fill="none"
+                          >
+                            <path
+                              d="M1 4l3 3 5-6"
+                              stroke="white"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="flex gap-3">
@@ -198,7 +283,7 @@ export function SortSheet({ config, value, onChange, isActive }: SortSheetProps)
           </Button>
           <Button
             onClick={handleApply}
-            className="flex-1 h-12 rounded-xl font-bold bg-[#6366F1] text-white hover:bg-[#4F46E5]"
+            className="flex-1 h-12 rounded-xl font-bold bg-orange-500 text-white hover:bg-orange-600"
           >
             Apply
           </Button>

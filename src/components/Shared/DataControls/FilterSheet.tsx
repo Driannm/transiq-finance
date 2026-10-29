@@ -9,14 +9,23 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FilterIcon, Cancel01Icon, Tick01Icon } from "@hugeicons/core-free-icons";
+import {
+  FilterIcon,
+  Cancel01Icon,
+  Tick01Icon,
+} from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { FilterConfig, FilterState, FilterValue, FilterField } from "./types";
+import type {
+  FilterConfig,
+  FilterState,
+  FilterValue,
+  FilterField,
+} from "./types";
 
 // ── Single field renderers ────────────────────────────────────────────────────
 
@@ -41,15 +50,25 @@ function SelectField({
               "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-semibold border transition-all",
               isSelected
                 ? "bg-[#6366F1] border-[#6366F1] text-white"
-                : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-neutral-300 hover:border-slate-300"
+                : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-neutral-300 hover:border-slate-300",
             )}
           >
             {opt.color && (
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: opt.color }} />
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: opt.color }}
+              />
             )}
             {opt.label}
             {opt.count !== undefined && (
-              <span className={cn("text-[11px]", isSelected ? "opacity-70" : "text-slate-400 dark:text-neutral-500")}>
+              <span
+                className={cn(
+                  "text-[11px]",
+                  isSelected
+                    ? "opacity-70"
+                    : "text-slate-400 dark:text-neutral-500",
+                )}
+              >
                 {opt.count}
               </span>
             )}
@@ -90,33 +109,48 @@ function MultiSelectField({
               "w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all",
               isSelected
                 ? "border-[#6366F1] bg-[#6366F1]/5 dark:bg-[#6366F1]/10"
-                : "border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800"
+                : "border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800",
             )}
           >
             <div className="flex items-center gap-3">
               {opt.color && (
-                <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }} />
+                <span
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: opt.color }}
+                />
               )}
               <div className="text-left">
-                <span className={cn(
-                  "text-[13px] font-semibold",
-                  isSelected ? "text-[#6366F1]" : "text-slate-700 dark:text-neutral-300"
-                )}>
+                <span
+                  className={cn(
+                    "text-[13px] font-semibold",
+                    isSelected
+                      ? "text-[#6366F1]"
+                      : "text-slate-700 dark:text-neutral-300",
+                  )}
+                >
                   {opt.label}
                 </span>
                 {opt.description && (
-                  <p className="text-[11px] text-slate-400 dark:text-neutral-500">{opt.description}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-neutral-500">
+                    {opt.description}
+                  </p>
                 )}
               </div>
             </div>
-            <div className={cn(
-              "w-5 h-5 rounded flex items-center justify-center border transition-all flex-shrink-0",
-              isSelected
-                ? "bg-[#6366F1] border-[#6366F1]"
-                : "border-slate-300 dark:border-neutral-600"
-            )}>
+            <div
+              className={cn(
+                "w-5 h-5 rounded flex items-center justify-center border transition-all flex-shrink-0",
+                isSelected
+                  ? "bg-[#6366F1] border-[#6366F1]"
+                  : "border-slate-300 dark:border-neutral-600",
+              )}
+            >
               {isSelected && (
-                <HugeiconsIcon icon={Tick01Icon} size={11} className="text-white" />
+                <HugeiconsIcon
+                  icon={Tick01Icon}
+                  size={11}
+                  className="text-white"
+                />
               )}
             </div>
           </button>
@@ -138,9 +172,10 @@ function RangeField({
   const min = field.min ?? 0;
   const max = field.max ?? 100;
   const step = field.step ?? 1;
-  const range = (Array.isArray(value) && typeof value[0] === "number")
-    ? (value as [number, number])
-    : [min, max];
+  const range =
+    Array.isArray(value) && typeof value[0] === "number"
+      ? (value as [number, number])
+      : [min, max];
 
   const fmt = (n: number) => {
     if (field.unit === "$" || field.unit === "IDR") {
@@ -152,8 +187,12 @@ function RangeField({
   return (
     <div>
       <div className="flex justify-between mb-3">
-        <span className="text-[13px] font-bold text-[#6366F1]">{fmt(range[0])}</span>
-        <span className="text-[13px] font-bold text-[#6366F1]">{fmt(range[1])}</span>
+        <span className="text-[13px] font-bold text-[#6366F1]">
+          {fmt(range[0])}
+        </span>
+        <span className="text-[13px] font-bold text-[#6366F1]">
+          {fmt(range[1])}
+        </span>
       </div>
       <Slider
         min={min}
@@ -164,8 +203,12 @@ function RangeField({
         className="[&>[data-slot=slider-thumb]]:bg-[#6366F1] [&>[data-slot=slider-range]]:bg-[#6366F1]"
       />
       <div className="flex justify-between mt-1.5">
-        <span className="text-[11px] text-slate-400 dark:text-neutral-500">{fmt(min)}</span>
-        <span className="text-[11px] text-slate-400 dark:text-neutral-500">{fmt(max)}</span>
+        <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+          {fmt(min)}
+        </span>
+        <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+          {fmt(max)}
+        </span>
       </div>
     </div>
   );
@@ -179,14 +222,17 @@ function DateRangeField({
   value: FilterValue;
   onChange: (v: FilterValue) => void;
 }) {
-  const range = (Array.isArray(value) && typeof value[0] === "string")
-    ? (value as [string, string])
-    : ["", ""];
+  const range =
+    Array.isArray(value) && typeof value[0] === "string"
+      ? (value as [string, string])
+      : ["", ""];
 
   return (
     <div className="flex gap-3">
       <div className="flex-1">
-        <label className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wide mb-1.5 block">From</label>
+        <label className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wide mb-1.5 block">
+          From
+        </label>
         <input
           type="date"
           value={range[0]}
@@ -195,7 +241,9 @@ function DateRangeField({
         />
       </div>
       <div className="flex-1">
-        <label className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wide mb-1.5 block">To</label>
+        <label className="text-[11px] font-semibold text-slate-400 dark:text-neutral-500 uppercase tracking-wide mb-1.5 block">
+          To
+        </label>
         <input
           type="date"
           value={range[1]}
@@ -251,24 +299,34 @@ function RadioField({
               "w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all",
               isSelected
                 ? "border-[#6366F1] bg-[#6366F1]/5 dark:bg-[#6366F1]/10"
-                : "border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800"
+                : "border-slate-100 dark:border-neutral-800 hover:bg-slate-50 dark:hover:bg-neutral-800",
             )}
           >
             <div className="text-left">
-              <p className={cn(
-                "text-[14px] font-semibold",
-                isSelected ? "text-[#6366F1]" : "text-slate-800 dark:text-neutral-200"
-              )}>
+              <p
+                className={cn(
+                  "text-[14px] font-semibold",
+                  isSelected
+                    ? "text-[#6366F1]"
+                    : "text-slate-800 dark:text-neutral-200",
+                )}
+              >
                 {opt.label}
               </p>
               {opt.description && (
-                <p className="text-[11px] text-slate-400 dark:text-neutral-500 mt-0.5">{opt.description}</p>
+                <p className="text-[11px] text-slate-400 dark:text-neutral-500 mt-0.5">
+                  {opt.description}
+                </p>
               )}
             </div>
-            <div className={cn(
-              "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
-              isSelected ? "border-[#6366F1]" : "border-slate-300 dark:border-neutral-600"
-            )}>
+            <div
+              className={cn(
+                "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                isSelected
+                  ? "border-[#6366F1]"
+                  : "border-slate-300 dark:border-neutral-600",
+              )}
+            >
               {isSelected && (
                 <div className="w-2.5 h-2.5 rounded-full bg-[#6366F1]" />
               )}
@@ -290,13 +348,22 @@ function FieldRenderer({
   onChange: (v: FilterValue) => void;
 }) {
   switch (field.type) {
-    case "select":      return <SelectField field={field} value={value} onChange={onChange} />;
-    case "multiselect": return <MultiSelectField field={field} value={value} onChange={onChange} />;
-    case "range":       return <RangeField field={field} value={value} onChange={onChange} />;
-    case "daterange":   return <DateRangeField field={field} value={value} onChange={onChange} />;
-    case "toggle":      return <ToggleField field={field} value={value} onChange={onChange} />;
-    case "radio":       return <RadioField field={field} value={value} onChange={onChange} />;
-    default:            return null;
+    case "select":
+      return <SelectField field={field} value={value} onChange={onChange} />;
+    case "multiselect":
+      return (
+        <MultiSelectField field={field} value={value} onChange={onChange} />
+      );
+    case "range":
+      return <RangeField field={field} value={value} onChange={onChange} />;
+    case "daterange":
+      return <DateRangeField field={field} value={value} onChange={onChange} />;
+    case "toggle":
+      return <ToggleField field={field} value={value} onChange={onChange} />;
+    case "radio":
+      return <RadioField field={field} value={value} onChange={onChange} />;
+    default:
+      return null;
   }
 }
 
@@ -351,8 +418,8 @@ export function FilterSheet({
         className={cn(
           "relative flex items-center gap-2 px-3.5 py-2.5 rounded-2xl border text-[13px] font-semibold transition-all",
           activeCount > 0
-            ? "bg-[#6366F1] border-[#6366F1] text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900"
-            : "bg-white dark:bg-neutral-800 border-slate-200 dark:border-neutral-700 text-slate-600 dark:text-neutral-300 hover:border-slate-300 dark:hover:border-neutral-600"
+            ? "bg-white dark:bg-indigo-500 border-indigo-800 text-white shadow-md shadow-indigo-200 dark:shadow-indigo-900"
+            : "bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-800 text-slate-600 dark:text-neutral-300 hover:border-slate-300 dark:hover:border-neutral-600",
         )}
       >
         <HugeiconsIcon icon={FilterIcon} size={15} />
@@ -387,7 +454,9 @@ export function FilterSheet({
               <div className="px-6 pt-6 pb-4 flex-shrink-0">
                 <div className="w-10 h-1 bg-slate-200 dark:bg-neutral-700 rounded-full mx-auto mb-5" />
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[17px] font-bold text-slate-900 dark:text-neutral-100">Filter</h3>
+                  <h3 className="text-[17px] font-bold text-slate-900 dark:text-neutral-100">
+                    Filter
+                  </h3>
                   {activeCount > 0 && (
                     <button
                       onClick={handleReset}
@@ -406,7 +475,11 @@ export function FilterSheet({
                   <div key={field.key}>
                     <div className="flex items-center gap-2 mb-3">
                       {field.icon && (
-                        <HugeiconsIcon icon={field.icon} size={15} className="text-slate-400 dark:text-neutral-500" />
+                        <HugeiconsIcon
+                          icon={field.icon}
+                          size={15}
+                          className="text-slate-400 dark:text-neutral-500"
+                        />
                       )}
                       <h4 className="text-[13px] font-bold text-slate-500 dark:text-neutral-400 uppercase tracking-wide">
                         {field.label}
@@ -454,7 +527,12 @@ interface ActiveChipsProps {
   onClearAll: () => void;
 }
 
-export function ActiveFilterChips({ config, filters, onRemove, onClearAll }: ActiveChipsProps) {
+export function ActiveFilterChips({
+  config,
+  filters,
+  onRemove,
+  onClearAll,
+}: ActiveChipsProps) {
   const activeFields = config.fields.filter((field) => {
     const val = filters[field.key];
     if (!val) return false;
