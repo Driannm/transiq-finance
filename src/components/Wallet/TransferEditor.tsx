@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -348,6 +348,43 @@ export function TransferEditor({
     });
   }, [cards, initialFromId]);
 
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Mencegah iOS WebKit / PWA auto-scroll / loncat saat input nominal difokuskan
+  const handleInputFocus = useCallback(() => {
+    if (typeof window === "undefined") return;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    });
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, 60);
+    setTimeout(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }, 200);
+  }, []);
+
+  // Pastikan posisi scroll window tetap di 0 saat keyboard virtual iPhone muncul/hilang
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const onViewportChange = () => {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      }
+    };
+
+    viewport.addEventListener("resize", onViewportChange);
+    viewport.addEventListener("scroll", onViewportChange);
+    return () => {
+      viewport.removeEventListener("resize", onViewportChange);
+      viewport.removeEventListener("scroll", onViewportChange);
+    };
+  }, []);
+
   const [amount, setAmount] = useState(""); // digit saja
   const [fee, setFee] = useState(""); // "" = gratis, selain itu "2500" / "6500"
   const [date, setDate] = useState(() => isoFromDate(new Date()));
@@ -476,7 +513,7 @@ export function TransferEditor({
       : receiverCards.filter((c) => c.id !== fromId);
 
   return (
-    <div className="min-h-screen bg-neutral-100 pb-28 font-sans dark:bg-neutral-950">
+    <div className="min-h-[100dvh] bg-neutral-100 pb-10 font-sans dark:bg-neutral-950">
       <div className="fixed left-0 right-0 top-0 z-50">
         <IslandNavbar
           title="Transfers Baru"
@@ -487,13 +524,13 @@ export function TransferEditor({
       </div>
 
       {loadingCards ? (
-        <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px]">
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-[76px]">
           <div className="h-24 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
           <div className="h-24 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
           <div className="h-32 w-full animate-pulse rounded-2xl bg-white dark:bg-neutral-900" />
         </div>
       ) : senderCards.length === 0 || receiverCards.length === 0 ? (
-        <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px] text-center">
+        <div className="mx-auto max-w-md space-y-4 px-4 pt-[76px] text-center">
           <div className="rounded-2xl border border-dashed border-gray-300 dark:border-neutral-800 p-8">
             <p className="text-sm font-semibold text-gray-700 dark:text-neutral-300">
               Kartu belum memenuhi syarat transfer
@@ -512,7 +549,7 @@ export function TransferEditor({
         </div>
       ) : (
         <form onSubmit={handleSubmit}>
-          <div className="mx-auto max-w-md space-y-4 px-4 pt-[84px]">
+          <div className="mx-auto max-w-md space-y-4 px-4 pt-[76px]">
           {/* Dua baris + tombol tukar */}
           <div className="relative space-y-2">
             {/* DARI */}
@@ -581,15 +618,20 @@ export function TransferEditor({
           </div>
 
           {/* Angka besar: jumlah transfer + total */}
-          <div className="flex flex-col items-center px-2 pb-1 pt-8">
+          <div
+            onClick={() => inputRef.current?.focus()}
+            className="flex cursor-text flex-col items-center px-2 pb-1 pt-4"
+          >
             <div className="flex max-w-full items-baseline justify-center">
-              <span className="text-2xl font-semibold text-neutral-400">
+              <span className="select-none text-2xl font-semibold text-neutral-400">
                 IDR
               </span>
               <input
+                ref={inputRef}
                 type="text"
                 inputMode="numeric"
-                autoFocus
+                pattern="[0-9]*"
+                onFocus={handleInputFocus}
                 aria-label="Jumlah transfer"
                 value={display}
                 onChange={(e) => setAmount(toDigits(e.target.value))}
