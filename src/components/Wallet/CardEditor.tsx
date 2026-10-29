@@ -147,6 +147,10 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
   const showStep = (i: number) => isEdit || step === i;
   const canSwipe = showStep(1);
 
+  const handleBack = () => {
+    router.push("/wallet");
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
@@ -271,7 +275,7 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
         <IslandNavbar
           title={isEdit ? "Edit Kartu" : "Kartu Baru"}
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
-          onAvatarPress={() => router.back()}
+          onAvatarPress={handleBack}
           actions={[]}
         />
       </div>
@@ -380,13 +384,6 @@ export function CardEditor({ card, onSaved, onDeleted }: CardEditorProps) {
                 )}
                 <p className="mt-2 text-xs font-bold text-neutral-700 dark:text-neutral-200">
                   {currentStyle.label}
-                  <span className="font-normal text-neutral-400 dark:text-neutral-500">
-                    {" "}
-                    · {config.familyLabel}
-                  </span>
-                </p>
-                <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
-                  Geser kartu ke kiri atau kanan untuk ganti warna
                 </p>
               </div>
             )}

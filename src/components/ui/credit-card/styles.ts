@@ -5,44 +5,41 @@ export const NORMAL_TYPES = [
   "transparent-gradient-blue",
   "transparent-gradient-purple",
   "transparent-gradient-sunset",
-  "brand-dark",
-  "brand-light",
-  "gray-dark",
-  "gray-light",
-  "bank-jago-yellow",
-  "bca-blue",
+  "bank-default-dark",
+  "bank-red",
+  "bank-light-blue",
+  "bank-purple",
+  "bank-yellow",
+  "bank-blue",
 ] as const;
 
 export const STRIP_TYPES = [
-  "transparent-strip",
-  "gray-strip",
-  "gradient-strip",
-  "salmon-strip",
+  "paylater-default",
+  "paylater-orange",
+  "paylater-light-blue",
+  "paylater-yellow",
 ] as const;
 
 export const VERTICAL_STRIP_TYPES = [
-  "gray-strip-vertical",
-  "gradient-strip-vertical",
-  "salmon-strip-vertical",
-  "shopee-strip-vertical",
-  "gopay-strip-vertical",
+  "ewallet-default",
+  "ewallet-red",
+  "ewallet-purple",
+  "ewallet-orange",
+  "ewallet-light-blue",
 ] as const;
 
 // Gaya yang memakai logo Mastercard berwarna
 const COLOR_LOGO_TYPES = [
-  "brand-dark",
-  "brand-light",
-  "gray-dark",
-  "gray-light",
+  "bank-default-dark",
+  "bank-red",
+  "bank-light-blue",
+  "bank-purple",
+  "bank-blue",
+  "bank-yellow",
 ] as const;
 
 // Gaya yang area logonya berlatar terang (logo Visa memakai warna biru tua)
-const LIGHT_LOGO_TYPES = [
-  "brand-light",
-  "gray-light",
-  "bank-jago-yellow",
-  "salmon-strip-vertical",
-] as const;
+const LIGHT_LOGO_TYPES = ["bank-red", "bank-purple", "ewallet-purple"] as const;
 
 export type CreditCardType =
   | (typeof NORMAL_TYPES)[number]
@@ -94,86 +91,80 @@ export const CARD_STYLES: Record<CreditCardType, CardTheme> = {
   "transparent-gradient-purple": { root: GLASS_ROOT, ...WHITE_TEXT },
   "transparent-gradient-sunset": { root: GLASS_ROOT, ...WHITE_TEXT },
 
-  // Normal (Debit / Bank)
-  "brand-dark": {
+  // Theme Bank
+  "bank-default-dark": {
     root: `bg-linear-to-tr from-brand-900 to-brand-700 ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "bca-blue": {
-    root: `bg-linear-to-tr from-[#0066AE] to-[#004C8C] ${SHINE} ${RING_LIGHT}`,
+  "bank-blue": {
+    root: `bg-linear-to-tr from-[#0066AE] to-[#0066AE] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "bank-jago-yellow": {
-    root: `bg-linear-to-tr from-[#FFD600] to-[#E6B800] ${SHINE} ${RING_LIGHT}`,
+  "bank-yellow": {
+    root: `bg-linear-to-tr from-[#FFD600] to-[#FFD600] ${SHINE} ${RING_LIGHT}`,
     company: "text-black",
     footerText: "text-black",
     paypassIcon: "text-black",
-    cardTypeRoot: "bg-white/10",
+    cardTypeRoot: "bg-black/10",
   },
-  "gray-dark": {
-    root: `bg-linear-to-tr from-neutral-900 to-neutral-700 ${SHINE} ${RING_LIGHT}`,
+  "bank-light-blue": {
+    root: `bg-linear-to-tr from-[#30cfd2] to-[#30cfd2] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "brand-light": {
-    root: `bg-brand-100 ${SHINE} ${RING_DARK}`,
-    company: "text-neutral-700",
-    footerText: "text-neutral-700",
-    paypassIcon: "text-white",
-    cardTypeRoot: "bg-white",
+  "bank-red": {
+    root: `bg-linear-to-tr from-[#d82327] to-[#d82327] ${SHINE} ${RING_LIGHT}`,
+    ...WHITE_TEXT,
   },
-  "gray-light": {
-    root: `bg-neutral-100 ${SHINE} ${RING_DARK}`,
-    company: "text-neutral-700",
-    footerText: "text-neutral-700",
-    paypassIcon: "text-neutral-400",
-    cardTypeRoot: "bg-white",
+  "bank-purple": {
+    root: `bg-linear-to-tr from-[#172b8c] to-[#172b8c] ${SHINE} ${RING_LIGHT}`,
+    ...WHITE_TEXT,
   },
 
   // Strip horizontal (Paylater)
-  "transparent-strip": {
+  "paylater-default": {
     root: `bg-linear-to-br from-white/30 to-transparent backdrop-blur-[6px] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "gray-strip": {
-    root: `bg-neutral-100 ${SHINE} ${RING_LIGHT}`,
-    company: "text-neutral-700",
+  "paylater-orange": {
+    root: `bg-[#EE4D2D] ${SHINE} ${RING_LIGHT}`,
+    company: "text-white",
     footerText: "text-white",
-    paypassIcon: "text-neutral-400",
+    paypassIcon: "text-white",
     cardTypeRoot: "bg-white/10",
   },
-  "gradient-strip": {
-    root: `bg-linear-to-b from-[#A5C0EE] to-[#FBC5EC] ${SHINE} ${RING_LIGHT}`,
+  "paylater-light-blue": {
+    root: `bg-[#00AED6] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "salmon-strip": {
-    root: `bg-[#F4D9D0] ${SHINE} ${RING_LIGHT}`,
-    company: "text-neutral-700",
+  "paylater-yellow": {
+    root: `bg-[#FFD600] ${SHINE} ${RING_LIGHT}`,
+    company: "text-black",
     footerText: "text-white",
     paypassIcon: "text-white",
     cardTypeRoot: "bg-white/10",
   },
 
   // Strip vertical (E-Wallet)
-  "gray-strip-vertical": {
-    root: `bg-linear-to-br from-white/30 to-transparent ${SHINE} ${RING_LIGHT}`,
+  "ewallet-default": {
+    root: `bg-[#f5f5f5] ${SHINE} ${RING_LIGHT}`,
     company: "text-white",
     footerText: "text-white",
     paypassIcon: "text-neutral-400",
     cardTypeRoot: "bg-white/10",
   },
-  "gradient-strip-vertical": {
-    root: `bg-linear-to-b from-[#FBC2EB] to-[#A18CD1] ${SHINE} ${RING_LIGHT}`,
+  "ewallet-red": {
+    root: `bg-[#e82529] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "salmon-strip-vertical": {
-    root: `bg-[#F4D9D0] ${SHINE} ${RING_LIGHT}`,
+  "ewallet-purple": {
+    root: `bg-[#4c3395] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "shopee-strip-vertical": {
+  "ewallet-orange": {
     root: `bg-[#EE4D2D] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },
-  "gopay-strip-vertical": {
+  "ewallet-light-blue": {
     root: `bg-[#00AED6] ${SHINE} ${RING_LIGHT}`,
     ...WHITE_TEXT,
   },

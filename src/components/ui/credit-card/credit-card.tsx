@@ -80,7 +80,7 @@ export const CreditCard = ({
   company = "Untitled.",
   stakeholder,
   cardType,
-  type = "brand-dark",
+  type = "bank-default-dark",
   balance,
   currency = "IDR ",
   showBalance = true,

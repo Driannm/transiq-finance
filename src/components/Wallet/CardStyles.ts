@@ -28,12 +28,12 @@ export const CARD_TYPE_CONFIG: Record<CardType, CardTypeConfig> = {
     familyLabel: "Normal",
     supportsNetwork: true,
     options: [
-      { value: "brand-dark", label: "Hitam" },
-      { value: "bca-blue", label: "Biru" },
-      { value: "bank-jago-yellow", label: "Kuning" },
-      { value: "gray-dark", label: "Abu Gelap" },
-      { value: "brand-light", label: "Biru Muda" },
-      { value: "gray-light", label: "Abu Terang" },
+      { value: "bank-default-dark", label: "Hitam" },
+      { value: "bank-blue", label: "Biru" },
+      { value: "bank-yellow", label: "Kuning" },
+      { value: "bank-light-blue", label: "Biru Muda" },
+      { value: "bank-red", label: "Merah" },
+      { value: "bank-purple", label: "Ungu" },
     ],
   },
   EMONEY: {
@@ -52,11 +52,11 @@ export const CARD_TYPE_CONFIG: Record<CardType, CardTypeConfig> = {
     familyLabel: "Strip Vertical",
     supportsNetwork: false,
     options: [
-      { value: "shopee-strip-vertical", label: "Oranye" },
-      { value: "gopay-strip-vertical", label: "Cyan" },
-      { value: "gradient-strip-vertical", label: "Gradient" },
-      { value: "salmon-strip-vertical", label: "Salmon" },
-      { value: "gray-strip-vertical", label: "Abu" },
+      { value: "ewallet-default", label: "Putih" },
+      { value: "ewallet-orange", label: "Orange" },
+      { value: "ewallet-light-blue", label: "Biru Muda" },
+      { value: "ewallet-red", label: "Merah" },
+      { value: "ewallet-purple", label: "Ungu" },
     ],
   },
   PAYLATER: {
@@ -64,9 +64,9 @@ export const CARD_TYPE_CONFIG: Record<CardType, CardTypeConfig> = {
     familyLabel: "Strip Horizontal",
     supportsNetwork: false,
     options: [
-      { value: "gradient-strip", label: "Gradient" },
-      { value: "salmon-strip", label: "Salmon" },
-      { value: "gray-strip", label: "Abu" },
+      { value: "paylater-light-blue", label: "Biru Muda" },
+      { value: "paylater-yellow", label: "Kuning" },
+      { value: "paylater-orange", label: "Orange" },
     ],
   },
 };
