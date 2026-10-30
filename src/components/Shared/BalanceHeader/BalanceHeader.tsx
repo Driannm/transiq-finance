@@ -29,6 +29,11 @@ const VARIANT_META: Record<
     shadow:
       "inset 0 1px 0 rgba(255,255,255,0.20), inset -1px 0 0 rgba(34, 197, 94, 0.12), 0 10px 30px rgba(0,0,0,0.45)",
   },
+  blue: {
+    bg: "radial-gradient(circle at top right, rgba(59, 86, 205, 0.95) 0%, rgba(59, 86, 205, 0.35) 18%, transparent 42%), radial-gradient(circle at bottom right, rgba(43, 67, 173, 0.85) 0%, rgba(43, 67, 173, 0.22) 20%, transparent 45%), linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)",
+    shadow:
+      "inset 0 1px 0 rgba(255,255,255,0.20), inset -1px 0 0 rgba(59, 86, 205, 0.12), 0 10px 30px rgba(0,0,0,0.45)",
+  },
   red: {
     bg: "radial-gradient(circle at top right, rgba(220, 38, 38, 0.95) 0%, rgba(220, 38, 38, 0.35) 18%, transparent 42%), radial-gradient(circle at bottom right, rgba(185, 28, 28, 0.85) 0%, rgba(185, 28, 28, 0.22) 20%, transparent 45%), linear-gradient(135deg, #1a1a1a 0%, #111111 45%, #0b0b0b 100%)",
     shadow:

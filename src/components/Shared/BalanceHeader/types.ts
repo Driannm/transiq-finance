@@ -4,6 +4,7 @@ export type BalanceHeaderVariant =
   | "yellow"
   | "red"
   | "green"
+  | "blue"
   | "emerald"
   | "rose"
   | "indigo";
