@@ -3,140 +3,60 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { useToast } from "@/hooks/UseToast";
-import { motion } from "framer-motion";
-import { format, parseISO } from "date-fns";
-import { id as localeId } from "date-fns/locale";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+
 import {
   ArrowLeft02Icon,
-  CheckmarkCircle02Icon,
-  Wallet01Icon,
-  Calendar02Icon,
-  Tag01Icon,
-  Note01Icon,
   Settings01Icon,
   Invoice01Icon,
+  Tag01Icon,
 } from "@hugeicons/core-free-icons";
-import { updateBillSchema } from "@/app/api/bills/utils/validation";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// UI Components — same as Add Bill page
+import { Hero } from "@/components/DebtLoan/Hero";
+import {
+  CardSelector,
+  type FetchState,
+  type CardItem,
+} from "@/components/Shared/CardSelector";
+import { SubmitBar } from "@/components/DebtLoan/SubmitBar";
+import { DateRow } from "@/components/Shared/DateRow";
+import { PillSelector } from "@/components/Shared/PillSelector";
+import {
+  SearchablePicker,
+  type PickerItem,
+} from "@/components/Shared/SearchablePicker";
+import {
+  getCategoryIcon,
+  getCategoryGroup,
+  BILL_CATEGORY_OPTIONS,
+  type BillCategory,
+} from "@/lib/iconMapping";
 
-interface Card {
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface CategoryItem {
   id: string;
   name: string;
-  type: string;
-  balance?: number;
 }
 
-type BillCategory =
-  | "utilities"
-  | "subscription"
-  | "rent"
-  | "insurance"
-  | "internet"
-  | "other";
+type FormErrors = Record<string, string>;
 
-const CATEGORY_META: Record<
-  BillCategory,
-  { label: string; icon: string; bg: string; text: string }
-> = {
-  utilities: {
-    label: "Utilitas",
-    icon: "⚡",
-    bg: "bg-amber-100 dark:bg-amber-950/40",
-    text: "text-amber-600 dark:text-amber-400",
-  },
-  subscription: {
-    label: "Langganan",
-    icon: "📱",
-    bg: "bg-purple-100 dark:bg-purple-950/40",
-    text: "text-purple-600 dark:text-purple-400",
-  },
-  rent: {
-    label: "Sewa Rumah",
-    icon: "🏠",
-    bg: "bg-blue-100 dark:bg-blue-950/40",
-    text: "text-blue-600 dark:text-blue-400",
-  },
-  insurance: {
-    label: "Asuransi",
-    icon: "🛡️",
-    bg: "bg-emerald-100 dark:bg-emerald-950/40",
-    text: "text-emerald-600 dark:text-emerald-400",
-  },
-  internet: {
-    label: "Internet",
-    icon: "🌐",
-    bg: "bg-sky-100 dark:bg-sky-950/40",
-    text: "text-sky-600 dark:text-sky-400",
-  },
-  other: {
-    label: "Lainnya",
-    icon: "📋",
-    bg: "bg-slate-100 dark:bg-slate-950/40",
-    text: "text-slate-600 dark:text-slate-400",
-  },
-};
-
-const CARD_COLORS: Record<string, { bg: string; text: string; ring: string }> =
-  {
-    BANK: {
-      bg: "bg-blue-50 dark:bg-blue-950/50",
-      text: "text-blue-600 dark:text-blue-400",
-      ring: "ring-blue-500 dark:ring-blue-400",
-    },
-    EWALLET: {
-      bg: "bg-emerald-50 dark:bg-emerald-950/50",
-      text: "text-emerald-600 dark:text-emerald-400",
-      ring: "ring-emerald-500 dark:ring-emerald-400",
-    },
-    EMONEY: {
-      bg: "bg-amber-50 dark:bg-amber-950/50",
-      text: "text-amber-600 dark:text-amber-400",
-      ring: "ring-amber-500 dark:ring-amber-400",
-    },
-  };
-
-function Section({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}
-    >
-      {children}
-    </div>
-  );
+function parseIDRPreview(raw: string): number {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
 }
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500 mb-2 px-1">
-      {children}
-    </p>
-  );
-}
-
-const fmtFull = (n: number) =>
-  new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(Math.round(n));
 
 export default function EditBillPage() {
   const router = useRouter();
@@ -144,144 +64,273 @@ export default function EditBillPage() {
   const billId = params.id as string;
   const toast = useToast();
 
-  const [cards, setCards] = useState<Card[]>([]);
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const dueDateInputRef = useRef<HTMLButtonElement>(null);
+
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  const [cards, setCards] = useState<CardItem[]>([]);
+  const [cardsState, setCardsState] = useState<FetchState>("loading");
+  const [cardsError, setCardsError] = useState<string | undefined>();
+
+  // ── Expense categories ─────────────────────────────────────────────────────
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [catOpen, setCatOpen] = useState(false);
+
+  // ── Form state ─────────────────────────────────────────────────────────────
   const [name, setName] = useState("");
-  const [amount, setAmount] = useState<number>(0);
-  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [amountRaw, setAmountRaw] = useState("");
+  const amount = parseIDRPreview(amountRaw);
+
+  const [dueDate, setDueDate] = useState<string>(
+    format(new Date(), "yyyy-MM-dd"),
+  );
+  const [isFlexible, setIsFlexible] = useState<boolean>(false);
   const [category, setCategory] = useState<BillCategory>("utilities");
-  const [payee, setPayee] = useState("");
   const [recurring, setRecurring] = useState(false);
-  const [createExpense, setCreateExpense] = useState(true);
+  const [recurringInterval, setRecurringInterval] = useState<
+    "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+  >("MONTHLY");
+
+  const [createExpense, setCreateExpense] = useState(false);
   const [notes, setNotes] = useState("");
   const [cardId, setCardId] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  // ── Page state ─────────────────────────────────────────────────────────────
+  const [pageLoading, setPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
+  // ── Filtered cards (afford amount) ─────────────────────────────────────────
+  const filteredCards = useMemo(
+    () => cards.filter((c) => amount <= 0 || c.balance >= amount),
+    [cards, amount],
+  );
+
+  // ── Loaders ────────────────────────────────────────────────────────────────
+  const loadCards = useCallback(() => {
+    setCardsState("loading");
+    setCardsError(undefined);
+    fetch("/api/cards")
+      .then((r) => {
+        if (!r.ok) throw new Error("Gagal memuat daftar rekening");
+        return r.json();
+      })
+      .then((d) => {
+        const list = (d.cards ?? []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          balance: c.balance ?? 0,
+        }));
+        setCards(list);
+        setCardsState("success");
+      })
+      .catch((e) => {
+        console.error(e);
+        setCardsState("error");
+        setCardsError("Gagal memuat rekening.");
+      });
+  }, []);
+
+  const loadCategories = useCallback(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => {
+        const cats = d.categories ?? [];
+        setCategories(cats);
+      })
+      .catch(console.error);
+  }, []);
+
+  // ── Load bill data ─────────────────────────────────────────────────────────
   useEffect(() => {
     let live = true;
-    (async () => {
-      try {
-        // Fetch Cards
-        const cardRes = await fetch("/api/cards");
-        const cardData = await cardRes.json();
-        if (!live) return;
-        setCards(cardData.cards ?? []);
+    setPageLoading(true);
 
-        // Fetch Bill Detail
-        const billRes = await fetch(`/api/bills/${billId}`);
-        if (!billRes.ok) throw new Error("Gagal memuat detail tagihan");
-        const billData = await billRes.json();
-
+    Promise.all([
+      fetch("/api/cards").then((r) => r.json()),
+      fetch(`/api/bills/${billId}`).then((r) => {
+        if (!r.ok) throw new Error("Gagal memuat detail tagihan");
+        return r.json();
+      }),
+      fetch("/api/categories").then((r) => r.json()),
+    ])
+      .then(([cardData, billData, catData]) => {
         if (!live) return;
+
+        // Cards
+        const list = (cardData.cards ?? []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          balance: c.balance ?? 0,
+        }));
+        setCards(list);
+        setCardsState("success");
+
+        // Categories
+        setCategories(catData.categories ?? []);
+
+        // Bill
         const b = billData.bill;
-        setName(b.name);
-        setAmount(b.amount);
-        setDueDate(b.dueDate ? parseISO(b.dueDate) : undefined);
-        setCategory(b.category || "utilities");
-        setPayee(b.payee || "");
-        setRecurring(b.recurring || false);
-        setCreateExpense(b.createExpense ?? true);
-        setNotes(b.notes || "");
-        setCardId(b.cardId || "");
-      } catch (e: any) {
+        setName(b.name ?? "");
+        setAmountRaw(b.amount > 0 ? String(b.amount) : "");
+        setIsFlexible(b.isFlexible ?? false);
+        setDueDate(b.dueDate || format(new Date(), "yyyy-MM-dd"));
+        setCategory((b.category as BillCategory) || "utilities");
+        setRecurring(b.recurring ?? false);
+        setCreateExpense(b.createExpense ?? false);
+        setNotes(b.notes ?? "");
+        setCardId(b.cardId ?? "");
+      })
+      .catch((e: any) => {
+        if (!live) return;
         toast.show({
           title: "Gagal Membuka Halaman",
           description: e.message || "Kesalahan memuat data",
           variant: "danger",
         });
         router.push(`/bills/${billId}`);
-      } finally {
-        if (live) setLoading(false);
-      }
-    })();
+      })
+      .finally(() => {
+        if (live) setPageLoading(false);
+      });
 
     return () => {
       live = false;
     };
   }, [billId]);
 
-  const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
-  const formatInput = (n: number) =>
-    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
-
-  const handleUpdate = useCallback(async () => {
-    setErrors({});
-
-    const formattedDueDate = dueDate ? format(dueDate, "yyyy-MM-dd") : "";
-
-    const payload = {
-      name,
-      amount: Number(amount),
-      dueDate: formattedDueDate,
-      category,
-      payee: payee || null,
-      recurring,
-      createExpense,
-      notes: notes || null,
-      cardId: cardId || null,
-    };
-
-    const parsed = updateBillSchema.safeParse(payload);
-
-    if (!parsed.success) {
-      const e: Record<string, string> = {};
-      parsed.error.issues.forEach((i: any) => {
-        const key = i.path[0] as string;
-        e[key] = i.message;
-      });
-      setErrors(e);
-      toast.show({
-        title: "Perbaikan Input Diperlukan",
-        description: parsed.error.issues[0].message,
-        variant: "danger",
-      });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/bills/${billId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        toast.show({
-          title: "Tagihan Diperbarui",
-          description: "Detail tagihan baru berhasil disimpan.",
-          variant: "success",
-          icon: (
-            <HugeiconsIcon
-              icon={CheckmarkCircle02Icon}
-              size={22}
-              color="white"
-            />
-          ),
-          iconBg: "bg-emerald-500",
-        });
-        setTimeout(() => router.push(`/bills/${billId}`), 600);
-      } else {
-        const data = await res.json();
-        toast.show({
-          title: "Gagal Menyimpan Perubahan",
-          description: data.error || "Gagal menghubungi server",
-          variant: "danger",
-        });
+  // ── Auto-select card when filtered list changes ────────────────────────────
+  useEffect(() => {
+    if (filteredCards.length > 0) {
+      if (!cardId || !filteredCards.some((c) => c.id === cardId)) {
+        setCardId(filteredCards[0].id);
       }
-    } catch {
-      toast.show({ title: "Koneksi Error", variant: "danger" });
-    } finally {
-      setSaving(false);
+    } else {
+      setCardId("");
     }
-  }, [name, amount, dueDate, category, payee, recurring, notes, cardId]);
+  }, [filteredCards]);
 
-  if (loading) {
+  // ── Category picker items ──────────────────────────────────────────────────
+  const categoryItems = useMemo<PickerItem[]>(
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        group: getCategoryGroup(c.name),
+        icon: getCategoryIcon(c.name) as any,
+      })),
+    [categories],
+  );
+
+  const selectedCat = categories.find((c) => c.id === categoryId);
+
+  // ── Validation ─────────────────────────────────────────────────────────────
+  const validate = useCallback(() => {
+    const errs: FormErrors = {};
+    if (!name.trim()) errs.name = "Nama Tagihan wajib diisi";
+    if (!amount || amount <= 0) errs.amount = "Nominal harus > 0";
+    if (!isFlexible && !dueDate) errs.dueDate = "Jatuh tempo wajib diisi";
+    if (!cardId) errs.cardId = "Rekening wajib dipilih";
+    if (createExpense && !categoryId) {
+      errs.categoryId = "Kategori pengeluaran wajib dipilih";
+    }
+
+    setErrors(errs);
+
+    if (Object.keys(errs).length > 0) {
+      if (errs.amount) amountInputRef.current?.focus();
+      else if (errs.name) nameInputRef.current?.focus();
+      else if (errs.dueDate) dueDateInputRef.current?.focus();
+    }
+    return Object.keys(errs).length === 0;
+  }, [name, amount, isFlexible, dueDate, cardId, createExpense, categoryId]);
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!validate()) return;
+
+      setSaving(true);
+
+      const payload = {
+        name: name.trim(),
+        amount: Number(amount),
+        isFlexible,
+        dueDate: isFlexible ? null : dueDate,
+        category,
+        categoryId: createExpense ? categoryId : undefined,
+        recurring,
+        recurringInterval: recurring ? recurringInterval : undefined,
+        createExpense,
+        notes: notes.trim() || undefined,
+        cardId: cardId || undefined,
+      };
+
+      try {
+        const res = await fetch(`/api/bills/${billId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          toast.show({
+            title: "Tagihan Diperbarui",
+            description: `${name} · Rp ${amount.toLocaleString("id-ID")}`,
+            variant: "success",
+            duration: 3500,
+          });
+          setTimeout(() => router.push(`/bills/${billId}`), 600);
+        } else {
+          const data = await res.json();
+          toast.show({
+            title: "Gagal Menyimpan",
+            description: data.error || "Terjadi kesalahan",
+            variant: "danger",
+          });
+          setSaving(false);
+        }
+      } catch {
+        toast.show({ title: "Koneksi Error", variant: "danger" });
+        setSaving(false);
+      }
+    },
+    [
+      validate,
+      name,
+      amount,
+      isFlexible,
+      dueDate,
+      category,
+      categoryId,
+      recurring,
+      recurringInterval,
+      createExpense,
+      notes,
+      cardId,
+      billId,
+      router,
+      toast,
+    ],
+  );
+
+  const ready =
+    amount > 0 &&
+    name.trim().length > 0 &&
+    !!cardId &&
+    (isFlexible || !!dueDate) &&
+    (!createExpense || !!categoryId);
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
+  if (pageLoading) {
     return (
       <div className="h-screen flex flex-col justify-center items-center bg-neutral-100 dark:bg-neutral-950">
-        <span className="w-9 h-9 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        <span className="w-9 h-9 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 font-medium">
           Memuat Data Tagihan...
         </p>
@@ -290,338 +339,284 @@ export default function EditBillPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col mb-20 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
       <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Ubah Tagihan"
-          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
-          onAvatarPress={() => router.push(`/bills/${billId}`)}
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+          onAvatarPress={() => router.push(`/bills`)}
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-[64px] pb-32">
-        {/* Nominal Tagihan HERO */}
-        <div className="mx-4 bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-6 pt-5 pb-6 mb-4 mt-4">
-          <SectionLabel>Nominal Tagihan</SectionLabel>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-lg font-semibold text-gray-400 dark:text-gray-500 select-none">
-              Rp
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={formatInput(amount)}
-              onChange={(e) => setAmount(parseRaw(e.target.value))}
-              placeholder="0"
-              className="
-                flex-1 bg-transparent outline-none
-                text-[36px] sm:text-[42px] font-bold tracking-tight tabular-nums leading-tight
-                text-gray-900 dark:text-gray-50
-                placeholder-gray-200 dark:placeholder-gray-700
-                caret-blue-500
-              "
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col flex-1 pt-[64px]"
+      >
+        {/* Hero Header — same as Add */}
+        <Hero
+          amountRaw={amountRaw}
+          onAmountChange={setAmountRaw}
+          amountInputRef={amountInputRef}
+          amountError={errors.amount}
+          personName={name}
+          onPersonChange={setName}
+          personInputRef={nameInputRef}
+          personError={errors.name}
+          personLabel="Nama Tagihan"
+          personPlaceholder="Contoh: Wifi, Listrik, Token"
+        />
+
+        <div className="flex-1 px-4 space-y-7 pb-8">
+          {/* Card / Payment Source Selector */}
+          <div>
+            <CardSelector
+              state={cardsState}
+              cards={filteredCards}
+              amount={0}
+              cardId={cardId}
+              onSelect={setCardId}
+              onRetry={loadCards}
+              error={cardsError}
+              label="Dibayar Menggunakan"
             />
-          </div>
-          {errors.amount && (
-            <p className="text-xs text-red-500 mt-2 px-1">{errors.amount}</p>
-          )}
-        </div>
-
-        {/* Bill Title & Payee */}
-        <div className="mx-4 mb-4 space-y-3">
-          <div>
-            <SectionLabel>Nama Tagihan</SectionLabel>
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-4 py-3.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Contoh: Wifi Rumah, Tagihan Listrik, Sewa Kos..."
-                className="w-full bg-transparent text-[15px] font-medium outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
-              />
-            </div>
-            {errors.name && (
-              <p className="text-xs text-red-500 mt-1.5 px-1">{errors.name}</p>
+            {errors.cardId && (
+              <p role="alert" className="text-xs text-red-500 mt-2 px-1">
+                {errors.cardId}
+              </p>
             )}
           </div>
 
-          <div>
-            <SectionLabel>Penerima / Payee (Opsional)</SectionLabel>
-            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-4 py-3.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
-              <input
-                type="text"
-                value={payee}
-                onChange={(e) => setPayee(e.target.value)}
-                placeholder="Contoh: Biznet, PLN, Tokopedia..."
-                className="w-full bg-transparent text-[15px] font-medium outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
-              />
-            </div>
-            {errors.payee && (
-              <p className="text-xs text-red-500 mt-1.5 px-1">{errors.payee}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Date and Category Details */}
-        <Section className="mx-4 mb-4">
-          {/* Due date picker row */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 dark:border-neutral-800">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-500">
-                <HugeiconsIcon icon={Calendar02Icon} size={20} />
-              </div>
-              <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-                  Jatuh Tempo
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
-                  Tentukan tanggal pembayaran
-                </p>
-              </div>
-            </div>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="px-3.5 py-2 rounded-xl bg-gray-50 dark:bg-neutral-800 text-[13px] font-semibold border border-gray-150 dark:border-neutral-700 text-gray-800 dark:text-gray-200"
-                >
-                  {dueDate
-                    ? format(dueDate, "dd MMMM yyyy", { locale: localeId })
-                    : "Pilih Tanggal"}
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-0 z-50 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl"
-                align="end"
-              >
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={setDueDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Category selection selector */}
-          <div className="px-4 py-4">
-            <div className="flex items-center gap-3.5 mb-3.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-amber-500">
-                <HugeiconsIcon icon={Tag01Icon} size={20} />
-              </div>
-              <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-                  Kategori Tagihan
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500">
-                  Sesuaikan jenis tagihan
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(CATEGORY_META) as BillCategory[]).map((catKey) => {
-                const isSelected = category === catKey;
-                const meta = CATEGORY_META[catKey];
-                return (
-                  <button
-                    key={catKey}
-                    type="button"
-                    onClick={() => setCategory(catKey)}
-                    className={`
-                      py-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all duration-200
-                      ${
-                        isSelected
-                          ? "bg-indigo-50 dark:bg-indigo-950/45 border-indigo-500 dark:border-indigo-400 text-indigo-600 dark:text-indigo-400 font-bold scale-[1.03] shadow-sm"
-                          : "bg-transparent border-gray-200 dark:border-neutral-800 text-gray-500 hover:border-gray-300 dark:hover:border-neutral-700"
-                      }
-                    `}
-                  >
-                    <span className="text-lg">{meta.icon}</span>
-                    <span className="text-[11px] font-semibold whitespace-nowrap">
-                      {meta.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </Section>
-
-        {/* Card Selector Section */}
-        <div className="mx-4 mb-4">
-          <SectionLabel>Rekening Utama / Default (Opsional)</SectionLabel>
-          <Section className="p-2">
-            {cards.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
-                <HugeiconsIcon
-                  icon={Wallet01Icon}
-                  size={18}
-                  className="text-gray-300"
-                />
-                <span>Tidak ada kartu tersedia</span>
-              </div>
-            ) : (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                {/* None Option */}
-                <button
-                  type="button"
-                  onClick={() => setCardId("")}
-                  className={`
-                    flex-shrink-0 flex items-center justify-center px-4 py-3 rounded-full text-center
-                    border-2 transition-all duration-200 min-w-[100px]
-                    ${!cardId ? "bg-gray-100 dark:bg-neutral-800 border-neutral-400/80 dark:border-neutral-600 text-neutral-800 dark:text-neutral-200 font-semibold" : "border-gray-100 dark:border-neutral-800 text-gray-400 hover:border-gray-200"}
-                  `}
-                >
-                  <span className="text-xs">Tanpa Kartu</span>
-                </button>
-
-                {cards.map((card) => {
-                  const selected = card.id === cardId;
-                  const colors = CARD_COLORS[card.type] ?? CARD_COLORS.BANK;
-                  return (
-                    <button
-                      key={card.id}
-                      type="button"
-                      onClick={() => setCardId(card.id)}
-                      className={`
-                        flex-shrink-0 flex items-center gap-3 px-4 py-3 rounded-full text-left
-                        border-2 transition-all duration-200 min-w-[130px]
-                        ${selected ? `${colors.bg} ${colors.ring} shadow-sm` : "border-gray-100 dark:border-neutral-800 hover:border-gray-200 dark:hover:border-neutral-700 bg-transparent"}
-                        active:scale-[0.97]
-                      `}
-                    >
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${selected ? colors.bg : "bg-gray-50 dark:bg-neutral-800"}`}
-                      >
-                        <HugeiconsIcon
-                          icon={Wallet01Icon}
-                          size={15}
-                          className={selected ? colors.text : "text-gray-400"}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p
-                          className={`text-[12px] font-semibold truncate ${selected ? colors.text : "text-gray-700 dark:text-gray-300"}`}
-                        >
-                          {card.name}
-                        </p>
-                        {card.balance !== undefined && (
-                          <p className="text-[10px] text-gray-400 tabular-nums mt-0.5">
-                            {fmtFull(card.balance)}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </Section>
-        </div>
-
-        {/* Recurring Toggle & Notes Section */}
-        <Section className="mx-4 mb-4">
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 dark:border-neutral-800">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 flex items-center justify-center text-purple-500">
-                <HugeiconsIcon icon={Settings01Icon} size={20} />
-              </div>
-              <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-                  Tagihan Rutin
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
-                  Ulangi secara berkala setiap bulan
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setRecurring(!recurring)}
-              className={`
-                w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex items-center
-                ${recurring ? "bg-indigo-600" : "bg-gray-200 dark:bg-neutral-700"}
-              `}
-            >
-              <span
-                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${recurring ? "translate-x-6" : "translate-x-1"}`}
-              />
-            </button>
-          </div>
-
-          {/* Catat sebagai Pengeluaran Toggle */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 dark:border-neutral-800">
-            <div className="flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-500">
-                <HugeiconsIcon icon={Invoice01Icon} size={20} />
-              </div>
-              <div>
-                <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-                  Catat sebagai Pengeluaran
-                </p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium">
-                  Otomatis mencatat transaksi & memotong saldo saat dibayar
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCreateExpense(!createExpense)}
-              className={`
-                w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none relative flex items-center
-                ${createExpense ? "bg-indigo-600" : "bg-gray-200 dark:bg-neutral-700"}
-              `}
-            >
-              <span
-                className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 absolute ${createExpense ? "translate-x-6" : "translate-x-1"}`}
-              />
-            </button>
-          </div>
-
-          <div className="px-4 py-3.5">
-            <div className="flex items-center gap-3.5 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950/40 flex items-center justify-center text-slate-500">
-                <HugeiconsIcon icon={Note01Icon} size={20} />
-              </div>
-              <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-                Catatan
+          {/* Detail & Jadwal Section */}
+          <section>
+            <div className="flex items-baseline justify-between px-1 mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--muted,#8A857D)]">
+                Detail &amp; Jadwal
               </p>
             </div>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Tambahkan catatan khusus untuk tagihan ini..."
-              rows={3}
-              className="w-full bg-gray-50/50 dark:bg-neutral-800/40 border border-gray-100 dark:border-neutral-800 rounded-xl p-3 outline-none focus:border-blue-400 dark:focus:border-blue-600 transition-colors text-[13px] text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-600 resize-none"
-            />
-          </div>
-        </Section>
-      </div>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-neutral-100 via-neutral-100/90 to-transparent dark:from-neutral-950 dark:via-neutral-950/90 dark:to-transparent z-40">
-        <button
-          type="button"
-          onClick={handleUpdate}
-          disabled={saving}
-          className="
-            w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-[15px]
-            shadow-lg shadow-indigo-600/20 active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2
-          "
-        >
-          {saving ? (
-            <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <>
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
-              Simpan Perubahan
-            </>
-          )}
-        </button>
-      </div>
+            <div className="rounded-2xl border border-[var(--line,#E7E4DD)] dark:border-neutral-800 overflow-hidden divide-y divide-[var(--line,#E7E4DD)] dark:divide-neutral-800 bg-white dark:bg-neutral-900/40">
+              {/* Kategori Tagihan Row */}
+              <PillSelector
+                label="Kategori Tagihan"
+                options={BILL_CATEGORY_OPTIONS}
+                value={category}
+                onChange={(v) => setCategory(v as BillCategory)}
+              />
+
+              {/* Jenis Jadwal Row */}
+              <PillSelector
+                label="Jenis Jadwal"
+                options={[
+                  { value: "scheduled", label: "Jadwal Tetap" },
+                  { value: "flexible", label: "Fleksibel / Tanpa Tanggal" },
+                ]}
+                value={isFlexible ? "flexible" : "scheduled"}
+                onChange={(v) => setIsFlexible(v === "flexible")}
+              />
+
+              {/* Tanggal Jatuh Tempo Row */}
+              {!isFlexible ? (
+                <DateRow
+                  label="Tanggal Jatuh Tempo"
+                  value={dueDate}
+                  onChange={setDueDate}
+                  triggerRef={dueDateInputRef}
+                  error={errors.dueDate}
+                  iconClassName="text-amber-500"
+                />
+              ) : (
+                <div className="px-4 py-3.5 bg-neutral-50/50 dark:bg-neutral-900/30">
+                  <p className="text-xs text-[var(--muted,#8A857D)] leading-relaxed">
+                    💡 Tagihan fleksibel tidak memiliki tanggal jatuh tempo
+                    tetap. Anda dapat mencatat pembayaran kapan saja tanpa
+                    status overdue.
+                  </p>
+                </div>
+              )}
+
+              {/* Tagihan Rutin Toggle */}
+              <div className="flex items-center justify-between px-4 py-3.5 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <HugeiconsIcon
+                    icon={Settings01Icon}
+                    size={16}
+                    className="text-purple-500 flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs text-[var(--muted,#8A857D)]">
+                      Tagihan Rutin
+                    </p>
+                    <p className="text-[15px] font-medium text-neutral-900 dark:text-white mt-0.5">
+                      {recurring
+                        ? `Berulang (${
+                            recurringInterval === "DAILY"
+                              ? "Harian"
+                              : recurringInterval === "WEEKLY"
+                                ? "Mingguan"
+                                : recurringInterval === "YEARLY"
+                                  ? "Tahunan"
+                                  : "Bulanan"
+                          })`
+                        : "Tidak Berulang"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecurring(!recurring)}
+                  className={`w-11 h-6 rounded-full transition-colors relative flex items-center flex-shrink-0 ${
+                    recurring
+                      ? "bg-emerald-500"
+                      : "bg-neutral-200 dark:bg-neutral-700"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full bg-white transition-transform absolute ${
+                      recurring ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Recurring Period Selector */}
+              {recurring && (
+                <div className="px-4 py-3 bg-neutral-50/50 dark:bg-neutral-900/30 flex items-center justify-between">
+                  <span className="text-xs text-[var(--muted,#8A857D)] font-medium">
+                    Periode Berulang
+                  </span>
+                  <Select
+                    value={recurringInterval}
+                    onValueChange={(v) =>
+                      setRecurringInterval(
+                        v as "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY",
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-[130px] h-8 text-xs font-medium">
+                      <SelectValue placeholder="Pilih Periode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DAILY">Harian</SelectItem>
+                      <SelectItem value="WEEKLY">Mingguan</SelectItem>
+                      <SelectItem value="MONTHLY">Bulanan</SelectItem>
+                      <SelectItem value="YEARLY">Tahunan</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Catat sebagai Pengeluaran Toggle */}
+              <div className="flex items-center justify-between px-4 py-3.5 hover:bg-neutral-50/50 dark:hover:bg-neutral-900/40 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <HugeiconsIcon
+                    icon={Invoice01Icon}
+                    size={16}
+                    className="text-blue-500 flex-shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs text-[var(--muted,#8A857D)]">
+                      Otomatisasi
+                    </p>
+                    <p className="text-[15px] font-medium text-neutral-900 dark:text-white mt-0.5">
+                      Catat sebagai Pengeluaran
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateExpense(!createExpense)}
+                  className={`w-11 h-6 rounded-full transition-colors relative flex items-center flex-shrink-0 ${
+                    createExpense
+                      ? "bg-emerald-500"
+                      : "bg-neutral-200 dark:bg-neutral-700"
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full bg-white transition-transform absolute ${
+                      createExpense ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Expense Category Row */}
+              {createExpense && (
+                <div className="bg-neutral-50/50 dark:bg-neutral-900/30">
+                  <div
+                    onClick={() => setCatOpen(true)}
+                    className="flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <HugeiconsIcon
+                        icon={Tag01Icon}
+                        size={16}
+                        className="text-blue-500 flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs text-[var(--muted,#8A857D)]">
+                          Kategori Pengeluaran
+                        </p>
+                        <p className="text-[15px] font-medium text-neutral-900 dark:text-white mt-0.5">
+                          {selectedCat?.name || "Pilih kategori pengeluaran"}
+                        </p>
+                      </div>
+                    </div>
+                    <svg
+                      className="w-4 h-4 text-neutral-400 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  </div>
+                  {errors.categoryId && (
+                    <p role="alert" className="text-xs text-red-500 pb-3 px-4">
+                      {errors.categoryId}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Catatan Opsional */}
+              <div className="px-4 py-3.5">
+                <p className="text-xs text-[var(--muted,#8A857D)] mb-1">
+                  Catatan Opsional
+                </p>
+                <input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Keterangan tambahan..."
+                  className="w-full text-[15px] font-medium bg-transparent border-none outline-none placeholder:text-neutral-300 placeholder:font-normal dark:placeholder:text-neutral-700 text-neutral-900 dark:text-white"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <SubmitBar ready={ready} loading={saving} label="Simpan Perubahan" />
+      </form>
+
+      {/* Category Expense Picker Modal */}
+      <SearchablePicker
+        open={catOpen}
+        onClose={() => setCatOpen(false)}
+        onSelect={(item) => {
+          if (item) setCategoryId(item.id);
+        }}
+        items={categoryItems}
+        selectedId={categoryId}
+        title="Pilih Kategori Pengeluaran"
+        placeholder="Cari kategori pengeluaran..."
+        emptyText="Kategori tidak ditemukan."
+      />
     </div>
   );
 }

@@ -358,12 +358,12 @@ export default function BillDetailPage() {
   const expectedTotal = bill.amount * periodsPaid;
 
   return (
-    <div className="h-screen flex flex-col mb-20 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
       <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Detail Tagihan"
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
-          onAvatarPress={() => router.push("/bills")}
+          onAvatarPress={() => router.push(`/bills`)}
         />
       </div>
 

@@ -257,9 +257,8 @@ export default function BillsPage() {
   const isFlat = isSearchActive || isSortActive;
 
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 font-sans pb-24">
-      {/* ── Sticky Navbar ── */}
-      <div className="sticky top-0 z-50">
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
+      <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Tagihan"
           avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
@@ -278,7 +277,7 @@ export default function BillsPage() {
         />
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
+      <div className="px-4 pt-4 space-y-5 pt-[64px] bg-neutral-100 dark:bg-neutral-950">
         {/* ── Hero Summary Card ── */}
         <BalanceHeader
           label="Total belum dibayar"
