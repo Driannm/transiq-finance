@@ -32,6 +32,7 @@ export async function GET() {
             id: true,
             amount: true,
             date: true,
+            createdAt: true,
           },
         },
         fromCard: {
@@ -60,9 +61,11 @@ export async function GET() {
       return {
         id: tr.id,
         targetName: tr.toCard.name,
+        fromCardName: tr.fromCard.name,
         bankName: `${tr.fromCard.name} → ${tr.toCard.name}`,
         time: tr.transaction.date.toISOString(),
         amount: tr.transaction.amount,
+        fee: tr.fee || 0,
         type: "send", // Dari perspektif asal transfer
         fromCardType: tr.fromCard.type,
         toCardType: tr.toCard.type,
@@ -139,16 +142,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!fromCard || !toCard) {
-      return NextResponse.json(
-        { error: "Kartu tidak ditemukan" },
-        { status: 404 },
-      );
-    }
-
     const typeError = validateTransferTypes(fromCard.type, toCard.type);
     if (typeError) {
       return NextResponse.json({ error: typeError }, { status: 400 });
+    }
+
+    // Parse waktu transaksi dengan akurat (pertahankan jam/menit aktual jika hanya tanggal)
+    let transactionDate = new Date();
+    if (date) {
+      const parsedDate = new Date(date);
+      if (!isNaN(parsedDate.getTime())) {
+        if (date.length <= 10) {
+          const now = new Date();
+          parsedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        }
+        transactionDate = parsedDate;
+      }
     }
 
     // Lakukan atomic transaction untuk mencatat transfer & update cache balance
@@ -160,7 +169,7 @@ export async function POST(request: Request) {
           type: "TRANSFER",
           userId: session.user.id,
           cardId: fromCardId,
-          date: date ? new Date(date) : new Date(),
+          date: transactionDate,
         },
       });
 

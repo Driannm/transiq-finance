@@ -22,6 +22,41 @@ async function checkCardAccess(
   });
 }
 
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: cardId } = await params;
+    const card = await checkCardAccess(
+      cardId,
+      session.user.id,
+      session.user.familyId,
+      session.user.role,
+    );
+
+    if (!card) {
+      return NextResponse.json(
+        { error: "Kartu tidak ditemukan" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ card });
+  } catch (error) {
+    console.error("[GET /api/cards/[id]]", error);
+    return NextResponse.json(
+      { error: "Gagal mengambil data kartu" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },

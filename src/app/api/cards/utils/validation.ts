@@ -5,12 +5,12 @@ export const CARD_SCOPES = ["PERSONAL", "FAMILY", "BUSINESS"] as const;
 
 const STYLES_BY_TYPE: Record<(typeof CARD_TYPES)[number], string[]> = {
   BANK: [
-    "brand-dark",
-    "bca-blue",
-    "bank-jago-yellow",
-    "gray-dark",
-    "brand-light",
-    "gray-light",
+    "bank-default-dark",
+    "bank-blue",
+    "bank-yellow",
+    "bank-light-blue",
+    "bank-red",
+    "bank-purple",
   ],
   EMONEY: [
     "transparent-gradient",
@@ -19,13 +19,13 @@ const STYLES_BY_TYPE: Record<(typeof CARD_TYPES)[number], string[]> = {
     "transparent-gradient-sunset",
   ],
   EWALLET: [
-    "shopee-strip-vertical",
-    "gopay-strip-vertical",
-    "gradient-strip-vertical",
-    "salmon-strip-vertical",
-    "gray-strip-vertical",
+    "ewallet-default",
+    "ewallet-orange",
+    "ewallet-light-blue",
+    "ewallet-red",
+    "ewallet-purple",
   ],
-  PAYLATER: ["gradient-strip", "salmon-strip", "gray-strip"],
+  PAYLATER: ["paylater-light-blue", "paylater-yellow", "paylater-orange"],
 };
 const LOGOS = ["mastercard", "visa", "jago", "bca", "none"] as const;
 
