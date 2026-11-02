@@ -8,6 +8,10 @@ import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { CardList } from "@/components/Shared/CardList";
 import type { LoanItemMeta } from "@/components/Shared/CardList/types";
+import {
+  StatusFilterPills,
+  type FilterOption,
+} from "@/components/Shared/StatusFilterPills";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -371,34 +375,19 @@ export default function LoansPage() {
         </motion.div>
 
         {/* ── Status Filter Pills ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
-        >
-          {(["all", "active", "ongoing", "overdue", "paid"] as const).map(
-            (s) => {
-              const isActive = activeStatus === s;
-              const meta = s !== "all" ? STATUS_META[s] : null;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setActiveStatus(s)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
-                    isActive
-                      ? s === "all"
-                        ? "bg-white text-neutral-900 border-white"
-                        : `${meta!.bg} ${meta!.color} border-transparent`
-                      : "bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 border-transparent"
-                  }`}
-                >
-                  {s === "all" ? "Semua" : meta!.label}
-                </button>
-              );
-            },
-          )}
-        </motion.div>
+        <StatusFilterPills
+          options={[
+            { value: "all", label: "Semua" },
+            ...(["active", "ongoing", "overdue", "paid"] as const).map((s) => ({
+              value: s,
+              label: STATUS_META[s].label,
+              activeBgClass: STATUS_META[s].bg,
+              activeTextClass: STATUS_META[s].color,
+            })),
+          ]}
+          value={activeStatus}
+          onChange={(v) => setActiveStatus(v as any)}
+        />
 
         {/* ── DataControlsBar ── */}
         <motion.div

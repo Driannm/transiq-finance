@@ -127,31 +127,41 @@ export default function AddLoanPage() {
     if (!validate()) return;
 
     setSubmitting(true);
+
+    // Navigate immediately — toast.promise keeps running after route change
+    // because ToastStore is a global Zustand store (survives navigation).
+    router.push("/loans");
+
     try {
-      const res = await fetch("/api/loans", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardId,
-          name: name.trim(),
-          debtor: debtor.trim(),
-          category,
-          totalAmount: amount,
-          date: loanDate,
-          dueDate,
-          notes: null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal menyimpan piutang");
-      toast.show({ title: "Piutang berhasil ditambahkan", variant: "success" });
-      router.push("/loans");
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menyimpan",
-        description: err instanceof Error ? err.message : "Terjadi kesalahan",
-        variant: "danger",
-      });
+      await toast.promise(
+        async () => {
+          const res = await fetch("/api/loans", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cardId,
+              name: name.trim(),
+              debtor: debtor.trim(),
+              category,
+              totalAmount: amount,
+              loanDate,
+              date: loanDate,
+              dueDate,
+              notes: null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Gagal menyimpan piutang");
+          return data;
+        },
+        {
+          loading: "Menyimpan...",
+          success: "Piutang berhasil disimpan",
+          error: "Gagal menyimpan",
+        },
+      );
+    } catch {
+      // Error already handled by toast.promise (shows danger toast)
     } finally {
       setSubmitting(false);
     }
