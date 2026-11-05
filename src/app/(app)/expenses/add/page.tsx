@@ -1,41 +1,42 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/app/(app)/expenses/add/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { IslandNavbar } from "@/components/Layout/MobileHeader";
-import { z } from "zod";
-import { useToast } from "@/hooks/UseToast";
-import { motion, AnimatePresence } from "framer-motion";
-import { formatRupiah } from "@/lib/format";
+import {
+  ArrowLeft02Icon,
+  ArrowRight01Icon,
+  Folder01Icon,
+  Folder03Icon,
+} from "@hugeicons/core-free-icons";
 import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { id as localeId } from "date-fns/locale";
+import { useConfirm } from "@/hooks/UseConfirm";
+import {
+  ExpenseTemplatePopover,
+  type ExpenseTemplateItem,
+} from "@/components/Expenses/ExpensesTemplates";
+import { IslandNavbar } from "@/components/Layout/MobileHeader";
+import { useToast } from "@/hooks/UseToast";
+import { Hero } from "@/components/DebtLoan/Hero";
+import { SubmitBar } from "@/components/DebtLoan/SubmitBar";
+import { parseAmount } from "@/components/DebtLoan/Format";
+import {
+  CardSelector,
+  type FetchState,
+  type CardItem,
+} from "@/components/Shared/CardSelector";
+import {
+  SearchablePicker,
+  type PickerItem,
+} from "@/components/Shared/SearchablePicker";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  ArrowLeft02Icon,
-  CheckmarkCircle02Icon,
-  Wallet01Icon,
-  Calendar02Icon,
-  Tag01Icon,
-  Store01Icon,
-  Note01Icon,
-  Invoice01Icon,
-  Add01Icon,
-  MinusSignCircleIcon,
-  PercentCircleIcon,
-} from "@hugeicons/core-free-icons";
-import {
-  SearchablePicker,
-  type PickerItem,
-} from "@/components/Shared/SearchablePicker";
 import {
   getCategoryIcon,
   getMerchantIcon,
@@ -48,350 +49,129 @@ import {
 interface Category {
   id: string;
   name: string;
-  type?: string;
 }
 interface Merchant {
   id: string;
   name: string;
-  type?: string;
-}
-interface Card {
-  id: string;
-  name: string;
-  type: string;
-  balance?: number;
 }
 
 type ActivePicker = "category" | "merchant" | null;
-
-// ─── Schema ───────────────────────────────────────────────────────────────────
-
-const expenseSchema = z.object({
-  name: z.string().min(1, "Nama expense wajib diisi"),
-  date: z.string().min(1, "Tanggal wajib diisi"),
-  subtotal: z.number().positive("Minimal Rp 1"),
-  discount: z.number().min(0).default(0),
-  tax: z.number().min(0).default(0),
-  fee: z.number().min(0).default(0),
-  notes: z.string().optional(),
-});
+type FormErrors = Partial<
+  Record<"name" | "amount" | "cardId" | "categoryId", string>
+>;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) => new Intl.NumberFormat("id-ID").format(Math.round(n));
-const fmtFull = (n: number) =>
-  new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(Math.round(n));
-const fmtDate = (iso: string) =>
-  new Date(iso + "T00:00:00").toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 
-const CARD_COLORS: Record<string, { bg: string; text: string; ring: string }> =
-  {
-    BANK: {
-      bg: "bg-blue-50 dark:bg-blue-950/50",
-      text: "text-blue-600 dark:text-blue-400",
-      ring: "ring-blue-500 dark:ring-blue-400",
-    },
-    EWALLET: {
-      bg: "bg-emerald-50 dark:bg-emerald-950/50",
-      text: "text-emerald-600 dark:text-emerald-400",
-      ring: "ring-emerald-500 dark:ring-emerald-400",
-    },
-    EMONEY: {
-      bg: "bg-amber-50 dark:bg-amber-950/50",
-      text: "text-amber-600 dark:text-amber-400",
-      ring: "ring-amber-500 dark:ring-amber-400",
-    },
-  };
+const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
+const formatInput = (n: number) => (n === 0 ? "" : fmt(n));
 
-// ─── Section Wrapper ──────────────────────────────────────────────────────────
+// ─── UI kecil (gaya sama dengan halaman add lain) ─────────────────────────────
 
-function Section({
+function Group({
+  title,
   children,
-  className = "",
 }: {
+  title?: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
-    <div
-      className={`bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden ${className}`}
-    >
-      {children}
-    </div>
+    <section>
+      {title && (
+        <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400 dark:text-gray-500">
+          {title}
+        </p>
+      )}
+      <div className="divide-y divide-neutral-200 overflow-hidden rounded-2xl bg-white dark:divide-neutral-800 dark:bg-neutral-900">
+        {children}
+      </div>
+    </section>
   );
 }
 
-// ─── Section Label ────────────────────────────────────────────────────────────
+const rowCls = "flex w-full items-center justify-between gap-4 px-4 py-3.5";
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+// Baris yang bisa diketuk (membuka picker)
+function PickRow({
+  label,
+  value,
+  placeholder,
+  icon,
+  onClick,
+}: {
+  label: string;
+  value?: string;
+  placeholder: string;
+  icon?: React.ReactNode;
+  onClick: () => void;
+}) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400 dark:text-gray-500 mb-2 px-1">
-      {children}
-    </p>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${rowCls} text-left transition-colors active:bg-neutral-50 dark:active:bg-neutral-800/60`}
+    >
+      <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+        {label}
+      </span>
+      <span className="flex min-w-0 items-center gap-2">
+        {value && icon}
+        <span
+          className={`truncate text-[15px] ${
+            value
+              ? "font-semibold text-neutral-900 dark:text-white"
+              : "text-neutral-300 dark:text-neutral-600"
+          }`}
+        >
+          {value || placeholder}
+        </span>
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          size={14}
+          className="shrink-0 text-neutral-300 dark:text-neutral-600"
+        />
+      </span>
+    </button>
   );
 }
 
-// ─── BreakdownRow ─────────────────────────────────────────────────────────────
-
-function BreakdownRow({
+// Baris angka (diskon, pajak, biaya)
+function AmountRow({
   label,
   value,
   onChange,
-  variant = "neutral",
-  icon,
+  tone,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
-  variant?: "neutral" | "positive" | "negative";
-  icon?: React.ReactNode;
+  tone: "plus" | "minus";
 }) {
-  const color =
-    variant === "positive"
-      ? "text-emerald-600 dark:text-emerald-400"
-      : variant === "negative"
-      ? "text-red-500 dark:text-red-400"
-      : "text-gray-700 dark:text-gray-300";
-
-  const borderColor =
-    variant === "positive"
-      ? "focus-within:border-emerald-400 dark:focus-within:border-emerald-600"
-      : variant === "negative"
-      ? "focus-within:border-red-400 dark:focus-within:border-red-600"
-      : "focus-within:border-gray-400 dark:focus-within:border-neutral-600";
-
-  const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
-  const formatInput = (n: number) =>
-    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
-
   return (
-    <div className="flex items-center justify-between py-3">
-      <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
-        <span className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-100 dark:border-neutral-700 flex items-center justify-center">
-          {icon}
-        </span>
-        <span className="text-[14px] font-medium text-gray-700 dark:text-gray-300">
-          {label}
-        </span>
-      </div>
-      <div
-        className={[
-          "flex items-center gap-1.5 px-3 py-2 rounded-xl border transition-colors",
-          "bg-gray-50/60 dark:bg-neutral-800/50 border-gray-200 dark:border-neutral-700",
-          borderColor,
-        ].join(" ")}
-      >
-        <span className="text-[13px] text-gray-400 dark:text-gray-500 select-none">
-          Rp
+    <label className={rowCls}>
+      <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+        {label}
+      </span>
+      <span className="flex min-w-0 flex-1 items-baseline justify-end gap-1.5">
+        <span className="text-sm text-neutral-400">
+          {tone === "minus" ? "−" : "+"} IDR
         </span>
         <input
-          type="number"
+          type="text"
           inputMode="numeric"
-          pattern="[0-9]*"
           value={formatInput(value)}
           placeholder="0"
           onChange={(e) => onChange(parseRaw(e.target.value))}
-          className={[
-            "w-[90px] text-right bg-transparent text-[14px] font-semibold outline-none tabular-nums",
-            "placeholder-gray-400 dark:placeholder-gray-600",
-            color,
-          ].join(" ")}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ─── MetaChip ─────────────────────────────────────────────────────────────────
-function DetailRow({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  placeholder,
-  onClick,
-  error,
-  children,
-  customContent,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value?: string;
-  placeholder?: string;
-  onClick?: () => void;
-  error?: boolean;
-  children?: React.ReactNode;
-  customContent?: React.ReactNode;
-}) {
-  const clickable = !!onClick;
-  const Wrapper = clickable ? motion.button : "div";
-  const wrapperProps = clickable
-    ? {
-        type: "button" as const,
-        onClick,
-        whileTap: { scale: 0.98 },
-        className: "w-full text-left cursor-pointer",
-      }
-    : { className: "w-full" };
-
-  return (
-    <Wrapper {...wrapperProps}>
-      <div
-        className={[
-          "flex items-center gap-3.5 px-4 py-3.5 min-h-[56px]",
-          "transition-colors",
-          clickable
-            ? "hover:bg-gray-50/60 dark:hover:bg-neutral-800/40 active:bg-gray-100 dark:active:bg-neutral-800"
-            : "",
-          error ? "bg-red-50/50 dark:bg-red-950/20" : "",
-        ].join(" ")}
-      >
-        {/* Icon */}
-        <div
-          className={[
-            "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
-            iconBg,
-          ].join(" ")}
-        >
-          <span className={iconColor}>{icon}</span>
-        </div>
-
-        {/* Content */}
-        {/* Content */}
-        <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-          <p className="text-[14px] font-semibold text-gray-700 dark:text-gray-300">
-            {label}
-          </p>
-
-          {customContent ? (
-            <div className="min-w-0" onClick={(e) => e.stopPropagation()}>
-              {customContent}
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 min-w-0">
-              <p
-                className={[
-                  "text-[13px] truncate max-w-[140px]",
-                  value
-                    ? "font-medium text-gray-900 dark:text-gray-100"
-                    : "text-gray-400 dark:text-gray-600",
-                ].join(" ")}
-              >
-                {value || placeholder}
-              </p>
-              {clickable && (
-                <svg
-                  className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2.5}
-                    d="M9 5l7 7-7 7"
-                  />
-                </svg>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Hidden native inputs */}
-        {children}
-      </div>
-    </Wrapper>
-  );
-}
-
-// ─── Collapsible Section ──────────────────────────────────────────────────────
-
-function CollapsibleSection({
-  icon,
-  title,
-  badge,
-  subtitle,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  badge?: React.ReactNode;
-  subtitle?: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <Section className="mx-4 mb-3">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 dark:hover:bg-neutral-800/30 transition-colors"
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-gray-50 dark:bg-neutral-800 border border-gray-100 dark:border-neutral-700 flex items-center justify-center text-gray-500 dark:text-gray-400 flex-shrink-0">
-            {icon}
-          </span>
-          <div className="min-w-0 text-left">
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
-                {title}
-              </span>
-              {badge}
-            </div>
-            {subtitle && (
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
-                {subtitle}
-              </p>
-            )}
-          </div>
-        </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ml-2 ${
-            isOpen ? "rotate-180" : ""
+          // 16px: di bawah itu Safari iOS otomatis zoom saat kolom difokus
+          className={`w-28 min-w-0 bg-transparent text-right text-[16px] font-semibold tabular-nums placeholder:text-neutral-300 focus:outline-none dark:placeholder:text-neutral-600 ${
+            tone === "minus"
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-red-500 dark:text-red-400"
           }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-4 border-t border-gray-100 dark:border-neutral-800">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </Section>
+        />
+      </span>
+    </label>
   );
 }
 
@@ -401,56 +181,55 @@ export default function AddExpensePage() {
   const router = useRouter();
   const toast = useToast();
 
-  // Reference data
+  // Ref untuk memindahkan fokus ke kolom pertama yang tidak valid
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // Data referensi
   const [categories, setCategories] = useState<Category[]>([]);
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
+  const [cards, setCards] = useState<CardItem[]>([]);
+  const [cardsState, setCardsState] = useState<FetchState>("loading");
+  const [cardsError, setCardsError] = useState<string | undefined>();
+  const [submitting, setSubmitting] = useState(false);
 
   // Form
-  const today = new Date();
+  const [amountRaw, setAmountRaw] = useState("");
   const [name, setName] = useState("");
-  const [date, setDate] = useState<Date | undefined>(today);
-  const [dateString, setDateString] = useState<string>(
-    format(today, "yyyy-MM-dd")
-  );
-
-  const parseRaw = (s: string) => parseInt(s.replace(/\D/g, ""), 10) || 0;
-  const formatInput = (n: number) =>
-    n === 0 ? "" : new Intl.NumberFormat("id-ID").format(n);
-
-  const [amount, setAmount] = useState(0);
+  const [cardId, setCardId] = useState("");
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [categoryId, setCategoryId] = useState("");
+  const [merchantId, setMerchantId] = useState("");
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
   const [fee, setFee] = useState(0);
   const [notes, setNotes] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [merchantId, setMerchantId] = useState("");
-  const [cardId, setCardId] = useState("");
 
-  // UI
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
+  const [errors, setErrors] = useState<FormErrors>({});
 
-  // Computed
-  const subtotal = amount;
+  const confirm = useConfirm();
+  const [templates, setTemplates] = useState<ExpenseTemplateItem[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+
+  // Perhitungan
+  const subtotal = parseAmount(amountRaw);
   const total = Math.max(0, subtotal + tax + fee - discount);
-  const hasBreakdown = discount > 0 || tax > 0 || fee > 0;
+  const dateString = date ? format(date, "yyyy-MM-dd") : "";
+
   const selectedCat = categories.find((c) => c.id === categoryId);
   const selectedMer = merchants.find((m) => m.id === merchantId);
 
-  // ── Convert to PickerItem — memo ────────────────────────────────────────────
   const categoryItems = useMemo<PickerItem[]>(
     () =>
       categories.map((c) => ({
         id: c.id,
         name: c.name,
         group: getCategoryGroup(c.name),
-        icon: getCategoryIcon(c.name) as any,
+        icon: getCategoryIcon(c.name) as PickerItem["icon"],
       })),
-    [categories]
+    [categories],
   );
 
   const merchantItems = useMemo<PickerItem[]>(
@@ -459,526 +238,427 @@ export default function AddExpensePage() {
         id: m.id,
         name: m.name,
         group: getMerchantGroup(m.name),
-        icon: getMerchantIcon(m.name) as any,
+        icon: getMerchantIcon(m.name) as PickerItem["icon"],
       })),
-    [merchants]
+    [merchants],
   );
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
+  // ── Fetch ───────────────────────────────────────────────────────────────────
+  const loadCards = useCallback(async () => {
+    setCardsState("loading");
+    setCardsError(undefined);
+    try {
+      const res = await fetch("/api/cards");
+      if (!res.ok) throw new Error("Gagal memuat rekening");
+      const data = await res.json();
+      const list: CardItem[] = (data.cards ?? []).map(
+        (c: CardItem & { balance?: number }) => ({
+          id: c.id,
+          name: c.name,
+          type: c.type,
+          balance: c.balance ?? 0,
+          stakeholder: c.stakeholder ?? null,
+        }),
+      );
+      setCards(list);
+      if (list.length > 0) setCardId((prev) => prev || list[0].id);
+      setCardsState("success");
+    } catch (e) {
+      console.error("Fetch cards error:", e);
+      setCardsError("Gagal memuat rekening. Periksa koneksi kamu.");
+      setCardsState("error");
+    }
+  }, []);
+
   useEffect(() => {
     let live = true;
     (async () => {
       try {
-        const [catRes, merRes, cardRes] = await Promise.all([
+        const [catRes, merRes] = await Promise.all([
           fetch("/api/categories"),
           fetch("/api/merchant"),
-          fetch("/api/cards"),
         ]);
-        const [catData, merData, cardData] = await Promise.all([
+        const [catData, merData] = await Promise.all([
           catRes.json(),
           merRes.json(),
-          cardRes.json(),
         ]);
         if (!live) return;
         setCategories(catData.categories ?? []);
         setMerchants(merData.merchants ?? []);
-        const list: Card[] = cardData.cards ?? [];
-        setCards(list);
-        if (list.length > 0) setCardId(list[0].id);
       } catch (e) {
         console.error("Fetch error:", e);
       }
     })();
+    loadCards();
     return () => {
       live = false;
     };
+  }, [loadCards]);
+
+  const fetchTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch("/api/expenses/templates");
+      if (res.ok) {
+        const d = await res.json();
+        setTemplates(d.templates ?? []);
+      }
+    } catch (e) {
+      console.error("Fetch templates error:", e);
+    } finally {
+      setLoadingTemplates(false);
+    }
   }, []);
 
-  const handleDateSelect = (selected: Date | undefined) => {
-    setDate(selected);
-    setDateString(selected ? format(selected, "yyyy-MM-dd") : "");
-  };
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
-  const handleSubmit = useCallback(async () => {
-    setErrors({});
-    const numSubtotal = Number(subtotal);
-    const numDiscount = Number(discount);
-    const numTax = Number(tax);
-    const numFee = Number(fee);
-
-    const payload = {
-      name,
-      date: dateString,
-      subtotal: numSubtotal,
-      discount: numDiscount,
-      tax: numTax,
-      fee: numFee,
-      notes: notes || undefined,
-      categoryId: categoryId || undefined,
-      merchantId: merchantId || undefined,
-      cardId,
-    };
-
-    const parsed = expenseSchema.safeParse(payload);
-
-    if (!parsed.success) {
-      // Debug: tampilkan issues
-      console.table(parsed.error.issues);
-      const e: Record<string, string> = {};
-      parsed.error.issues.forEach((i) => {
-        const key = i.path[0] as string;
-        e[key] = i.message;
-      });
-      setErrors(e);
-      toast.show({
-        title: "Form tidak valid",
-        description: parsed.error.issues.map((i) => i.message).join(", "),
-        variant: "danger",
-      });
-      return;
-    }
-    if (!cardId) {
-      setErrors({ cardId: "Pilih kartu pembayaran" });
-      toast.show({ title: "Pilih kartu dulu", variant: "warning" });
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        toast.show({
-          title: "Expense disimpan",
-          description: `${name} \u00B7 ${fmtFull(total)}`,
-          variant: "success",
-          icon: (
-            <HugeiconsIcon
-              icon={CheckmarkCircle02Icon}
-              size={22}
-              color="white"
-            />
-          ),
-          iconBg: "bg-emerald-500",
-          duration: 4000,
+  const handleSaveAsTemplate = useCallback(
+    async (templateName: string): Promise<boolean> => {
+      try {
+        const res = await fetch("/api/expenses/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: templateName,
+            amount: subtotal,
+            categoryId: categoryId || null,
+            merchantId: merchantId || null,
+            cardId: cardId || null,
+            tax,
+            fee,
+            discount,
+            notes: notes || null,
+          }),
         });
-        setTimeout(() => router.push("/expenses"), 600);
-      } else {
-        const data = await res.json();
+        if (res.ok) {
+          toast.show({
+            title: "Template berhasil disimpan",
+            variant: "success",
+          });
+          fetchTemplates();
+          return true;
+        }
+        const d = await res.json();
         toast.show({
-          title: "Gagal menyimpan",
-          description: data.error,
+          title: "Gagal menyimpan template",
+          description: d.error,
           variant: "danger",
         });
+        return false;
+      } catch {
+        toast.show({ title: "Koneksi Error", variant: "danger" });
+        return false;
       }
-    } catch {
-      toast.show({ title: "Koneksi error", variant: "danger" });
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    name,
-    date,
-    subtotal,
-    discount,
-    tax,
-    fee,
-    notes,
-    categoryId,
-    merchantId,
-    cardId,
-    total,
-    toast,
-    router,
-  ]);
+    },
+    [
+      subtotal,
+      categoryId,
+      merchantId,
+      cardId,
+      tax,
+      fee,
+      discount,
+      notes,
+      fetchTemplates,
+      toast,
+    ],
+  );
 
-  const handleBack = () => {
+  const handleApplyTemplate = useCallback(
+    (t: ExpenseTemplateItem) => {
+      setName(t.name);
+      setAmountRaw(String(t.amount));
+      setCategoryId(t.categoryId ?? "");
+      setMerchantId(t.merchantId ?? "");
+      if (t.cardId) setCardId(t.cardId);
+      setDiscount(t.discount ?? 0);
+      setTax(t.tax ?? 0);
+      setFee(t.fee ?? 0);
+      setNotes(t.notes ?? "");
+      toast.show({ title: "Template diterapkan", variant: "success" });
+    },
+    [toast],
+  );
+
+  const handleDeleteTemplate = useCallback(
+    (tId: string, tName: string) => {
+      confirm({
+        title: "Hapus Template?",
+        description: `Apakah Anda yakin ingin menghapus template "${tName}"?`,
+        confirmLabel: "Hapus",
+        cancelLabel: "Batal",
+        variant: "danger",
+        onConfirm: async () => {
+          try {
+            const res = await fetch(`/api/expenses/templates/${tId}`, {
+              method: "DELETE",
+            });
+            if (res.ok) {
+              toast.show({
+                title: "Template berhasil dihapus",
+                variant: "success",
+              });
+              fetchTemplates();
+            } else {
+              toast.show({
+                title: "Gagal menghapus template",
+                variant: "danger",
+              });
+            }
+          } catch {
+            toast.show({ title: "Koneksi Error", variant: "danger" });
+          }
+        },
+      });
+    },
+    [confirm, fetchTemplates, toast],
+  );
+
+  // ── Validasi & submit ───────────────────────────────────────────────────────
+  function validate(): boolean {
+    const errs: FormErrors = {};
+    if (!subtotal || subtotal <= 0)
+      errs.amount = "Nominal harus lebih besar dari 0";
+    if (!name.trim()) errs.name = "Nama pengeluaran wajib diisi";
+    if (!cardId) errs.cardId = "Pilih rekening pembayaran";
+    if (!categoryId) errs.categoryId = "Pilih kategori";
+    setErrors(errs);
+
+    if (errs.amount) amountInputRef.current?.focus();
+    else if (errs.name) nameInputRef.current?.focus();
+
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+
+    setSubmitting(true);
+
+    // Pindah halaman langsung; toast.promise tetap berjalan karena
+    // ToastStore global (tidak ikut hilang saat pindah route).
     router.push("/expenses");
-  };
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+    try {
+      await toast.promise(
+        async () => {
+          const res = await fetch("/api/expenses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: name.trim(),
+              date: dateString,
+              subtotal,
+              discount,
+              tax,
+              fee,
+              notes: notes.trim() || undefined,
+              categoryId: categoryId || undefined,
+              merchantId: merchantId || undefined,
+              cardId,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Gagal menyimpan expense");
+          return data;
+        },
+        {
+          loading: "Menyimpan...",
+          success: "Expense berhasil disimpan",
+          error: "Gagal menyimpan",
+        },
+      );
+    } catch {
+      // Error sudah ditangani toast.promise
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const ready = subtotal > 0 && name.trim().length > 0;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="h-screen flex flex-col mb-20 overflow-hidden bg-neutral-100 dark:bg-neutral-950">
-      <div className="fixed top-0 left-0 right-0 z-50">
+    <div className="flex min-h-screen flex-col bg-neutral-100 dark:bg-neutral-950">
+      <div className="fixed left-0 right-0 top-0 z-50">
         <IslandNavbar
           title="Tambah Expense"
-          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={20} />}
-          onAvatarPress={handleBack}
+          avatarIcon={<HugeiconsIcon icon={ArrowLeft02Icon} size={22} />}
+          onAvatarPress={() => router.push("/expenses")}
+          actions={[
+            {
+              id: "templates",
+              icon: (
+                <HugeiconsIcon
+                  icon={templatesOpen ? Folder03Icon : Folder01Icon}
+                  size={18}
+                />
+              ),
+              onPress: () => setTemplatesOpen((v) => !v),
+              label: "Template",
+            },
+          ]}
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden pt-[64px]">
-        {/* ── Hero: Amount input ── */}
-        <div className="mx-4 bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-6 pt-5 pb-6 mb-4">
-          <SectionLabel>Total Pengeluaran</SectionLabel>
-          <div className="flex items-baseline gap-2.5">
-            <span className="text-lg font-semibold text-gray-400 dark:text-gray-500 select-none">
-              Rp
-            </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={formatInput(amount)}
-              onChange={(e) => setAmount(parseRaw(e.target.value))}
-              placeholder="0"
-              className="
-                flex-1 bg-transparent outline-none
-                text-[36px] sm:text-[42px] font-bold tracking-tight tabular-nums leading-tight
-                text-gray-900 dark:text-gray-50
-                placeholder-gray-200 dark:placeholder-gray-700
-                caret-blue-500
-              "
-            />
-          </div>
-          {hasBreakdown && (
-            <p className="text-[13px] text-gray-400 dark:text-gray-500 mt-1 tabular-nums">
-              = {formatRupiah(total)}
-            </p>
-          )}
-          {errors.subtotal && (
-            <p className="text-xs text-red-500 mt-2">{errors.subtotal}</p>
-          )}
-        </div>
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-1 flex-col pt-[64px]"
+      >
+        <Hero
+          amountRaw={amountRaw}
+          onAmountChange={setAmountRaw}
+          amountInputRef={amountInputRef}
+          amountError={errors.amount}
+          personName={name}
+          onPersonChange={setName}
+          personInputRef={nameInputRef}
+          personError={errors.name}
+          personLabel="Untuk"
+          personPlaceholder="Nama Pengeluaran"
+        />
 
-        {/* ── Transaction Name ── */}
-        <div className="mx-4 mb-3">
-          <SectionLabel>Nama Transaksi</SectionLabel>
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 px-4 py-3.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 dark:focus-within:border-blue-600 transition-all">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Makan Siang, Bensin, Belanja..."
-              className="w-full bg-transparent text-[15px] font-medium outline-none text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600"
+        <div className="flex-1 space-y-7 px-4 pb-8">
+          {/* Sumber dana: Paylater hanya boleh untuk expenses */}
+          <div>
+            <CardSelector
+              state={cardsState}
+              cards={cards}
+              amount={total}
+              cardId={cardId}
+              onSelect={setCardId}
+              onRetry={loadCards}
+              error={cardsError}
+              label="Dibayar Dari"
+              allowPaylater
             />
-          </div>
-          {errors.name && (
-            <p className="text-xs text-red-500 mt-1.5 px-1">{errors.name}</p>
-          )}
-        </div>
-
-        {/* ── Card selector ── */}
-        <div className="mx-4 mb-3">
-          <SectionLabel>Kartu Pembayaran</SectionLabel>
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 p-2">
-            {cards.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-sm text-gray-400">
-                <HugeiconsIcon
-                  icon={Wallet01Icon}
-                  size={18}
-                  className="text-gray-300"
-                />
-                <span>Tidak ada kartu tersedia</span>
-              </div>
-            ) : (
-              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                {cards.map((card) => {
-                  const selected = card.id === cardId;
-                  const colors = CARD_COLORS[card.type] ?? CARD_COLORS.BANK;
-                  return (
-                    <button
-                      key={card.id}
-                      type="button"
-                      onClick={() => setCardId(card.id)}
-                      className={[
-                        "flex-shrink-0 flex items-center gap-3 px-4 py-3.5 rounded-full text-left",
-                        "border-2 transition-all duration-200 min-w-[140px]",
-                        selected
-                          ? `${colors.bg} ${colors.ring} shadow-sm`
-                          : "border-gray-100 dark:border-neutral-800 hover:border-gray-200 dark:hover:border-neutral-700 bg-transparent",
-                        "active:scale-[0.97]",
-                      ].join(" ")}
-                    >
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                          selected
-                            ? colors.bg
-                            : "bg-gray-50 dark:bg-neutral-800"
-                        }`}
-                      >
-                        <HugeiconsIcon
-                          icon={Wallet01Icon}
-                          size={17}
-                          className={
-                            selected
-                              ? colors.text
-                              : "text-gray-400 dark:text-gray-500"
-                          }
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p
-                          className={`text-[13px] font-semibold truncate ${
-                            selected
-                              ? colors.text
-                              : "text-gray-700 dark:text-gray-300"
-                          }`}
-                        >
-                          {card.name}
-                        </p>
-                        {card.balance !== undefined && (
-                          <p className="text-[11px] text-gray-400 tabular-nums mt-0.5">
-                            {fmtFull(card.balance)}
-                          </p>
-                        )}
-                      </div>
-                      {selected && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className={`w-4 h-4 rounded-full ${colors.text} border-2 ${colors.bg} flex items-center justify-center flex-shrink-0 ml-auto`}
-                        >
-                          <div
-                            className={`w-1.5 h-1.5 rounded-full ${colors.text.replace(
-                              "text-",
-                              "bg-"
-                            )}`}
-                          />
-                        </motion.div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
             {errors.cardId && (
-              <p className="text-xs text-red-500 px-3 pt-2 pb-1">
+              <p role="alert" className="mt-1.5 px-1 text-xs text-red-500">
                 {errors.cardId}
               </p>
             )}
           </div>
-        </div>
 
-        <div className="mx-4 mb-3">
-          <SectionLabel>Detail Transaksi</SectionLabel>
-          <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-gray-100/80 dark:border-neutral-800/80 overflow-hidden">
-            {/* Date Row */}
-            <DetailRow
-              icon={<HugeiconsIcon icon={Calendar02Icon} size={18} />}
-              iconBg="bg-blue-50 dark:bg-blue-950/40"
-              iconColor="text-blue-500 dark:text-blue-400"
-              label="Tanggal"
-              customContent={
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex items-center gap-1.5 text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate max-w-[160px]"
-                    >
-                      {date
-                        ? format(date, "dd MMM yyyy", { locale: id })
-                        : "Pilih tanggal"}
-                      <svg
-                        className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2.5}
-                          d="M9 5l7 7-7 7"
-                        />
-                      </svg>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-auto p-0 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl rounded-2xl"
-                    align="start"
+          {/* Detail */}
+          <div>
+            <Group title="Detail">
+              {/* Tanggal */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={`${rowCls} text-left transition-colors active:bg-neutral-50 dark:active:bg-neutral-800/60`}
                   >
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={handleDateSelect}
-                    />
-                  </PopoverContent>
-                </Popover>
-              }
-            />
+                    <span className="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+                      Tanggal
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-[15px] font-semibold text-neutral-900 dark:text-white">
+                        {date
+                          ? format(date, "dd MMM yyyy", { locale: localeId })
+                          : "Pilih tanggal"}
+                      </span>
+                      <HugeiconsIcon
+                        icon={ArrowRight01Icon}
+                        size={14}
+                        className="text-neutral-300 dark:text-neutral-600"
+                      />
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto rounded-2xl border-0 bg-white p-0 shadow-xl dark:bg-neutral-900"
+                  align="end"
+                >
+                  <Calendar mode="single" selected={date} onSelect={setDate} />
+                </PopoverContent>
+              </Popover>
 
-            {/* Divider */}
-            <div className="mx-4 h-px bg-gray-100 dark:bg-neutral-800" />
+              <PickRow
+                label="Kategori"
+                value={selectedCat?.name}
+                placeholder="Pilih kategori"
+                icon={
+                  <HugeiconsIcon
+                    icon={getCategoryIcon(selectedCat?.name)}
+                    size={16}
+                    className="shrink-0 text-blue-500"
+                  />
+                }
+                onClick={() => setActivePicker("category")}
+              />
 
-            {/* Category Row */}
-            <DetailRow
-              icon={<HugeiconsIcon icon={Tag01Icon} size={18} />}
-              iconBg="bg-violet-50 dark:bg-violet-950/40"
-              iconColor="text-violet-500 dark:text-violet-400"
-              label="Kategori"
-              value={selectedCat?.name}
-              placeholder="Pilih kategori"
-              onClick={() => setActivePicker("category")}
-            />
-
-            {/* Divider */}
-            <div className="mx-4 h-px bg-gray-100 dark:bg-neutral-800" />
-
-            {/* Merchant Row */}
-            <DetailRow
-              icon={<HugeiconsIcon icon={Store01Icon} size={18} />}
-              iconBg="bg-orange-50 dark:bg-orange-950/40"
-              iconColor="text-orange-500 dark:text-orange-400"
-              label="Merchant"
-              value={selectedMer?.name}
-              placeholder="Pilih merchant"
-              onClick={() => setActivePicker("merchant")}
-            />
+              <PickRow
+                label="Merchant"
+                value={selectedMer?.name}
+                placeholder="Opsional"
+                icon={
+                  <HugeiconsIcon
+                    icon={getMerchantIcon(selectedMer?.name)}
+                    size={16}
+                    className="shrink-0 text-orange-500"
+                  />
+                }
+                onClick={() => setActivePicker("merchant")}
+              />
+            </Group>
+            {errors.categoryId && (
+              <p role="alert" className="mt-1.5 px-1 text-xs text-red-500">
+                {errors.categoryId}
+              </p>
+            )}
           </div>
-        </div>
 
-        {/* ── Breakdown collapsible ── */}
-        <CollapsibleSection
-          icon={<HugeiconsIcon icon={Invoice01Icon} size={17} />}
-          title="Rincian Harga"
-          badge={
-            hasBreakdown ? (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
-                Aktif
-              </span>
-            ) : undefined
-          }
-          subtitle={
-            hasBreakdown
-              ? `Total: ${fmtFull(total)}`
-              : "Tambah diskon, pajak & biaya"
-          }
-          isOpen={showBreakdown}
-          onToggle={() => setShowBreakdown((v) => !v)}
-        >
-          <div className="pt-3 space-y-0 divide-y divide-gray-50 dark:divide-neutral-800">
-            <BreakdownRow
+          {/* Tambahan & potongan + total */}
+          <Group title="Tambahan & Potongan">
+            <AmountRow
               label="Diskon"
               value={discount}
               onChange={setDiscount}
-              variant="positive"
-              icon={
-                <HugeiconsIcon
-                  icon={Tag01Icon}
-                  size={15}
-                  className="text-emerald-500"
-                />
-              }
+              tone="minus"
             />
-            <BreakdownRow
+            <AmountRow
               label="Pajak"
               value={tax}
               onChange={setTax}
-              variant="negative"
-              icon={
-                <HugeiconsIcon
-                  icon={PercentCircleIcon}
-                  size={15}
-                  className="text-red-400"
-                />
-              }
+              tone="plus"
             />
-            <BreakdownRow
-              label="Biaya Tambahan"
+            <AmountRow
+              label="Biaya tambahan"
               value={fee}
               onChange={setFee}
-              variant="negative"
-              icon={
-                <HugeiconsIcon
-                  icon={Add01Icon}
-                  size={15}
-                  className="text-orange-400"
-                />
-              }
+              tone="plus"
             />
-          </div>
-        </CollapsibleSection>
+            <div className="flex items-center justify-between gap-4 bg-neutral-50 px-4 py-3.5 dark:bg-neutral-800/60">
+              <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+                Total bayar
+              </span>
+              <span className="text-[17px] font-bold tabular-nums text-neutral-900 dark:text-white">
+                IDR {fmt(total)}
+              </span>
+            </div>
+          </Group>
 
-        {/* ── Notes collapsible ── */}
-        <CollapsibleSection
-          icon={<HugeiconsIcon icon={Note01Icon} size={17} />}
-          title={notes ? "Catatan" : "Tambah Catatan"}
-          subtitle={notes || "Deskripsi tambahan..."}
-          isOpen={showNotes}
-          onToggle={() => setShowNotes((v) => !v)}
-        >
-          <div className="pt-3">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Tulis catatan di sini..."
-              rows={3}
-              autoFocus={showNotes}
-              className="w-full bg-transparent text-[14px] text-gray-700 dark:text-gray-300 outline-none resize-none placeholder-gray-400 dark:placeholder-gray-600 leading-relaxed"
-            />
-          </div>
-        </CollapsibleSection>
-      </div>
+          {/* Catatan */}
+          <Group title="Catatan (opsional)">
+            <div className="px-4 py-3.5">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Tambahkan detail transaksi di sini..."
+                rows={3}
+                className="w-full resize-none bg-transparent text-[16px] leading-relaxed text-neutral-800 outline-none placeholder:text-neutral-300 dark:text-neutral-200 dark:placeholder:text-neutral-600"
+              />
+            </div>
+          </Group>
+        </div>
 
-      {/* ── Sticky submit ── */}
-      {/* ── Floating submit (mengikuti pola BottomNav) ── */}
-<div
-  data-save-bar
-  className="fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none"
-  style={{
-    bottom: "calc(1rem + env(safe-area-inset-bottom, 0px))",
-  }}
->
-  <motion.button
-    type="button"
-    onClick={handleSubmit}
-    disabled={loading || total === 0 || !name.trim()}
-    aria-busy={loading}
-    aria-disabled={loading || total === 0 || !name.trim()}
-    whileTap={{ scale: 0.97 }}
-    transition={{ duration: 0.1 }}
-    className={[
-      "pointer-events-auto",
-      "w-full max-w-md h-[52px] rounded-[28px]",
-      "text-[15px] font-semibold tracking-wide",
-      "flex items-center justify-center gap-2",
-      "backdrop-blur-2xl border",
-      "transition-all duration-200",
-      "motion-reduce:transition-none motion-reduce:active:scale-100",
-      "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
-      loading || total === 0 || !name.trim()
-        ? "cursor-not-allowed bg-neutral-900/60 border-white/5 text-neutral-500 shadow-[0_8px_32px_rgba(0,0,0,0.25)]"
-        : "bg-neutral-900/80 border-white/10 text-white shadow-[0_8px_32px_rgba(0,0,0,0.4)] focus-visible:ring-white/40",
-    ].join(" ")}
-  >
-    {loading ? (
-      <span className="flex items-center gap-2">
-        <svg
-          className="h-4 w-4 animate-spin motion-reduce:animate-none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-            fill="none"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
-        Menyimpan...
-      </span>
-    ) : total === 0 ? (
-      "Masukkan nominal"
-    ) : !name.trim() ? (
-      "Isi nama transaksi"
-    ) : (
-      <span className="flex items-center gap-2">
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} size={18} />
-        Simpan {fmtFull(total)}
-      </span>
-    )}
-  </motion.button>
-</div>
+        <SubmitBar ready={ready} loading={submitting} />
+      </form>
 
       {/* ── Pickers ── */}
       <SearchablePicker
@@ -999,6 +679,20 @@ export default function AddExpensePage() {
         selectedId={merchantId}
         title="Pilih Merchant"
         placeholder="Cari merchant..."
+      />
+
+      <ExpenseTemplatePopover
+        open={templatesOpen}
+        onClose={() => setTemplatesOpen(false)}
+        anchorId="templates"
+        templates={templates}
+        loading={loadingTemplates}
+        categories={categories}
+        canSave={subtotal > 0 && name.trim().length > 0}
+        defaultName={name}
+        onApply={handleApplyTemplate}
+        onSave={handleSaveAsTemplate}
+        onDelete={handleDeleteTemplate}
       />
     </div>
   );
