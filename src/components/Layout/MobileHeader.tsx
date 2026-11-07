@@ -11,6 +11,7 @@ export interface NavbarAction {
   icon: ReactNode;
   onPress: () => void;
   label?: string;
+  id?: string;
 }
 
 export interface IslandNavbarProps {
@@ -115,6 +116,7 @@ export function IslandNavbar({
         {actions.map((action, i) => (
           <button
             key={i}
+            data-nav-action={action.id}
             onClick={action.onPress}
             aria-label={action.label}
             className="w-8 h-8 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-[background-color,color] duration-300 shrink-0"
