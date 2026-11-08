@@ -120,31 +120,41 @@ export default function AddDebtPage() {
     if (!validate()) return;
 
     setSubmitting(true);
+
+    // Navigate immediately — toast.promise keeps running after route change
+    // because ToastStore is a global Zustand store (survives navigation).
+    router.push("/debts");
+
     try {
-      const res = await fetch("/api/debts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardId,
-          name: name.trim(),
-          creditor: creditor.trim(),
-          category,
-          totalAmount: amount,
-          date: startDate,
-          dueDate,
-          notes: null,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal menyimpan Utang");
-      toast.show({ title: "Utang berhasil ditambahkan", variant: "success" });
-      router.push("/debts");
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menyimpan",
-        description: err instanceof Error ? err.message : "Terjadi kesalahan",
-        variant: "danger",
-      });
+      await toast.promise(
+        async () => {
+          const res = await fetch("/api/debts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              cardId,
+              name: name.trim(),
+              creditor: creditor.trim(),
+              category,
+              totalAmount: amount,
+              debtDate: startDate,
+              date: startDate,
+              dueDate,
+              notes: null,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Gagal menyimpan Utang");
+          return data;
+        },
+        {
+          loading: "Menyimpan...",
+          success: "Utang berhasil disimpan",
+          error: "Gagal menyimpan",
+        },
+      );
+    } catch {
+      // Error already handled by toast.promise (shows danger toast)
     } finally {
       setSubmitting(false);
     }
@@ -164,7 +174,11 @@ export default function AddDebtPage() {
         />
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col flex-1 pt-[64px]">
+      <form
+        onSubmit={handleSubmit}
+        noValidate
+        className="flex flex-col flex-1 pt-[64px]"
+      >
         <Hero
           amountRaw={amountRaw}
           onAmountChange={setAmountRaw}
