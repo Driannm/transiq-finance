@@ -129,7 +129,7 @@ export default function EditDebtPage({
   }
 
   return (
-    <div className="min-h-screen bg-[var(--paper,#FAFAF8)] dark:bg-neutral-950 pb-24 flex flex-col">
+    <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 pb-24 font-sans">
       <div className="fixed top-0 left-0 right-0 z-50">
         <IslandNavbar
           title="Edit Utang"
