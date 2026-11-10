@@ -203,6 +203,7 @@ export default function AddExpensePage() {
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
   const [fee, setFee] = useState(0);
+  const [shipping, setShipping] = useState(0);
   const [notes, setNotes] = useState("");
 
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
@@ -215,7 +216,7 @@ export default function AddExpensePage() {
 
   // Perhitungan
   const subtotal = parseAmount(amountRaw);
-  const total = Math.max(0, subtotal + tax + fee - discount);
+  const total = Math.max(0, subtotal + tax + fee + shipping - discount);
   const dateString = date ? format(date, "yyyy-MM-dd") : "";
 
   const selectedCat = categories.find((c) => c.id === categoryId);
@@ -328,6 +329,7 @@ export default function AddExpensePage() {
             cardId: cardId || null,
             tax,
             fee,
+            shipping,
             discount,
             notes: notes || null,
           }),
@@ -359,6 +361,7 @@ export default function AddExpensePage() {
       cardId,
       tax,
       fee,
+      shipping,
       discount,
       notes,
       fetchTemplates,
@@ -376,6 +379,7 @@ export default function AddExpensePage() {
       setDiscount(t.discount ?? 0);
       setTax(t.tax ?? 0);
       setFee(t.fee ?? 0);
+      setShipping(t.shipping ?? 0);
       setNotes(t.notes ?? "");
       toast.show({ title: "Template diterapkan", variant: "success" });
     },
@@ -455,6 +459,7 @@ export default function AddExpensePage() {
               discount,
               tax,
               fee,
+              shipping,
               notes: notes.trim() || undefined,
               categoryId: categoryId || undefined,
               merchantId: merchantId || undefined,
@@ -631,6 +636,12 @@ export default function AddExpensePage() {
               label="Biaya tambahan"
               value={fee}
               onChange={setFee}
+              tone="plus"
+            />
+            <AmountRow
+              label="Ongkos kirim"
+              value={shipping}
+              onChange={setShipping}
               tone="plus"
             />
             <div className="flex items-center justify-between gap-4 bg-neutral-50 px-4 py-3.5 dark:bg-neutral-800/60">

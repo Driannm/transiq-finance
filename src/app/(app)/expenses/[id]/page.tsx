@@ -17,6 +17,8 @@ import {
   PercentCircleIcon,
   Add01Icon,
   CheckmarkCircle02Icon,
+  UserGroupIcon,
+  DeliveryTruck01Icon,
 } from "@hugeicons/core-free-icons";
 import { format, isValid } from "date-fns";
 import { getCategoryIcon } from "@/lib/iconMapping";
@@ -32,6 +34,7 @@ interface ExpenseDetail {
   tax: number;
   fee: number;
   discount: number;
+  shipping?: number;
   notes?: string | null;
   category?: { id: string; name: string } | null;
   merchant?: { id: string; name: string } | null;
@@ -41,6 +44,14 @@ interface ExpenseDetail {
     date: string;
     createdAt: string;
     card: { id: string; name: string; type: string };
+    groups?: Array<{
+      group: {
+        id: string;
+        name: string;
+        icon: string;
+        iconColor: string;
+      };
+    }>;
   };
 }
 
@@ -64,7 +75,7 @@ function safeDate(iso: string | null | undefined, fmt: string): string {
 
 // Derive subtotal from total and adjustments
 function getSubtotal(e: ExpenseDetail): number {
-  return e.transaction.amount - e.tax - e.fee + e.discount;
+  return e.transaction.amount - e.tax - e.fee - (e.shipping ?? 0) + e.discount;
 }
 
 const CARD_TYPE_COLOR: Record<string, { bg: string; text: string }> = {
@@ -223,7 +234,11 @@ export default function ExpenseDetailPage() {
   // ── Derived values ─────────────────────────────────────────────────────────
   const subtotal     = getSubtotal(expense);
   const total        = expense.transaction.amount;
-  const hasBreakdown = expense.discount > 0 || expense.tax > 0 || expense.fee > 0;
+  const hasBreakdown =
+    expense.discount > 0 ||
+    expense.tax > 0 ||
+    expense.fee > 0 ||
+    (expense.shipping ?? 0) > 0;
   const cardColors   = CARD_TYPE_COLOR[expense.transaction.card.type] ?? CARD_TYPE_COLOR.BANK;
 
   return (
@@ -308,6 +323,11 @@ export default function ExpenseDetailPage() {
                       + Biaya {fmtNum(expense.fee)}
                     </span>
                   )}
+                  {!!expense.shipping && expense.shipping > 0 && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
+                      + Ongkir {fmtNum(expense.shipping)}
+                    </span>
+                  )}
                 </div>
               )}
             </DetailCard>
@@ -360,6 +380,25 @@ export default function ExpenseDetailPage() {
                     label="Merchant"
                     value={expense.merchant.name}
                   />
+                </>
+              )}
+
+              {/* Grup Transaksi — hanya jika ada */}
+              {expense.transaction.groups && expense.transaction.groups[0]?.group && (
+                <>
+                  <Divider />
+                  <div
+                    onClick={() => router.push(`/expenses/groups/${expense.transaction.groups![0].group.id}`)}
+                    className="cursor-pointer hover:bg-gray-50/50 dark:hover:bg-neutral-800/30 transition-colors"
+                  >
+                    <DetailRow
+                      icon={<HugeiconsIcon icon={UserGroupIcon} size={18} />}
+                      iconBg="bg-teal-50 dark:bg-teal-950/40"
+                      iconColor="text-teal-500 dark:text-teal-400"
+                      label="Grup"
+                      value={expense.transaction.groups[0].group.name}
+                    />
+                  </div>
                 </>
               )}
             </DetailCard>
@@ -427,6 +466,21 @@ export default function ExpenseDetailPage() {
                       </div>
                       <span className="text-[14px] font-semibold font-mono tabular-nums text-orange-500 dark:text-orange-400">
                         + {fmtIDR(expense.fee)}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {!!expense.shipping && expense.shipping > 0 && (
+                  <>
+                    <Divider />
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <HugeiconsIcon icon={DeliveryTruck01Icon} size={14} className="text-sky-500" />
+                        <span className="text-[13px] text-gray-500 dark:text-gray-400">Ongkos Kirim</span>
+                      </div>
+                      <span className="text-[14px] font-semibold font-mono tabular-nums text-sky-600 dark:text-sky-400">
+                        + {fmtIDR(expense.shipping)}
                       </span>
                     </div>
                   </>

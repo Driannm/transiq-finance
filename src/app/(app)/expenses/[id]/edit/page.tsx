@@ -246,6 +246,7 @@ export default function EditExpensePage() {
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
   const [fee, setFee] = useState(0);
+  const [shipping, setShipping] = useState(0);
   const [notes, setNotes] = useState("");
 
   // UI
@@ -256,7 +257,7 @@ export default function EditExpensePage() {
 
   // Perhitungan
   const subtotal = parseAmount(amountRaw);
-  const total = Math.max(0, subtotal + tax + fee - discount);
+  const total = Math.max(0, subtotal + tax + fee + shipping - discount);
   const dateString = date ? format(date, "yyyy-MM-dd") : "";
 
   const selectedCat = categories.find((c) => c.id === categoryId);
@@ -355,14 +356,19 @@ export default function EditExpensePage() {
           setName(e.name);
           setDate(new Date(e.transaction.date));
 
-          // Subtotal = total - pajak - biaya + diskon
+          // Subtotal = total - pajak - biaya - ongkir + diskon
           const calculatedSubtotal =
-            e.transaction.amount - e.tax - e.fee + e.discount;
+            e.transaction.amount -
+            e.tax -
+            e.fee -
+            (e.shipping ?? 0) +
+            e.discount;
           setAmountRaw(String(calculatedSubtotal));
 
           setDiscount(e.discount);
           setTax(e.tax);
           setFee(e.fee);
+          setShipping(e.shipping ?? 0);
           setNotes(e.notes ?? "");
           setCategoryId(e.category?.id ?? "");
           setMerchantId(e.merchant?.id ?? "");
@@ -424,6 +430,7 @@ export default function EditExpensePage() {
               discount,
               tax,
               fee,
+              shipping,
               notes: notes.trim() || null,
               categoryId: categoryId || null,
               merchantId: merchantId || null,
@@ -625,6 +632,12 @@ export default function EditExpensePage() {
               label="Biaya tambahan"
               value={fee}
               onChange={setFee}
+              tone="plus"
+            />
+            <AmountRow
+              label="Ongkos kirim"
+              value={shipping}
+              onChange={setShipping}
               tone="plus"
             />
             <TotalRow total={total} />
