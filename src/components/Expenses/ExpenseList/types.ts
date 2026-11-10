@@ -15,6 +15,7 @@ export interface ExpenseRecord {
   tax:       number;
   fee:       number;
   discount:  number;
+  shipping?: number;
   notes?:    string | null;
   category?: { id: string; name: string } | null;
   merchant?: { id: string; name: string } | null;

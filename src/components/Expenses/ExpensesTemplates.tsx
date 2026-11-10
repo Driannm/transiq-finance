@@ -20,6 +20,7 @@ export interface ExpenseTemplateItem {
   discount?: number | null;
   tax?: number | null;
   fee?: number | null;
+  shipping?: number | null;
   notes?: string | null;
 }
 
