@@ -206,6 +206,7 @@ model Expense {
   tax      Float?  @default(0)
   fee      Float?  @default(0)
   discount Float?  @default(0)
+  shipping Float?  @default(0)
   notes    String?
 
   @@index([categoryId])
@@ -493,6 +494,7 @@ model ExpenseTemplate {
   tax      Float?  @default(0)
   fee      Float?  @default(0)
   discount Float?  @default(0)
+  shipping Float?  @default(0)
   notes    String?
 
   userId String
@@ -503,4 +505,35 @@ model ExpenseTemplate {
 
   @@index([userId])
   @@map("expense_templates")
+}
+
+model GoldPrice {
+  id        String   @id @default(cuid())
+  source    String
+  unit      String   @default("gram")
+  buyPrice  Int
+  sellPrice Int?
+  sourceUrl String
+  checksum  String
+  isValid   Boolean  @default(true)
+  fetchedAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@unique([source, unit])
+  @@index([fetchedAt])
+}
+
+model GoldFetchState {
+  id            Int       @id
+  lastAttemptAt DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  updatedAt     DateTime  @updatedAt
+}
+
+// Lewati jika Anda sudah punya tabel feature flag
+model FeatureFlag {
+  key       String   @id
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @updatedAt
 }
