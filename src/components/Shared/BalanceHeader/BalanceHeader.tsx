@@ -3,6 +3,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { GoldTicker } from "./addons/GoldTicker";
 import { formatIDR } from "@/lib/format";
 import type { BalanceHeaderProps, BalanceHeaderVariant } from "./types";
 import {
@@ -69,6 +70,7 @@ export function BalanceHeader({
   secondaryAmount,
   topRightAction,
   badges,
+  gold,
   className = "",
 }: BalanceHeaderProps) {
   const meta = VARIANT_META[variant] || VARIANT_META.emerald;
@@ -161,6 +163,8 @@ export function BalanceHeader({
 
         {/* Bottom Level Badges Addon */}
         {badges && badges.length > 0 && <Badges badges={badges} />}
+
+        {gold && <GoldTicker {...gold} />}
       </div>
     </motion.div>
   );

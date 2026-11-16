@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import type { GoldTickerProps } from "./addons/GoldTicker";
 
 export type BalanceHeaderVariant =
   | "yellow"
@@ -56,6 +57,7 @@ export interface BalanceHeaderProps {
   secondaryAmount?: SecondaryAmountConfig;
   topRightAction?: ReactNode;
   badges?: ReactNode[];
+  gold?: GoldTickerProps; // ← BARU: panel harga emas ({ data, loading })
 
   className?: string;
 }
