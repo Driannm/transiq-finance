@@ -85,9 +85,13 @@ export async function GET(request: Request) {
       const paidAmount = d.payments.reduce((sum, p) => sum + p.transaction.amount, 0);
 
       // Tentukan status dinamis
-      let calculatedStatus: "unpaid" | "partial" | "paid" = "unpaid";
+      let calculatedStatus: "unpaid" | "partial" | "overdue" | "paid" = "unpaid";
+      const isOverdue = d.dueDate ? new Date(d.dueDate) < new Date() : false;
+
       if (d.status === "PAID" || paidAmount >= totalAmount) {
         calculatedStatus = "paid";
+      } else if (isOverdue) {
+        calculatedStatus = "overdue";
       } else if (paidAmount > 0) {
         calculatedStatus = "partial";
       }
@@ -107,9 +111,12 @@ export async function GET(request: Request) {
     });
 
     // Lakukan filter status dinamis jika dikirimkan oleh frontend
-    const finalDebts = status && status !== "all" 
-      ? mappedDebts.filter((d) => d.status === status) 
-      : mappedDebts;
+    let finalDebts = mappedDebts;
+    if (status === "all") {
+      finalDebts = mappedDebts.filter((d) => d.status !== "paid");
+    } else if (status) {
+      finalDebts = mappedDebts.filter((d) => d.status === status);
+    }
 
     return NextResponse.json({ debts: finalDebts });
   } catch (error) {

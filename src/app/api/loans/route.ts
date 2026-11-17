@@ -106,9 +106,12 @@ export async function GET(request: Request) {
     });
 
     // Client-side status filter
-    const finalLoans = status && status !== "all"
-      ? mappedLoans.filter((l) => l.status === status)
-      : mappedLoans;
+    let finalLoans = mappedLoans;
+    if (status === "all") {
+      finalLoans = mappedLoans.filter((l) => l.status !== "paid");
+    } else if (status) {
+      finalLoans = mappedLoans.filter((l) => l.status === status);
+    }
 
     // Month filter on dueDate (client side after status filter for simplicity)
     const filteredByMonth = from && to
