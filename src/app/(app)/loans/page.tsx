@@ -178,7 +178,6 @@ const STAMP_META: Record<
 export default function LoansPage() {
   const [loans, setLoans] = useState<LoanItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [activeStatus, setActiveStatus] = useState<"all" | LoanStatus>("all");
 
   const [hasMore, setHasMore] = useState(false);
@@ -221,9 +220,7 @@ export default function LoansPage() {
       else setLoading(true);
       try {
         const nextPage = isLoadMore ? page + 1 : 1;
-        const res = await fetch(
-          `/api/loans?month=${month}&status=${activeStatus}&page=${nextPage}&limit=100`,
-        );
+        const res = await fetch(`/api/loans?page=${nextPage}&limit=100`);
         if (!res.ok) throw new Error("Gagal mengambil data dari server");
         const data = await res.json();
 
@@ -243,29 +240,23 @@ export default function LoansPage() {
         else setLoading(false);
       }
     },
-    [month, page, activeStatus],
+    [page],
   );
 
   useEffect(() => {
     fetchLoans();
-  }, [month, activeStatus]); // eslint-disable-line
-
-  const prevMonth = () => {
-    const d = new Date(month + "-01");
-    d.setMonth(d.getMonth() - 1);
-    setMonth(format(d, "yyyy-MM"));
-  };
-  const nextMonth = () => {
-    const d = new Date(month + "-01");
-    d.setMonth(d.getMonth() + 1);
-    setMonth(format(d, "yyyy-MM"));
-  };
+  }, [fetchLoans]);
 
   // Stats
+  const isLoanOverdue = (l: LoanItem) =>
+    l.status === "overdue" || (l.status !== "paid" && getDaysUntilDue(l.dueDate) < 0);
+
   const filteredByStatus =
     activeStatus === "all"
       ? loans.filter((l) => l.status !== "paid")
-      : loans.filter((l) => l.status === activeStatus);
+      : activeStatus === "overdue"
+        ? loans.filter(isLoanOverdue)
+        : loans.filter((l) => l.status === activeStatus);
   const totalOutstanding = loans
     .filter((l) => l.status !== "paid")
     .reduce((s, l) => s + (l.totalAmount - l.returnedAmount), 0);
@@ -360,12 +351,6 @@ export default function LoansPage() {
             amount={totalOutstanding}
             variant="emerald"
             isLoading={loading}
-            monthSelector={{
-              currentMonth: month,
-              onPrev: prevMonth,
-              onNext: nextMonth,
-              style: "sleek",
-            }}
             progress={{
               percentage: getProgressPercent(totalReturned, totalLent),
               labelLeft: "Terbayar",

@@ -8,6 +8,10 @@ import { IslandNavbar } from "@/components/Layout/MobileHeader";
 import { BalanceHeader } from "@/components/Shared/BalanceHeader";
 import { CardList } from "@/components/Shared/CardList";
 import type { LoanItemMeta } from "@/components/Shared/CardList/types";
+import {
+  StatusFilterPills,
+  type FilterOption,
+} from "@/components/Shared/StatusFilterPills";
 import { useRouter } from "next/navigation";
 import {
   DataControlsBar,
@@ -174,7 +178,6 @@ const STAMP_META: Record<
 export default function DebtsPage() {
   const [debts, setDebts] = useState<DebtItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [month, setMonth] = useState(() => format(new Date(), "yyyy-MM"));
   const [unpaidStatus, setActiveStatus] = useState<"all" | DebtStatus>("all");
 
   const [hasMore, setHasMore] = useState(false);
@@ -217,9 +220,7 @@ export default function DebtsPage() {
       else setLoading(true);
       try {
         const nextPage = isLoadMore ? page + 1 : 1;
-        const res = await fetch(
-          `/api/debts?month=${month}&status=${unpaidStatus}&page=${nextPage}&limit=100`,
-        );
+        const res = await fetch(`/api/debts?page=${nextPage}&limit=100`);
         if (!res.ok) throw new Error("Gagal mengambil data dari server");
         const data = await res.json();
 
@@ -239,29 +240,24 @@ export default function DebtsPage() {
         else setLoading(false);
       }
     },
-    [month, page, unpaidStatus],
+    [page],
   );
 
   useEffect(() => {
     fetchDebts();
-  }, [month, unpaidStatus]); // eslint-disable-line
-
-  const prevMonth = () => {
-    const d = new Date(month + "-01");
-    d.setMonth(d.getMonth() - 1);
-    setMonth(format(d, "yyyy-MM"));
-  };
-  const nextMonth = () => {
-    const d = new Date(month + "-01");
-    d.setMonth(d.getMonth() + 1);
-    setMonth(format(d, "yyyy-MM"));
-  };
+  }, [fetchDebts]);
 
   // Stats
+  const isDebtOverdue = (d: DebtItem) =>
+    d.status === "overdue" ||
+    (d.status !== "paid" && getDaysUntilDue(d.dueDate) < 0);
+
   const filteredByStatus =
     unpaidStatus === "all"
       ? debts.filter((l) => l.status !== "paid")
-      : debts.filter((l) => l.status === unpaidStatus);
+      : unpaidStatus === "overdue"
+        ? debts.filter(isDebtOverdue)
+        : debts.filter((l) => l.status === unpaidStatus);
   const totalOutstanding = debts
     .filter((l) => l.status !== "paid")
     .reduce((s, l) => s + (l.totalAmount - l.paidAmount), 0);
@@ -297,9 +293,7 @@ export default function DebtsPage() {
       if (!res.ok) throw new Error("Gagal melunasi utang");
       setDebts((prev) =>
         prev.map((l) =>
-          l.id === id
-            ? { ...l, status: "paid", paidAmount: l.totalAmount }
-            : l,
+          l.id === id ? { ...l, status: "paid", paidAmount: l.totalAmount } : l,
         ),
       );
     } catch (err) {
@@ -356,12 +350,6 @@ export default function DebtsPage() {
             amount={totalOutstanding}
             variant="rose"
             isLoading={loading}
-            monthSelector={{
-              currentMonth: month,
-              onPrev: prevMonth,
-              onNext: nextMonth,
-              style: "sleek",
-            }}
             progress={{
               percentage: getProgressPercent(totalReturned, totalDebt),
               labelLeft: "Terbayar",
@@ -371,34 +359,19 @@ export default function DebtsPage() {
         </motion.div>
 
         {/* ── Status Filter Pills ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-          className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
-        >
-          {(["all", "unpaid", "partial", "overdue", "paid"] as const).map(
-            (s) => {
-              const isActive = unpaidStatus === s;
-              const meta = s !== "all" ? STATUS_META[s] : null;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setActiveStatus(s)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
-                    isActive
-                      ? s === "all"
-                        ? "bg-white text-neutral-900 border-white"
-                        : `${meta!.bg} ${meta!.color} border-transparent`
-                      : "bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500 dark:text-neutral-400 border-transparent"
-                  }`}
-                >
-                  {s === "all" ? "Semua" : meta!.label}
-                </button>
-              );
-            },
-          )}
-        </motion.div>
+        <StatusFilterPills
+          options={[
+            { value: "all", label: "Semua" },
+            ...(["unpaid", "partial", "overdue", "paid"] as const).map((s) => ({
+              value: s,
+              label: STATUS_META[s].label,
+              activeBgClass: STATUS_META[s].bg,
+              activeTextClass: STATUS_META[s].color,
+            })),
+          ]}
+          value={unpaidStatus}
+          onChange={(v) => setActiveStatus(v as any)}
+        />
 
         {/* ── DataControlsBar ── */}
         <motion.div
@@ -509,8 +482,7 @@ export default function DebtsPage() {
             obligationName={unpaidDebtForPayment.name}
             personName={unpaidDebtForPayment.creditor}
             remainingAmount={
-              unpaidDebtForPayment.totalAmount -
-              unpaidDebtForPayment.paidAmount
+              unpaidDebtForPayment.totalAmount - unpaidDebtForPayment.paidAmount
             }
             apiPath={`/api/debts/${unpaidDebtForPayment.id}/payments`}
             titleLabel="Utang Aktif"
