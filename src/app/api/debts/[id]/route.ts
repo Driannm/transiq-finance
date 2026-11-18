@@ -140,8 +140,8 @@ export async function PATCH(
 
     const body = await request.json();
 
-    // ─── LOGIKA PELUNASAN SWIPE (Jika status dikirim "paid") ───
-    if (body.status === "paid") {
+    // ─── LOGIKA PELUNASAN SWIPE (Jika status dikirim "paid" atau "settled") ───
+    if (body.status === "paid" || body.status === "settled") {
       const currentPaid = existingDebt.payments.reduce((sum, p) => sum + p.transaction.amount, 0);
       const remaining = existingDebt.transaction.amount - currentPaid;
 
