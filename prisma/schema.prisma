@@ -50,12 +50,30 @@ enum TransactionType {
   TRANSFER
   DEBT
   LOAN
+  ASSET_PURCHASE
+  ASSET_SELL
 }
 
 enum DebtLoanStatus {
   ACTIVE
   PAID
   OVERDUE
+}
+
+enum AssetStatus {
+  OWNED
+  SOLD
+  DISPOSED
+  GIFTED
+}
+
+enum AssetActivityType {
+  OPENING
+  PURCHASE
+  RECEIVE
+  SELL
+  DISPOSE
+  GIFT
 }
 
 // ─── USER & FAMILY ─────────────────────────────
@@ -179,6 +197,7 @@ model Transaction {
   // Relasi timbal balik untuk pencatatan pembayaran utang (1:1)
   debtPayment DebtPayment?
   loanPayment LoanPayment?
+  assetActivity AssetActivity?
 
   createdAt DateTime  @default(now())
   deletedAt DateTime? // [FIX #1] Soft delete
@@ -362,10 +381,18 @@ model TransactionGroupItem {
 model Asset {
   id        String  @id @default(cuid())
   name      String
-  value     Float?
   ownerName String
-  // [FIX #7] Tambah kategori aset untuk filter di dashboard
-  category  String? // e.g. "property", "vehicle", "investment", "savings"
+  // Tetap String? agar data lama aman. Divalidasi via zod (lihat lifecycle.ts).
+  category  String? // "vehicle" | "property" | "electronics" | "gold" | "other"
+
+  // Nilai: Float mengikuti Card.balance / Transaction.amount yang sudah ada.
+  currentValue Float? @map("value") // kolom lama `value` dipakai ulang, tanpa data hilang
+  costBasis    Float?
+
+  status          AssetStatus       @default(OWNED)
+  acquisitionType AssetActivityType @default(OPENING) // hanya OPENING | PURCHASE | RECEIVE
+  acquiredAt      DateTime          @default(now())
+  exitedAt        DateTime? // wajib terisi jika status != OWNED
 
   userId   String
   user     User    @relation(fields: [userId], references: [id])
@@ -374,11 +401,49 @@ model Asset {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  deletedAt DateTime? // [FIX #1] Soft delete
+  deletedAt DateTime?
 
-  @@index([userId])
-  @@index([familyId])
+  activities AssetActivity[]
+  valuations AssetValuation[]
+
+  @@index([userId, status])
+  @@index([familyId, status])
   @@map("assets")
+}
+
+model AssetActivity {
+  id         String            @id @default(cuid())
+  assetId    String
+  asset      Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type       AssetActivityType
+  amount     Float? // uang yang terlibat (PURCHASE, SELL)
+  realizedGainLoss Float? // hanya SELL
+  occurredAt DateTime          @default(now())
+  notes      String?
+
+  // Link ke cash movement. BUKAN cash movement kedua.
+  // Hanya PURCHASE dan SELL yang punya nilai.
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId, occurredAt])
+  @@map("asset_activities")
+}
+
+model AssetValuation {
+  id       String   @id @default(cuid())
+  assetId  String
+  asset    Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  value    Float
+  valuedAt DateTime @default(now())
+  notes    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId, valuedAt])
+  @@map("asset_valuations")
 }
 
 model Category {
